@@ -1,3 +1,13 @@
+"""
+Guided wizard flow for pojolens-agents.
+
+Ownership:
+  - WizardPrompter interface and all prompter implementations live here.
+  - Wizard LOGIC (plan discovery, intent resolution, 7-step flow) lives here.
+  - All Textual widget/app/screen classes live in tui_console.py;
+    TextualWizardPrompter imports _ChoiceApp/_ConfirmApp/_InputApp from there.
+  - textual_is_available() is the canonical copy from tui_app.
+"""
 from __future__ import annotations
 
 import argparse
@@ -14,22 +24,7 @@ try:  # pragma: no cover - optional pretty console formatting
 except ImportError:  # pragma: no cover - rich is optional outside textual installs
     Console = None  # type: ignore[assignment]
 
-TEXTUAL_IMPORT_ERROR: Exception | None = None
-try:  # pragma: no cover - optional TUI wizard prompts
-    from textual.app import App, ComposeResult
-    from textual.binding import Binding
-    from textual.containers import Vertical
-    from textual.widgets import Footer, Input, OptionList, Static
-except ImportError as exc:  # pragma: no cover
-    TEXTUAL_IMPORT_ERROR = exc
-    App = object  # type: ignore[assignment]
-    ComposeResult = Any  # type: ignore[assignment]
-    Binding = object  # type: ignore[assignment]
-    Vertical = object  # type: ignore[assignment]
-    Footer = object  # type: ignore[assignment]
-    Input = object  # type: ignore[assignment]
-    OptionList = object  # type: ignore[assignment]
-    Static = object  # type: ignore[assignment]
+from pojo_lens_agents.tui_app import textual_is_available
 
 
 KNOWN_COMMANDS = {
@@ -55,10 +50,6 @@ KNOWN_COMMANDS = {
     "summarize-ledger",
     "wizard",
 }
-
-
-def textual_is_available() -> bool:
-    return TEXTUAL_IMPORT_ERROR is None
 
 
 @dataclass(frozen=True)
@@ -139,105 +130,10 @@ class ConsoleWizardPrompter(WizardPrompter):
         return raw or default
 
 
-if textual_is_available():
-    class _ChoiceApp(App[str | None]):
-        BINDINGS = [
-            Binding("enter", "submit", "Select"),
-            Binding("escape", "abort", "Abort"),
-            Binding("q", "abort", "Abort"),
-        ]
-
-        CSS = """
-        Screen { layout: vertical; }
-        #body { height: 1fr; }
-        OptionList { height: 1fr; }
-        """
-
-        def __init__(self, title_text: str, choices: list[PromptChoice], *, default_index: int = 0) -> None:
-            super().__init__()
-            self.title = title_text
-            self._choices = choices
-            self._default_index = max(min(default_index, len(choices) - 1), 0) if choices else 0
-
-        def compose(self) -> ComposeResult:
-            with Vertical(id="body"):
-                yield Static(self.title)
-                yield OptionList(*[
-                    f"{choice.label} - {choice.detail}" if choice.detail else choice.label
-                    for choice in self._choices
-                ], id="options")
-            yield Footer()
-
-        def on_mount(self) -> None:
-            if self._choices:
-                self.query_one(OptionList).highlighted = self._default_index
-
-        def action_submit(self) -> None:
-            options = self.query_one(OptionList)
-            index = int(options.highlighted or 0)
-            if 0 <= index < len(self._choices):
-                self.exit(self._choices[index].value)
-            self.exit(None)
-
-        def action_abort(self) -> None:
-            self.exit(None)
-
-
-    class _ConfirmApp(App[bool | None]):
-        BINDINGS = [
-            Binding("y", "yes", "Yes"),
-            Binding("n", "no", "No"),
-            Binding("enter", "default", "Default"),
-            Binding("escape", "abort", "Abort"),
-        ]
-
-        def __init__(self, question: str, *, default: bool = True) -> None:
-            super().__init__()
-            self.title = "Confirm"
-            self._question = question
-            self._default = default
-
-        def compose(self) -> ComposeResult:
-            yield Static(self._question)
-            yield Static(f"[y] yes  [n] no  [enter] {'yes' if self._default else 'no'}")
-            yield Footer()
-
-        def action_yes(self) -> None:
-            self.exit(True)
-
-        def action_no(self) -> None:
-            self.exit(False)
-
-        def action_default(self) -> None:
-            self.exit(self._default)
-
-        def action_abort(self) -> None:
-            self.exit(None)
-
-
-    class _InputApp(App[str | None]):
-        BINDINGS = [
-            Binding("enter", "submit", "Submit"),
-            Binding("escape", "abort", "Abort"),
-        ]
-
-        def __init__(self, question: str, *, default: str = "") -> None:
-            super().__init__()
-            self.title = "Input"
-            self._question = question
-            self._default = default
-
-        def compose(self) -> ComposeResult:
-            yield Static(self._question)
-            yield Input(value=self._default, id="input")
-            yield Footer()
-
-        def action_submit(self) -> None:
-            value = self.query_one(Input).value.strip()
-            self.exit(value or self._default)
-
-        def action_abort(self) -> None:
-            self.exit(None)
+# Textual prompt screen classes live in tui_console (all Textual UI lives there).
+# Import lazily so wizard can be imported without Textual installed.
+if textual_is_available():  # pragma: no cover
+    from pojo_lens_agents.tui_console import _ChoiceApp, _ConfirmApp, _InputApp
 
 
 class TextualWizardPrompter(WizardPrompter):  # pragma: no cover - interactive path

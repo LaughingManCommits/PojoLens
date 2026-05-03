@@ -1,6 +1,15 @@
 """
 Textual TUI operator console for pojolens-agents.
 
+Ownership:
+  - ALL Textual widget/screen/app classes live here:
+      ConsoleApp, CommandInput, _ExitConfirmModal, _ThreadLocalStdout,
+      _ChoiceApp, _ConfirmApp, _InputApp  (wizard prompt screens).
+  - ConsoleApp._dispatch delegates routing to console.route_line so the
+    branching logic is not duplicated; only the Rich-markup output differs.
+  - wizard.TextualWizardPrompter imports _ChoiceApp/_ConfirmApp/_InputApp
+    from this module.
+
 Retro cyberpunk aesthetic: neon green on dark, heavy borders,
 job queue panel, command history, thread-safe stdout capture.
 """
@@ -19,11 +28,11 @@ TEXTUAL_IMPORT_ERROR: Exception | None = None
 try:
     from textual.app import App, ComposeResult
     from textual.binding import Binding
-    from textual.containers import Container, Horizontal
+    from textual.containers import Container, Horizontal, Vertical
     from textual.events import Key
     from textual.reactive import reactive
     from textual.screen import ModalScreen
-    from textual.widgets import Button, Footer, Header, Input, Label, RichLog, Static
+    from textual.widgets import Button, Footer, Header, Input, Label, OptionList, RichLog, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
     App = object  # type: ignore[assignment,misc]
@@ -36,6 +45,20 @@ from pojo_lens_agents.console import (
     LONG_RUNNING_COMMANDS,
     ConsoleJob,
     ConsoleSession,
+    DispatchRoute,
+    ROUTE_ARG_ERROR,
+    ROUTE_BG_JOB,
+    ROUTE_CLEAR,
+    ROUTE_EMPTY,
+    ROUTE_EXIT,
+    ROUTE_FOCUS,
+    ROUTE_HELP,
+    ROUTE_INLINE,
+    ROUTE_JOBS,
+    ROUTE_PARSE_ERROR,
+    ROUTE_UNKNOWN_CMD,
+    ROUTE_UNKNOWN_META,
+    route_line,
 )
 from pojo_lens_agents.orchestrator_contracts import OrchestratorError, PromotionBlockedError
 
@@ -149,9 +172,112 @@ class _ExitConfirmModal(ModalScreen):  # type: ignore[type-arg]
         self.dismiss(event.button.id == "confirm-yes")
 
 
-# ── Main app ───────────────────────────────────────────────────────────────────
+# ── Wizard prompt screens ──────────────────────────────────────────────────────
+# These are standalone Textual apps used by TextualWizardPrompter (wizard.py).
+# They live here because tui_console.py owns all Textual widget/app classes.
 
-class ConsoleApp(App):
+if TEXTUAL_IMPORT_ERROR is None:
+    class _ChoiceApp(App):  # type: ignore[type-arg]
+        BINDINGS = [
+            Binding("enter", "submit", "Select"),
+            Binding("escape", "abort", "Abort"),
+            Binding("q", "abort", "Abort"),
+        ]
+
+        CSS = """
+        Screen { layout: vertical; }
+        #body { height: 1fr; }
+        OptionList { height: 1fr; }
+        """
+
+        def __init__(self, title_text: str, choices: list[Any], *, default_index: int = 0) -> None:
+            super().__init__()
+            self.title = title_text
+            self._choices = choices
+            self._default_index = max(min(default_index, len(choices) - 1), 0) if choices else 0
+
+        def compose(self) -> ComposeResult:
+            with Vertical(id="body"):
+                yield Static(self.title)
+                yield OptionList(*[
+                    f"{choice.label} - {choice.detail}" if choice.detail else choice.label
+                    for choice in self._choices
+                ], id="options")
+            yield Footer()
+
+        def on_mount(self) -> None:
+            if self._choices:
+                self.query_one(OptionList).highlighted = self._default_index
+
+        def action_submit(self) -> None:
+            options = self.query_one(OptionList)
+            index = int(options.highlighted or 0)
+            if 0 <= index < len(self._choices):
+                self.exit(self._choices[index].value)
+            self.exit(None)
+
+        def action_abort(self) -> None:
+            self.exit(None)
+
+    class _ConfirmApp(App):  # type: ignore[type-arg]
+        BINDINGS = [
+            Binding("y", "yes", "Yes"),
+            Binding("n", "no", "No"),
+            Binding("enter", "default", "Default"),
+            Binding("escape", "abort", "Abort"),
+        ]
+
+        def __init__(self, question: str, *, default: bool = True) -> None:
+            super().__init__()
+            self.title = "Confirm"
+            self._question = question
+            self._default = default
+
+        def compose(self) -> ComposeResult:
+            yield Static(self._question)
+            yield Static(f"[y] yes  [n] no  [enter] {'yes' if self._default else 'no'}")
+            yield Footer()
+
+        def action_yes(self) -> None:
+            self.exit(True)
+
+        def action_no(self) -> None:
+            self.exit(False)
+
+        def action_default(self) -> None:
+            self.exit(self._default)
+
+        def action_abort(self) -> None:
+            self.exit(None)
+
+    class _InputApp(App):  # type: ignore[type-arg]
+        BINDINGS = [
+            Binding("enter", "submit", "Submit"),
+            Binding("escape", "abort", "Abort"),
+        ]
+
+        def __init__(self, question: str, *, default: str = "") -> None:
+            super().__init__()
+            self.title = "Input"
+            self._question = question
+            self._default = default
+
+        def compose(self) -> ComposeResult:
+            yield Static(self._question)
+            yield Input(value=self._default, id="input")
+            yield Footer()
+
+        def action_submit(self) -> None:
+            value = self.query_one(Input).value.strip()
+            self.exit(value or self._default)
+
+        def action_abort(self) -> None:
+            self.exit(None)
+
+
+# ── Main operator console app ──────────────────────────────────────────────────
+
+class ConsoleApp(App):  # type: ignore[type-arg]
     """Retro cyberpunk operator console."""
 
     CSS = """
@@ -444,29 +570,34 @@ class ConsoleApp(App):
         self._dispatch(line)
 
     def _dispatch(self, line: str) -> None:
-        stripped = line.strip()
-        lower = stripped.lower()
+        """Route input line via shared route_line; render results as Rich markup."""
+        route = route_line(line, self._parse_args_fn, self._handlers)
 
-        # ── Meta-commands ──────────────────────────────────────────────────────
-        if lower in {"/exit", "exit", "quit", "/quit"}:
+        if route.action == ROUTE_EMPTY:
+            return
+
+        if route.action == ROUTE_EXIT:
             self.run_worker(self._exit_flow())
             return
 
-        if lower == "/help":
+        if route.action == ROUTE_HELP:
             self._show_help()
             return
 
-        if lower == "/jobs":
+        if route.action == ROUTE_JOBS:
             self._cmd_jobs()
             return
 
-        if lower.startswith("/focus"):
-            parts = stripped.split(None, 1)
-            job_id = parts[1].strip() if len(parts) > 1 else ""
+        if route.action == ROUTE_FOCUS:
+            job_id = route.job_id
             jobs = self._session.all_jobs()
             job = (jobs[-1] if jobs else None) if not job_id else self._session.get_job(job_id)
             if job is None:
-                self._write("[#ffaa00]>> no job found[/]" if not job_id else f"[#ffaa00]>> unknown: {job_id}[/]")
+                self._write(
+                    "[#ffaa00]>> no job found[/]"
+                    if not job_id
+                    else f"[#ffaa00]>> unknown: {job_id}[/]"
+                )
             else:
                 c = {"running": "#ffaa00", "completed": "#00ff41", "failed": "#ff2244"}.get(
                     job.status, "#a0ffa0"
@@ -477,52 +608,52 @@ class ConsoleApp(App):
                 )
             return
 
-        if lower == "/clear":
+        if route.action == ROUTE_CLEAR:
             self.action_clear_output()
             return
 
-        if stripped.startswith("/"):
-            token = stripped.split()[0]
-            self._write(f"[#ffaa00]>> unknown command: {token}  (type /help)[/]")
+        if route.action == ROUTE_UNKNOWN_META:
+            self._write(f"[#ffaa00]>> unknown command: {route.message}  (type /help)[/]")
             return
 
-        # ── Orchestrator commands ──────────────────────────────────────────────
-        try:
-            tokens = shlex.split(stripped)
-        except ValueError as exc:
-            self._write(f"[#ff2244]>> parse error: {exc}[/]")
+        if route.action == ROUTE_PARSE_ERROR:
+            self._write(f"[#ff2244]>> parse error: {route.message}[/]")
             return
 
-        try:
-            args = self._parse_args_fn(tokens)
-        except SystemExit:
-            return
-        except Exception as exc:
-            self._write(f"[#ff2244]>> error parsing: {exc}[/]")
+        if route.action == ROUTE_ARG_ERROR:
+            if route.message:
+                self._write(f"[#ff2244]>> error parsing: {route.message}[/]")
             return
 
-        command = str(getattr(args, "command", "") or "")
-        handler = self._handlers.get(command)
-        if handler is None:
-            self._write(f"[#ffaa00]>> unknown command: {command!r}  (type /help)[/]")
+        if route.action == ROUTE_UNKNOWN_CMD:
+            self._write(f"[#ffaa00]>> unknown command: {route.message!r}  (type /help)[/]")
             return
 
-        json_output = bool(getattr(args, "json", False))
+        json_output = route.json_output
 
-        if command in LONG_RUNNING_COMMANDS:
-            job = self._session.add_job(stripped)
-            self._write(f"[#ffaa00]>> [{job.job_id}] queued :: {command}[/]  [dim](/jobs to monitor)[/]")
+        if route.action == ROUTE_BG_JOB:
+            job = self._session.add_job(line.strip())
+            self._write(
+                f"[#ffaa00]>> [{job.job_id}] queued :: {route.command}[/]"
+                f"  [dim](/jobs to monitor)[/]"
+            )
             self.run_worker(
-                lambda j=job, h=handler, a=args, jo=json_output: self._bg_job_worker(j, h, a, jo),
+                lambda j=job, h=route.handler, a=route.args, jo=json_output: (
+                    self._bg_job_worker(j, h, a, jo)
+                ),
                 thread=True,
                 name=job.job_id,
             )
-        else:
+            return
+
+        if route.action == ROUTE_INLINE:
             self._set_busy(True)
             self.run_worker(
-                lambda h=handler, a=args, jo=json_output: self._inline_worker(h, a, jo),
+                lambda h=route.handler, a=route.args, jo=json_output: (
+                    self._inline_worker(h, a, jo)
+                ),
                 thread=True,
-                name=f"inline-{command}",
+                name=f"inline-{route.command}",
             )
 
     # ── Workers ────────────────────────────────────────────────────────────────

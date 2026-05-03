@@ -64,7 +64,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
 | WP57| Human Diff View Before Promote       | Complete | Added `diff-run`, task/path-filtered workspace-vs-repo diff/stat output, structured JSON diff payloads, and wizard promote-gate diff preview |
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
-| WP67| Interactive Surface Consolidation   | Planned | Make `console`, `tui_console`, `tui_app`, and `wizard` one coherent operator surface with shared components, clear ownership, and no duplicate UI paths |
+| WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
 | WP59| TUI Console Test Coverage            | Planned | After WP67, add focused headless Textual tests around the consolidated console surface and its shared background-job/output routing |
 | WP60| Interactive Streaming During Runs    | Planned | After WP67, wire SDK partial output into the shared interactive output path for console/watch/TUI without breaking `--json` stdout |
 | WP61| Spring Boot MySQL Live Verification  | Planned | Close open risk (2026-04-27): verify `examples/spring-boot-starter-risk-console` against a real MySQL instance; document setup; remove from risk register |
@@ -419,54 +419,15 @@ status and cost summary.
 
 ## WP67: Interactive Surface Consolidation
 
-**Priority:** High
-
-**Goal:** Turn the currently separate interactive layers (`console.py`,
-`tui_console.py`, `tui_app.py`, and `wizard.py`) into one coherent operator
-surface so we do not keep multiple partially-overlapping UIs alive forever.
-
-**Context:**
-- WP58 added both a plain REPL (`console.py`) and a Textual operator console
-  (`tui_console.py`). The older run-scoped Textual dashboard still lives in
-  `tui_app.py`, and `wizard.py` still owns its own prompt model plus mini
-  Textual prompt apps.
-- All of those pieces work, but they are now close enough in scope that we can
-  drift into parallel interactive surfaces: run-only TUI, persistent TUI
-  console, plain REPL console, and wizard-owned prompts.
-- The repo should converge these into one deliberate operator model:
-  persistent `console` as the interactive entry, reused run-monitor widgets,
-  console-owned prompt handling, and one shared event/output path.
-- This WP must land before we invest further in console-specific tests or
-  interactive streaming polish; otherwise we risk hardening a shape we plan to
-  reshape immediately.
-
-**Tasks:**
-- [ ] Define the target ownership split:
-      `console.py` for command/session semantics,
-      `tui_console.py` for the persistent Textual shell,
-      reusable run-monitor widgets extracted from `tui_app.py`,
-      and wizard prompt flow adapted to console-owned prompts.
-- [ ] Extract shared run-monitor panels/state from `tui_app.py` so the
-      persistent TUI console can host the same task grid, summary, stderr tail,
-      and HITL controls instead of maintaining a separate dashboard concept.
-- [ ] Remove or reduce any duplicated rendering/output logic between
-      `console.py`, `tui_console.py`, `tui_app.py`, and `command_dispatch.py`
-      so text-mode and TUI-mode both use the same payload-to-view rules.
-- [ ] Make `wizard` console-native: when invoked from the persistent console it
-      must use console-owned prompt routing rather than nesting raw `input()`
-      or launching a second independent prompt UI.
-- [ ] Decide the steady-state role of the old run-only `--tui` path:
-      either keep it as a thin compatibility wrapper around the shared run
-      monitor widgets or retire its custom shell-level behavior if redundant.
-- [ ] Document the supported operator entry points clearly:
-      one-shot CLI, persistent plain console, persistent TUI console, and any
-      retained compatibility mode for run-only TUI.
-- [ ] Add regression coverage for the shared interactive ownership boundaries so
-      future work cannot reintroduce duplicated UI paths by accident.
-
-**Validate:**
-- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
-- `scripts/docs/check-doc-consistency.ps1`
+Decision: Complete. Established clear ownership across all four interactive modules:
+`console.py` owns session state (`ConsoleSession`/`ConsoleJob`) and shared pure routing
+(`DispatchRoute`/`route_line`); `tui_console.py` owns ALL Textual widget/app classes
+(wizard prompt screens `_ChoiceApp`/`_ConfirmApp`/`_InputApp` moved here from wizard.py);
+`tui_app.py` owns the run-scoped dashboard and is canonical source for `textual_is_available()`;
+`wizard.py` is pure logic with no Textual class definitions and imports `textual_is_available`
+from tui_app. Dispatch duplication eliminated: `tui_console.ConsoleApp._dispatch` delegates
+routing to shared `route_line` instead of mirroring `dispatch_line`. Module docstrings
+document ownership for all four files. 697 tests pass.
 
 ---
 

@@ -1,3 +1,15 @@
+"""
+Run-scoped Textual dashboard for pojolens-agents.
+
+Ownership:
+  - textual_is_available() / require_textual() — canonical source; imported by
+    wizard.py and used by orchestrator_app via tui_layer proxy.
+  - OrchestratorApp — async event-queue-driven dashboard for a single plan run:
+    TaskGrid (task status / cost / elapsed), RunSummaryBar, LogPane (stderr tail),
+    FooterBar (HITL approve/abort bindings).
+  - This module is NOT a persistent REPL; it is scoped to one run invocation.
+    The persistent operator REPL lives in console.py / tui_console.py.
+"""
 from __future__ import annotations
 
 import asyncio
