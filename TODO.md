@@ -63,6 +63,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP55| Guided Wizard Mode                   | Complete | No-args or natural-language wizard that walks the operator through preflight, run, review, promote, and validate-run with resume/retry entry points |
 | WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
 | WP57| Human Diff View Before Promote       | Complete | Added `diff-run`, task/path-filtered workspace-vs-repo diff/stat output, structured JSON diff payloads, and wizard promote-gate diff preview |
+| WP58| Persistent Operator Console          | Planned | Opt-in `console` session with `/exit`, command input plus live run monitoring, background job management, and console-native wizard integration |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
@@ -1746,6 +1747,58 @@ changed before deciding to promote.
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/ai/claude-orchestrator.ps1 diff-run .claude-orchestrator/runs/<run-id> --stat --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP58: Persistent Operator Console
+
+**Priority:** Medium
+
+**Goal:** Add an opt-in long-lived operator console that stays open until the
+user types `/exit`, accepts orchestrator commands during the session, and
+keeps live run output visible while commands are issued.
+
+**Context:**
+- The current TUI is run-scoped only: it monitors one `run` / `resume` /
+  `retry` invocation and exits when that command finishes.
+- Operators want a Claude/Codex-like CLI shell where they can keep one session
+  open, issue multiple orchestrator commands, and monitor background work
+  without relaunching the process each time.
+- This should be opt-in and must not replace the current one-shot CLI
+  contract. Existing `run`, `wizard`, `status`, `review`, `cleanup`, and
+  other commands should keep their current non-console behavior.
+- The right shape is a real operator console, not a naive stdin loop layered
+  on top of the current TUI. It needs session lifecycle, job management,
+  command routing, and safe handling of interactive flows such as `wizard`.
+
+**Tasks:**
+- [ ] Add a new `console` command to `pojolens-agents` / `claude-orchestrator`
+      as an explicit opt-in session mode.
+- [ ] Keep the console alive until `/exit` is entered; add at least `/help`,
+      `/jobs`, `/focus <job>`, `/clear`, and `/exit`.
+- [ ] Support meaningful orchestrator commands from the console input surface:
+      `wizard`, `validate`, `plan`, `run`, `resume`, `retry`, `status`,
+      `inventory`, `review`, `diff-run`, `promote`, `validate-run`,
+      `evaluate-run`, `evaluate-corpus`, `cleanup`, `prune`,
+      `summarize-ledger`, and `config show`.
+- [ ] Run read-only or short commands inline, but execute long-running commands
+      such as `run` / `resume` / `retry` as managed background jobs whose live
+      output remains visible in the console.
+- [ ] Reuse the existing retained run event stream, watch formatting, and TUI
+      dashboard state plumbing instead of duplicating a second monitoring path.
+- [ ] Add a console-native command input layer and panel layout rather than
+      nesting the current standalone TUI inside another TUI.
+- [ ] Integrate `wizard` safely into the console so prompt ownership stays in
+      the console layer instead of trying to nest raw stdin/stdout prompts.
+- [ ] Keep `--tui` on one-shot commands working as-is; the new console should
+      be additive rather than a breaking replacement.
+- [ ] Add regression coverage for command parsing, session lifecycle, `/exit`,
+      background job tracking, and console-safe wizard execution.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 console`
 - `scripts/docs/check-doc-consistency.ps1`
 
 ---

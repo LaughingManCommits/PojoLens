@@ -21,5 +21,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-05-03`: Roadmap order is WP50 -> WP56 -> WP40 -> deferred WP18 -> Release Gate.
-- `2026-05-02`: WP50 is next unless the user chooses WP40 first: Rate-Limit-Aware Proactive Scheduling.
+- `2026-05-03`: Roadmap order is WP58 -> WP50 -> WP56 -> WP40 -> deferred WP18 -> Release Gate.
+- `2026-05-03`: WP58 is next: opt-in persistent operator console with `/exit`, live monitoring, and console-native command routing.
