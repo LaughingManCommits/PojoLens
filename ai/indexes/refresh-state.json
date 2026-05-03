@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-03T12:52:31.386264+02:00",
+  "generatedAt": "2026-05-03T13:48:46.084343+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "9d37b967c4eb4b976e3feabc46ba682f64d56528bb1c038d08c15829df5b393d",
+      "inputHash": "fe61c7f2c03baa00c5fcec2859dbe895ed60bf30b432d3e4ab230c2cfb363adf",
       "pathHashes": {
         "AGENTS.md": "39dbe35552b8de3ff6a217769f69cd7ed367764fd01a4cea7999ed3457cb8285",
         "ai/AGENTS.md": "f516448963e4bd9e440e947216ccc2defc0be99d94ccdd8bc11398f67276e846",
@@ -33,8 +33,8 @@
         "ai/orchestrator/skills/release/SKILL.md": "5572544fa136506fb7d217040a7dce3bb13d769a8b0f72356a67f1e6bdf7772b",
         "ai/orchestrator/SYSTEM-SPEC.md": "48b783cdd246f4bb93eaa99f8d59a232ea9ead18a6b1b62a800f114d79a72e41",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
-        "ai/state/current-state.md": "b3e8175864e143eae88b0f5e41bcf52048a714e4ae4bb2b86f642c7b9e00fc81",
-        "ai/state/handoff.md": "b436cb7e9dea774ff1d0fdc8ba382799d88544bbb8e6be4eb5598ae7db158017",
+        "ai/state/current-state.md": "6f71193d1c20eb51aa0e8dae343a16a316f956042d0b3c461dbeb4bb2b2a5189",
+        "ai/state/handoff.md": "306fc19d4987abd2f6d94529c0b505c263e7aefe5149cf2cb0bcd324491d97aa",
         "ai/state/recent-validations.md": "8a59cd48d009b24ed7db1332412cb4ab34996679522bbe77a9ddc94fc1aafb60",
         "CONTRIBUTING.md": "193ff34de08ff9c53d7ae23e8d75c14d2550413e494f81e55af6216401de8dfd",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -74,12 +74,12 @@
         "RELEASE.md": "fa49783f76b2911d4133959eb335e65287e87cb76c01540599e3489bc363247c",
         "scripts/ai/refresh-ai-memory.py": "3861ece631a3334d90bc50046955c3862b5c518d322272cc79d2869f22c2ce5d",
         "scripts/README.md": "5a6f82ee3501f22df6c8d43401912eec4260a6f00a68456fe48afa8f57515c96",
-        "TODO.md": "b6b21f5f0e8fa01ced1062d964ac40dfa8b9c428cabb72fbe1bffe021f21fb1f"
+        "TODO.md": "527ac0de69b17184ba10d74872192b42eed64a13d98dc13e134c0d9704b363ac"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "7d003b5f638e82e387159b82842e6e06ca5d10a918acecef788960094fec5243",
+      "inputHash": "03e5fa15419166134fcfe279c92a9dcf0e4e0f3d40a293273583872b0b24dee4",
       "pathHashes": {
         ".github/workflows/ci.yml": "a043bf6658e83e96f2e59db90d505d144437371462c99100299585bf46bc1c77",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -122,8 +122,8 @@
         "ai/orchestrator/tasks/example-review.json": "f3b7b9ede7af3fcb27665fe1ebfe24ca8036ba7d7b8e57d9921a0e1725c67531",
         "ai/orchestrator/tasks/example-trace-multibatch.json": "6992e800d5c7d27bf8a474958e86633b06af08ffb0220e026e59890575561c35",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
-        "ai/state/current-state.md": "b3e8175864e143eae88b0f5e41bcf52048a714e4ae4bb2b86f642c7b9e00fc81",
-        "ai/state/handoff.md": "b436cb7e9dea774ff1d0fdc8ba382799d88544bbb8e6be4eb5598ae7db158017",
+        "ai/state/current-state.md": "6f71193d1c20eb51aa0e8dae343a16a316f956042d0b3c461dbeb4bb2b2a5189",
+        "ai/state/handoff.md": "306fc19d4987abd2f6d94529c0b505c263e7aefe5149cf2cb0bcd324491d97aa",
         "ai/state/recent-validations.md": "8a59cd48d009b24ed7db1332412cb4ab34996679522bbe77a9ddc94fc1aafb60",
         "CONTRIBUTING.md": "193ff34de08ff9c53d7ae23e8d75c14d2550413e494f81e55af6216401de8dfd",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -640,7 +640,7 @@
         "scripts/quality/check-lint-baseline.ps1": "d98b8810001c01af065b44e5629f06a10ffb250b0897a4f824b13a672c6073b1",
         "scripts/quality/checkstyle-baseline.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "scripts/README.md": "5a6f82ee3501f22df6c8d43401912eec4260a6f00a68456fe48afa8f57515c96",
-        "TODO.md": "b6b21f5f0e8fa01ced1062d964ac40dfa8b9c428cabb72fbe1bffe021f21fb1f"
+        "TODO.md": "527ac0de69b17184ba10d74872192b42eed64a13d98dc13e134c0d9704b363ac"
       }
     },
     "symbols": {

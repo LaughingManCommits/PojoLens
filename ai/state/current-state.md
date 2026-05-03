@@ -5,6 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
+- `2026-05-03`: WP69 is queued next at high priority; planner becomes the first-class first stage inside `wizard` with clarification, staged setup, explicit approve/edit checkpoint, and execution handoff.
 - `2026-05-03`: WP68 + follow-ups complete; `Header` added to OrchestratorApp, DataTable column widths/right-align, wizard card containers; 837 tests pass.
 - `2026-05-03`: WP60 is complete; shared interactive streaming now reaches watch and TUI surfaces; 836 Python tests passed.
 - `2026-05-03`: WP50 is complete; proactive TPM/RPM throttling, wizard wiring, and follow-up-budget recompute landed; 799 tests passed.
@@ -21,7 +22,7 @@
 - Use `RELEASE.md` when the user wants a new cut.
 
 ## Risks
-- `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
+- No active orchestrator risks beyond the remaining roadmap queue.
 
 ## Next
-- `2026-05-03`: Roadmap order is WP56 -> WP61 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 -> Release Gate.
+- `2026-05-03`: Roadmap order is WP69 -> WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 -> Release Gate.

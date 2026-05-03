@@ -24,6 +24,9 @@ becoming part of the runtime artifact.
 - CLI, runtime layering, and any LangGraph backend must preserve the existing
   concurrent-ready task-plan model instead of collapsing to sequential-only
   execution.
+- Every WP that changes orchestrator behavior must update both
+  `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` in the same
+  package.
 
 ---
 
@@ -66,9 +69,9 @@ Execution order is dependency-first, not ticket-number order.
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
 | WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
 | WP68| Matrix Console Visual System        | Complete | Shared `_MTX_VARS` token set + `get_css_variables()` on all App subclasses; full Matrix CSS in `ConsoleApp` and `OrchestratorApp`; wizard prompts styled; `RunSummaryBar`/`FooterBar`/`_status_style()` use Matrix colors; 837 tests pass |
+| WP69| Planner-First Wizard Flow           | Planned | Make planner the first-class stage inside `wizard`: clarification loop, staged workspace/setup proposal, explicit approve/edit checkpoint, then execution handoff |
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
 | WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; tool-loop `[tool: name]` markers; `[task-id]` line-prefixed stderr; subprocess-provider gated; `_PARTIAL_FACTORY_CTX` contextvar injection; TUI `LogPane` streaming; 38 tests; 836 pass |
-| WP61| Spring Boot MySQL Live Verification  | Planned | Close open risk (2026-04-27): verify `examples/spring-boot-starter-risk-console` against a real MySQL instance; document setup; remove from risk register |
 | WP62| Hard Budget Cap Enforcement          | Planned | Harden `budgetBehavior=stop` to cancel remaining batches when `runBudgetUsd` is exceeded mid-run with proper events, manifest state, and regression coverage |
 | WP63| Worker Tool Registry                 | Planned | Replace 4 hardcoded SDK tools with a plan/agent-declared extensible registry; allow `extraTools` JSON in agent definitions for project-specific tools like `run_tests` or `lint_file` |
 | WP64| Conditional Task Routing             | Planned | Allow a task's output field value to gate follow-up task injection; extends WP49 injection with `conditionField`/`conditionValue` predicates so reviewer block can auto-route to an implementer-fix task |
@@ -502,6 +505,63 @@ kept as hardcoded hex (widget-level CSS limitation; values match theme).
 
 ---
 
+## WP69: Planner-First Wizard Flow
+
+**Priority:** High
+
+**Goal:** Make the planner the first-class first stage inside `wizard`, so the
+operator talks to the planner first, gets a staged workspace/setup proposal,
+reviews or edits that proposal, and only then launches worker execution.
+
+**Context:**
+- We already have `plan` plus wizard goal routing, but the current operator
+  flow still treats planning as a thin prelude instead of the main
+  conversation.
+- The ownership model should stay strict: `wizard` owns the operator workflow,
+  `planner` owns clarification and decomposition, and workers start only after
+  the planner stage is accepted.
+- This must integrate into the current wizard/console/run surface. It should
+  not become a detached side command that duplicates planning behavior outside
+  the main operator path.
+- The staged planner output must cover more than tasks alone: target scope,
+  proposed write boundaries, validation expectations, assumptions, and
+  execution posture.
+
+**Tasks:**
+- [ ] Define the planner-first wizard stage sequence explicitly:
+      goal intake -> clarification loop -> proposed plan/setup summary ->
+      operator approve/edit step -> execution handoff.
+- [ ] Refactor `wizard.py` so the default new-work path enters planner mode
+      first instead of jumping directly from goal capture to run preparation.
+- [ ] Let the planner ask bounded follow-up questions when the goal is
+      underspecified, especially around files/modules, intended outcome,
+      validation expectations, and risk/cost posture.
+- [ ] Extend the staged planner result so it includes proposed task graph,
+      write scopes, validation commands, execution-profile hints, and explicit
+      assumptions, not just task decomposition.
+- [ ] Add an explicit wizard checkpoint before `run`: accept as-is, revise
+      goal/constraints, narrow scope, or stop without executing.
+- [ ] Ensure the same planner-first behavior is reached from the persistent
+      console when users invoke `wizard`, so the planner stays inside the
+      integrated operator workflow.
+- [ ] Reuse existing planner/generated-plan machinery where possible; avoid
+      duplicating plan generation logic between `plan`, `wizard`, and console.
+- [ ] Update CLI/help/docs text so `wizard` is clearly the planner-first entry
+      point while `plan` remains a lower-level direct command.
+- [ ] Update both `ai/orchestrator/README.md` and
+      `ai/orchestrator/SYSTEM-SPEC.md` alongside the WP69 package so the
+      planner-first wizard flow is documented in the operator contract and
+      usage guide.
+- [ ] Add focused regression coverage for clarification flow, staged-plan
+      review, approve/edit branches, no-run exit path, and handoff from an
+      accepted planner stage into the existing execution pipeline.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
 ## WP59: TUI Console Test Coverage
 
 **Priority:** Medium
@@ -571,29 +631,6 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
-- `scripts/docs/check-doc-consistency.ps1`
-
----
-
-## WP61: Spring Boot MySQL Live Verification
-
-**Priority:** Medium
-
-**Goal:** Close the open risk from 2026-04-27: verify `examples/spring-boot-starter-risk-console` compiles and runs correctly against a real MySQL instance.
-
-**Context:**
-- The risk was flagged 2026-04-27 and has not been addressed. It blocks the Release Gate for the next release.
-- The example is the only module that exercises the Spring Boot starter with a live JDBC connection. Without a verified test, the published starter could silently break MySQL users.
-- Testcontainers is the lowest-friction path: a JUnit 5 `@Container` MySQL instance with the example's schema and a smoke-test query, runnable in CI without an external database.
-
-**Tasks:**
-- [ ] Add a `@Container`-backed integration test in `examples/spring-boot-starter-risk-console` using Testcontainers MySQL (or `mysql:8` image); verify the app context loads and at least one `RiskConsoleService` query completes.
-- [ ] Add a `testcontainers` Maven profile (`-Pintegration`) so the test does not run in the default build; document how to activate it in the example's `README.md`.
-- [ ] Run the integration test locally and record the pass result in `ai/state/recent-validations.md`.
-- [ ] Remove the MySQL risk bullet from `ai/state/current-state.md` once validated.
-
-**Validate:**
-- `mvn -B -ntp -f examples/spring-boot-starter-risk-console/pom.xml -Pintegration verify`
 - `scripts/docs/check-doc-consistency.ps1`
 
 ---
