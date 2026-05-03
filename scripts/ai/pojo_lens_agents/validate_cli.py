@@ -57,6 +57,9 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
         "agentOutputProfiles": {
             name: agent.output_profile for name, agent in sorted(agents.items())
         },
+        "agentExtraTools": {
+            name: [etd.name for etd in agent.extra_tools] for name, agent in sorted(agents.items())
+        },
     }
     if args.task_plan:
         plan_path = Path(args.task_plan).resolve()
@@ -123,6 +126,7 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
                         "dependencyMaterialization": deps["effective_dependency_materialization_mode"](task),
                         "workerValidationMode": task_worker_validation_modes[task.id],
                         "workerValidationModeSource": task_worker_validation_mode_sources[task.id],
+                        "extraTools": [etd.name for etd in deps["effective_task_tools"](task, agents[task.agent])],
                     }
                     for task in plan.tasks
                 ],

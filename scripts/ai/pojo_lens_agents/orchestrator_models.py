@@ -6,6 +6,7 @@ from typing import Any, Literal, cast
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from pojo_lens_agents.orchestrator_contracts import (
+    BASE_TOOL_NAMES,
     DEFAULT_ARTIFACT_BEHAVIOR,
     DEFAULT_CONTEXT_MODE,
     DEFAULT_FOLLOW_UP_BEHAVIOR,
@@ -109,6 +110,31 @@ class RunPolicyModel(ContractModel):
         return self
 
 
+class ExtraToolDefModel(ContractModel):
+    name: str
+    description: str
+    kind: Literal["shell", "script"]
+    template: str
+    timeout_sec: int = Field(default=30, alias="timeoutSec", ge=1)
+
+    @field_validator("name")
+    @classmethod
+    def name_not_base_tool(cls, value: str) -> str:
+        if value in BASE_TOOL_NAMES:
+            raise ValueError(
+                f"extraTool name '{value}' collides with a base workspace tool; "
+                f"choose a different name (base tools: {sorted(BASE_TOOL_NAMES)})"
+            )
+        return value
+
+    @field_validator("template")
+    @classmethod
+    def template_no_traversal(cls, value: str) -> str:
+        if ".." in value:
+            raise ValueError("extraTool template must not contain '..' (path traversal)")
+        return value
+
+
 class AgentDefinitionModel(ContractModel):
     name: str
     description: str
@@ -130,6 +156,7 @@ class AgentDefinitionModel(ContractModel):
     allowed_tools: list[str] = Field(default_factory=list, alias="allowedTools")
     disallowed_tools: list[str] = Field(default_factory=list, alias="disallowedTools")
     max_retries: int | None = Field(default=None, alias="maxRetries", ge=0)
+    extra_tools: list[ExtraToolDefModel] = Field(default_factory=list, alias="extraTools")
 
     @field_validator("workspace_mode")
     @classmethod
@@ -206,6 +233,7 @@ class TaskDefinitionModel(ContractModel):
     disallowed_tools: list[str] = Field(default_factory=list, alias="disallowedTools")
     max_retries: int | None = Field(default=None, alias="maxRetries", ge=0)
     injected_from: str | None = Field(default=None, alias="injectedFrom")
+    extra_tools: list[ExtraToolDefModel] = Field(default_factory=list, alias="extraTools")
 
     @property
     def files(self) -> list[str]:

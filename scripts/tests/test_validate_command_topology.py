@@ -542,6 +542,7 @@ class ValidateCommandTopologyTest(unittest.TestCase):
                     "dependencyMaterialization": "summary-only",
                     "workerValidationMode": "intents-only",
                     "workerValidationModeSource": "agent",
+                    "extraTools": [],
                 },
                 {
                     "id": "implement",
@@ -559,6 +560,7 @@ class ValidateCommandTopologyTest(unittest.TestCase):
                     "dependencyMaterialization": "summary-only",
                     "workerValidationMode": "intents-only",
                     "workerValidationModeSource": "task",
+                    "extraTools": [],
                 },
             ],
             payload["tasks"],

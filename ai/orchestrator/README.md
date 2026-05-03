@@ -110,6 +110,7 @@ Dry runs:
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
 - `validate --json` also reports each task's resolved `effort` and `effortSource`, so planner or worker reasoning level is inspectable before execution
 - `validate --json` also reports `topology` so you can inspect agent mix, read-only vs write-capable task count, batch shape, and conservative lean-plan warnings before a run
+- `validate --json` also reports `agentExtraTools` (agent-level declared tools by name) and per-task `extraTools` (resolved effective tool names) so the operator can verify custom tool wiring before execution
 - `validate --json`, `run --estimate --json`, and `run --dry-run --json` now also report `costEstimate` with per-task and per-batch USD/token ranges plus concurrency-adjusted wall-clock ranges
 
 Lifecycle helpers:

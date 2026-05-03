@@ -182,6 +182,16 @@ async def execute_task(
     worker_validation_mode: str | None = None,
     effort_override: str | None = None,
 ) -> TaskRunRecord:
+    _task_extra_tools = [
+        {
+            "name": etd.name,
+            "description": etd.description,
+            "kind": etd.kind,
+            "template": etd.template,
+            "timeout_sec": etd.timeout_sec,
+        }
+        for etd in effective_task_tools(task, agents[task.agent])
+    ]
     return await task_execution_layer.execute_task(
         run_dir,
         runtime_root,
@@ -222,6 +232,7 @@ async def execute_task(
             "diff_workspace_snapshots": diff_workspace_snapshots,
             "provider_mode": sdk_provider_layer.detect_provider_mode,
             "run_sdk_provider": sdk_provider_layer.run_sdk_provider,
+            "extra_tools": _task_extra_tools or None,
             "partial_text_writer_factory": _PARTIAL_FACTORY_CTX.get(),
             "run_subprocess": run_subprocess_async,
             "task_wait_action": task_wait_action,
@@ -1329,6 +1340,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
             "effective_task_read_paths": effective_task_read_paths,
             "effective_task_write_scope": effective_task_write_scope,
             "effective_task_skills": effective_task_skills,
+            "effective_task_tools": effective_task_tools,
             "effective_dependency_materialization_mode": effective_dependency_materialization_mode,
             "detect_parallel_scope_conflicts": detect_parallel_scope_conflicts,
             "compute_task_fingerprint": lambda task, agent, dep_recs, read_paths, model, effort: task_fingerprint_layer.compute_task_fingerprint(

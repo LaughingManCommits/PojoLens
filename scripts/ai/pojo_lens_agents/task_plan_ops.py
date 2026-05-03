@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from pojo_lens_agents.orchestrator_models import (
     AgentDefinitionModel,
+    ExtraToolDefModel,
     RunPolicyModel,
     TaskPlanModel,
     dump_contract,
@@ -16,6 +17,34 @@ from pojo_lens_agents.orchestrator_models import (
 
 def _contract_error(location: str, exc: ValidationError, *, error_factory) -> Exception:
     return error_factory(f"{location}: typed contract validation failed: {validation_error_summary(exc)}")
+
+
+def _load_extra_tools(
+    raw_list: Any,
+    *,
+    location: str,
+    error_factory: Any,
+    extra_tool_def_factory: Any,
+) -> list:
+    if raw_list is None:
+        return []
+    if not isinstance(raw_list, list):
+        raise error_factory(f"{location}: extraTools must be an array")
+    tools = []
+    for i, raw in enumerate(raw_list):
+        tool_location = f"{location}:extraTools[{i}]"
+        try:
+            model = ExtraToolDefModel.model_validate(raw)
+        except ValidationError as exc:
+            raise error_factory(f"{tool_location}: {validation_error_summary(exc)}") from exc
+        tools.append(extra_tool_def_factory(
+            name=model.name,
+            description=model.description,
+            kind=model.kind,
+            template=model.template,
+            timeout_sec=model.timeout_sec,
+        ))
+    return tools
 
 
 def load_run_policy(payload: Any, *, location: str, deps: dict[str, Any]) -> Any:
@@ -138,6 +167,12 @@ def load_task_definition(
         disallowed_tools=deps["require_string_list"](payload, "disallowedTools", location=location),
         max_retries=deps["require_optional_int"](payload, "maxRetries", location=location),
         injected_from=deps["require_optional_string"](payload, "injectedFrom", location=location),
+        extra_tools=_load_extra_tools(
+            payload.get("extraTools"),
+            location=location,
+            error_factory=deps["error_factory"],
+            extra_tool_def_factory=deps["extra_tool_def_factory"],
+        ),
     )
 
 
@@ -244,6 +279,12 @@ def load_agents(path: Path, *, deps: dict[str, Any]) -> dict[str, Any]:
             allowed_tools=deps["require_string_list"](definition, "allowedTools", location=location),
             disallowed_tools=deps["require_string_list"](definition, "disallowedTools", location=location),
             max_retries=deps["require_optional_int"](definition, "maxRetries", location=location),
+            extra_tools=_load_extra_tools(
+                definition.get("extraTools"),
+                location=location,
+                error_factory=deps["error_factory"],
+                extra_tool_def_factory=deps["extra_tool_def_factory"],
+            ),
         )
         try:
             AgentDefinitionModel.model_validate(dump_contract(agent))

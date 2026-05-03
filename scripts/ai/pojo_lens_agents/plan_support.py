@@ -29,6 +29,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_SKILL_REGISTRY_PATH,
     DEFAULT_TASK_TIMEOUT_SEC,
     DEFAULT_WORKER_VALIDATION_MODE,
+    ExtraToolDef,
     IMPLEMENTER_AGENT_NAME,
     LEGACY_WORKER_VALIDATION_MODES,
     MAX_HYDRATED_FILE_BYTES,
@@ -284,6 +285,7 @@ def load_task_definition(payload: Any, agents: dict[str, AgentDefinition], *, lo
         deps={
             "error_factory": OrchestratorError,
             "task_definition_factory": TaskDefinition,
+            "extra_tool_def_factory": ExtraToolDef,
             "require_string": require_string,
             "require_string_list": require_string_list,
             "require_optional_string": require_optional_string,
@@ -325,6 +327,7 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
             "read_text": read_text,
             "error_factory": OrchestratorError,
             "agent_definition_factory": AgentDefinition,
+            "extra_tool_def_factory": ExtraToolDef,
             "require_optional_string": require_optional_string,
             "require_optional_int": require_optional_int,
             "require_optional_float": require_optional_float,
@@ -370,6 +373,7 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
             "shared_context_factory": SharedContext,
             "task_definition_factory": TaskDefinition,
             "task_plan_factory": TaskPlan,
+            "extra_tool_def_factory": ExtraToolDef,
             "require_string": require_string,
             "require_string_list": require_string_list,
             "require_optional_string": require_optional_string,
@@ -847,6 +851,13 @@ def agent_payload_for_claude(
         if name in selected
     }
     return json.dumps(payload, separators=(",", ":"))
+
+
+def effective_task_tools(task: TaskDefinition, agent: AgentDefinition) -> list[ExtraToolDef]:
+    """Task-level extraTools override agent-level when non-empty."""
+    if task.extra_tools:
+        return list(task.extra_tools)
+    return list(agent.extra_tools)
 
 
 def effective_task_skills(task: TaskDefinition, agent: AgentDefinition) -> list[str]:

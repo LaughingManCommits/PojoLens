@@ -486,6 +486,7 @@ async def execute_task(
                 workspace_root=prepared_workspace,
                 timeout_sec=task.timeout_sec or agent.timeout_sec,
                 on_partial_text=_partial_cb,
+                extra_tools=deps.get("extra_tools") or None,
             )
             return_code = 1 if _sdk_result.error else 0
             stdout_text = _sdk_result.text

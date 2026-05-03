@@ -186,6 +186,64 @@ def execute_workspace_tool(
     return f"Error: unknown tool '{name}'"
 
 
+def _build_extra_tool_schema(tool: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": tool["name"],
+        "description": tool["description"],
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "args": {"type": "string", "description": "Arguments to pass to the tool"},
+            },
+            "required": ["args"],
+        },
+    }
+
+
+def execute_extra_tool(
+    name: str,
+    inputs: dict[str, Any],
+    *,
+    extra_tools_by_name: dict[str, dict[str, Any]],
+    workspace_root: Path,
+) -> str:
+    tool_def = extra_tools_by_name.get(name)
+    if tool_def is None:
+        return f"Error: unknown extra tool '{name}'"
+    template = str(tool_def.get("template", ""))
+    args = str(inputs.get("args", ""))
+    timeout_sec = int(tool_def.get("timeout_sec", 30))
+    kind = str(tool_def.get("kind", ""))
+    if kind == "shell":
+        try:
+            command = template.format(args=args)
+        except KeyError:
+            command = f"{template} {args}"
+    elif kind == "script":
+        command = f"{template} {args}"
+    else:
+        return f"Error: unknown extra tool kind '{kind}'"
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            cwd=workspace_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_sec,
+        )
+        combined = result.stdout + result.stderr
+        if len(combined) > MAX_TOOL_OUTPUT_CHARS:
+            combined = combined[:MAX_TOOL_OUTPUT_CHARS] + "\n...(truncated)"
+        return combined if combined.strip() else f"(exit {result.returncode})"
+    except subprocess.TimeoutExpired:
+        return f"Error: extra tool '{name}' timed out after {timeout_sec}s"
+    except OSError as exc:
+        return f"Error running extra tool '{name}': {exc}"
+
+
 # ---------------------------------------------------------------------------
 # Usage mapping
 # ---------------------------------------------------------------------------
@@ -275,6 +333,7 @@ def run_sdk_provider(
     max_tokens: int = DEFAULT_MAX_TOKENS,
     bash_timeout_sec: int = DEFAULT_BASH_TIMEOUT_SEC,
     on_progress: Callable[[int], None] | None = None,
+    extra_tools: list[dict[str, Any]] | None = None,
 ) -> SdkProviderResult:
     """
     Execute a worker task via the Anthropic SDK with workspace tool use.
@@ -300,6 +359,9 @@ def run_sdk_provider(
     client = anthropic.Anthropic(timeout=float(timeout_sec))
     messages: list[dict[str, Any]] = [{"role": "user", "content": user_prompt}]
     total_usage: dict[str, Any] | None = None
+    _extra_list = extra_tools or []
+    _extra_by_name: dict[str, dict[str, Any]] = {t["name"]: t for t in _extra_list}
+    effective_tools = list(WORKSPACE_TOOLS) + [_build_extra_tool_schema(t) for t in _extra_list]
 
     try:
         for iteration in range(MAX_TOOL_ITERATIONS + 1):
@@ -312,7 +374,7 @@ def run_sdk_provider(
                     model=effective_model,
                     system=system_prompt,
                     messages=messages,
-                    tools=WORKSPACE_TOOLS,
+                    tools=effective_tools,
                     max_tokens=max_tokens,
                 ) as stream:
                     for text_delta in stream.text_stream:
@@ -327,7 +389,7 @@ def run_sdk_provider(
                     model=effective_model,
                     system=system_prompt,
                     messages=messages,
-                    tools=WORKSPACE_TOOLS,
+                    tools=effective_tools,
                     max_tokens=max_tokens,
                 )
 
@@ -361,12 +423,21 @@ def run_sdk_provider(
                         on_partial_text(f"\n[tool: {block.name}]\n")
                 tool_results: list[dict[str, Any]] = []
                 for block in tool_use_blocks:
-                    tool_output = execute_workspace_tool(
-                        block.name,
-                        dict(block.input) if block.input else {},
-                        workspace_root=workspace_root,
-                        bash_timeout_sec=bash_timeout_sec,
-                    )
+                    block_inputs = dict(block.input) if block.input else {}
+                    if block.name in _extra_by_name:
+                        tool_output = execute_extra_tool(
+                            block.name,
+                            block_inputs,
+                            extra_tools_by_name=_extra_by_name,
+                            workspace_root=workspace_root,
+                        )
+                    else:
+                        tool_output = execute_workspace_tool(
+                            block.name,
+                            block_inputs,
+                            workspace_root=workspace_root,
+                            bash_timeout_sec=bash_timeout_sec,
+                        )
                     tool_results.append(
                         {
                             "type": "tool_result",

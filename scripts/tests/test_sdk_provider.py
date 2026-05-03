@@ -220,12 +220,16 @@ class ExecuteWorkspaceToolStrReplaceTest(unittest.TestCase):
 
 class ExecuteWorkspaceToolBashTest(unittest.TestCase):
     def test_bash_echo(self):
+        import subprocess as _sp
         with tempfile.TemporaryDirectory() as tmpdir:
             root = pathlib.Path(tmpdir)
-            result = execute_workspace_tool(
-                "bash", {"command": "echo hello"}, workspace_root=root
-            )
+            fake = _sp.CompletedProcess("echo hello", 0, stdout="hello\n", stderr="")
+            with patch.object(_sp, "run", return_value=fake) as mock_run:
+                result = execute_workspace_tool(
+                    "bash", {"command": "echo hello"}, workspace_root=root
+                )
             self.assertIn("hello", result)
+            self.assertEqual(mock_run.call_args[0][0], "echo hello")
 
     def test_bash_exit_code_nonzero_returns_output(self):
         with tempfile.TemporaryDirectory() as tmpdir:
