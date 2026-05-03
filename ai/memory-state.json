@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-03T15:23:12.839012+02:00",
-  "generation": "20260503T132312-46984-1777814592841815700",
+  "generatedAt": "2026-05-03T15:33:49.558630+02:00",
+  "generation": "20260503T133349-43248-1777815229562044000",
   "git": {
-    "headCommit": "97db863ba81bb94a4216cdb63cf78a7f2f5d42e1",
+    "headCommit": "39719c0c1402c9fe8b32b6b0f05c72b6976b1a02",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "ff4c06feda0c3e7a4d825049ba0a59cda573720a6fd311bf78e83b85a1175c69",
+  "inputsHash": "87aed3f6c68f986e95be91a0b0d6633f9fd1d43d2c62ec55103b999dba13d7c5",
   "hotContext": {
     "files": [
       {
@@ -142,13 +142,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "503bb70c1a80fbb7d732fb8128e562187ff51b70c17e0d15948ed4cc81eb2776",
+        "inputHash": "d39c1d41b29015feb77724cb2cc1167d8a3e271579dd5f6a8e204a9c2104fe65",
         "inputFiles": 69
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "89df6e55bc88fc3826a181c663d78f05f7d844763b13bdf9fefed3a90dabb60b",
+        "inputHash": "9591e16551543d7c1c2e707983b5350a5c66ca2e4d48f21de47bc4c7ac9f1d86",
         "inputFiles": 560
       },
       {

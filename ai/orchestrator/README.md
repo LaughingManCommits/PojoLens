@@ -10,7 +10,6 @@ Scope:
 Tracked files:
 - `README.md`: operating guide for local runs
 - `SYSTEM-SPEC.md`: portable AI memory plus orchestration contract for recreating this setup in another repo
-- `agents.json`: reusable worker definitions for the planner plus optional analyst, implementer, and reviewer roles
 - `agents.json`: reusable worker definitions for the planner plus optional analyst, implementer, reviewer, and lean docs-oriented worker roles
 - `agents/<role>/prompt.md`: file-backed role prompt bodies referenced from `agents.json`
 - `skills/registry.json`: tracked skill registry for worker-preload skills
@@ -38,12 +37,10 @@ Primary CLI:
 py -3 -m pip install -e .
 pojolens-agents validate ai/orchestrator/tasks/example-parallel.json --json
 pojolens-agents wizard --dry-run --json
-pojolens-agents --repo-root C:\data\pojolens run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json
+pojolens-agents run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json
 ```
 
-The console command is repo-local by design. Run it from the repository root,
-set `POJOLENS_REPO_ROOT`, or pass `--repo-root <path>` so the wrapper can find
-`scripts/ai/claude-orchestrator.py`.
+The CLI resolves the repo root relative to its installed package location. Run it from anywhere inside the repository after `pip install -e .`; direct script invocation via `scripts/ai/claude-orchestrator.ps1` also works from the repository root.
 
 Direct script commands:
 
@@ -80,6 +77,9 @@ scripts/ai/claude-orchestrator.ps1 inventory --json
 scripts/ai/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json
 scripts/ai/claude-orchestrator.ps1 cleanup .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" --dry-run
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --notify --json
+scripts/ai/claude-orchestrator.ps1 console
+scripts/ai/claude-orchestrator.ps1 summarize-ledger --json
 ```
 
 Root-level pointer scripts are intentionally not kept; use `pojolens-agents`
@@ -113,11 +113,14 @@ Dry runs:
 - `validate --json`, `run --estimate --json`, and `run --dry-run --json` now also report `costEstimate` with per-task and per-batch USD/token ranges plus concurrency-adjusted wall-clock ranges
 
 Lifecycle helpers:
+- `console` starts a persistent interactive operator session with a Textual TUI (or plain REPL with `--no-tui`); all subcommands are available inline; type `/exit` to quit
 - `resume` continues a retained run in place from that run's `selected-plan.json` snapshot, defaults to tasks that are unfinished or missing from the manifest, and preserves already-completed task records
 - `wizard --resume` and `wizard --retry` reuse the same retained-run helpers but keep the guided review/promote/validate flow on top
 - `diff-run` renders literal workspace-vs-repo diffs for retained runs, supports task and path filtering, and can emit either full unified diffs or `--stat` summaries before promotion
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
+- `run`, `resume`, and `retry` accept `--tpm-limit <N>` and `--rpm-limit <N>` for proactive token- and request-per-minute throttling; the dispatcher waits before each task dispatch to stay within the sliding-window budget and overrides `ANTHROPIC_TPM_LIMIT` / `ANTHROPIC_RPM_LIMIT` env vars when set
+- `run`, `resume`, and `retry` accept `--notify` to fire a completion notification (desktop, webhook, or Slack) when the run finishes without needing config file changes; `--no-notify` suppresses config-file notifications for one run; configure channels in the `[notifications]` section of `pojolens-agents.toml` with `desktop`, `webhook_url`, `slack_webhook_url`, and `notify_on = ["success"|"failure"|"always"]`; install `pojolens-agents[notifications]` for desktop support via `plyer`
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
 - `run` accepts `--estimate` to emit pre-flight model-pricing, token, cost, and wall-clock estimates without creating a run manifest
 - `run`, `resume`, `retry`, and `export-trace` accept `--otel-endpoint <url>`; when unset, `OTEL_EXPORTER_OTLP_ENDPOINT` enables OTEL emission automatically for live runs and retained trace export
@@ -131,6 +134,7 @@ Lifecycle helpers:
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
 - `export-trace` writes `pojo-lens-orchestrator-trace/v1` JSON under the run `trace/` directory by default, exporting run, batch, task, validation, and approval spans without changing the retained manifest
 - OTEL emission is opt-in. Install `pojolens-agents[otel]`, then set `OTEL_EXPORTER_OTLP_ENDPOINT` or pass `--otel-endpoint` to send the same retained span graph to any OTLP HTTP collector without a custom converter
+- `summarize-ledger` prints a human-readable or JSON summary of run-ledger entries; supports `--plan-name`, `--since`, and `--limit` filters
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 - the compatibility entrypoint remains `scripts/ai/claude-orchestrator.py`, but it is now a thin shim that lazy-loads `pojo_lens_agents.orchestrator_app`; retained-run summary/lifecycle, review/promote, validation checkpoints, and eval logic live in `run_summary`, `review_ops`, `validation_ops`, and `evals`
 

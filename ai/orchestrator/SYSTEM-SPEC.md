@@ -65,8 +65,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The default runtime root is repo-local `.claude-orchestrator/`.
 - The primary local operator command is `pojolens-agents`; direct script
   execution remains available under `scripts/ai/`.
-- The CLI should resolve the repo root from `--repo-root`, `POJOLENS_REPO_ROOT`,
-  or the current working directory so it remains explicit in multi-repo shells.
+- The CLI resolves the repo root relative to its installed package location; install with `pip install -e .` from the repo root and invoke from anywhere inside the repository.
 - Runtime paths are:
   - `.claude-orchestrator/runs/<run-id>/`
   - manifests store an absolute `workspacesDir` for each run; new runs default worker workspaces to an orchestrator-managed external temp-backed root outside the repo, while older manifests may still resolve legacy repo-local `.claude-orchestrator/workspaces/<run-id>/`
@@ -125,6 +124,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - Human-in-the-loop gates should be expressible through tracked `runPolicy` fields and one-off `run` / `resume` CLI overrides. A gate fires after a completed batch before later scheduling, emits `hitl-gate`, persists the manifest, waits for stdin or a run-local `hitl-gate.lock` sentinel decision, then emits `hitl-approved` or `hitl-aborted`; aborted gates should block pending tasks with an explicit coordinator reason.
 - The orchestrator may optionally expose a Textual-based live dashboard for `run` / `resume` / `retry`, driven by the retained run-event stream plus task-started updates, showing task status, model, cost, elapsed time, active stderr tailing, and TUI-native HITL approve/abort controls while preserving `--watch` and JSON-friendly fallback paths.
 - The operator surface may also expose a planner-first guided wizard entry that defaults from no CLI subcommand: when an interactive goal is provided, the wizard runs a bounded clarification loop (planner agent asks up to 3 focused questions, operator answers refine the goal), resolves intent to a tracked or generated plan, validates it, presents a staged plan summary, and blocks at an explicit approve/revise/stop checkpoint before launching run/review/promote/validate; revise re-enters clarification for the refined goal (up to 3 rounds); stop exits cleanly before any run; `--plan` skips clarification entirely; `--resume` / `--retry` shortcuts preserve the guided review/promote/validate tail.
+- The operator surface may also expose a persistent interactive console session (`console` command) that accepts all orchestrator subcommands inline with a Textual TUI by default and a plain REPL fallback via `--no-tui`.
+- The operator surface may also expose a run-ledger summary command (`summarize-ledger`) that prints human-readable or JSON summaries of past run records with plan-name, date, and count filters.
 - Run governance should cover aggregate spend plus per-task stdout, stderr, and result artifact size, and should surface the highest-cost tasks plus aggregate artifact totals for operator review.
 - Prompt assembly should keep the most stable coordinator instructions and shared summary ahead of run-specific workspace paths or dependency detail so provider-side prefix caching can reuse more of each request.
 - Worker execution-context text should prefer stable workspace labels over absolute filesystem paths, and the repeated worker-rules block should stay compact enough to avoid normal prompt truncation.
@@ -180,6 +181,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - When validation runs against task workspaces, dedupe should happen by command plus execution workspace rather than command text alone so the same suggestion can run independently against multiple worker sandboxes before promotion.
 - Retry flows should preserve any explicit source-run worker-validation override when present; otherwise they should resolve the effective mode again from tracked task/agent settings, and they should not replay old manifest-level `compat` fallbacks into live workers.
 - Follow-up behavior should be expressible in tracked `runPolicy.followUpBehavior` (`ignore` by default, `inject` when runtime mutation is desired), and one-off `run` / `resume` CLI overrides should persist the effective mode into retained manifests for later resume decisions.
+- The coordinator should support proactive token- and request-per-minute rate limiting via `--tpm-limit` and `--rpm-limit` CLI flags (or `ANTHROPIC_TPM_LIMIT` / `ANTHROPIC_RPM_LIMIT` env vars); the dispatcher should wait before each task dispatch to stay within the sliding-window budget and should recompute follow-up token budgets after any injection.
+- The coordinator should support opt-in run completion notifications dispatched in a background thread after the `run-finished` event; supported channels are desktop (via optional `plyer` dep), webhook (HTTP POST via `urllib`), and Slack (Block Kit message); channels are configured in the `[notifications]` TOML section with `desktop`, `webhook_url`, `slack_webhook_url`, and `notify_on = ["success"|"failure"|"always"]`; `--notify` forces desktop for one run; `--no-notify` suppresses config notifications for one run; notifications are suppressed for `--dry-run` and `--estimate` invocations.
 
 ## Worker Protection Rules
 
