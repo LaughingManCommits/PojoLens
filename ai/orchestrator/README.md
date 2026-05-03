@@ -1,281 +1,826 @@
 # Claude Orchestrator
 
-This directory is the tracked control plane for local multi-Claude runs.
+```
+╔═════════════════════════════════════════════════════════════════════╗
+║ ██████╗  ██████╗      ██╗ ██████╗ ██╗     ███████╗███╗  ██╗███████╗ ║
+║ ██╔══██╗██╔═══██╗     ██║██╔═══██╗██║     ██╔════╝████╗ ██║██╔════╝ ║
+║ ██████╔╝██║   ██║     ██║██║   ██║██║     █████╗  ██╔██╗██║███████╗ ║
+║ ██╔═══╝ ██║   ██║██   ██║██║   ██║██║     ██╔══╝  ██║╚████║╚════██║ ║
+║ ██║     ╚██████╔╝╚█████╔╝╚██████╔╝███████╗███████╗██║ ╚███║███████║ ║
+║ ╚═╝      ╚═════╝  ╚════╝  ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚══╝╚══════╝ ║
+║                                                                      ║
+║          CLAUDE ORCHESTRATOR  ·  multi-agent coding runs            ║
+╚═════════════════════════════════════════════════════════════════════╝
+```
 
-Scope:
-- `ai/orchestrator/*` is control-plane memory for the local multi-agent system
-- `ai/core/*`, `ai/state/*`, and `ai/log/*` remain project memory for repo facts, active state, validation history, and handoff
-- do not use this directory as a duplicate roadmap or session-state store; link back to project memory when the operator contract needs repo context
+Coordinate a team of specialized Claude workers on your codebase in a
+single command.  Each worker runs in an isolated sandbox, produces a
+diff, and nothing lands in your repo until **you** call `promote`.
 
-Tracked files:
-- `README.md`: operating guide for local runs
-- `SYSTEM-SPEC.md`: portable AI memory plus orchestration contract for recreating this setup in another repo
-- `agents.json`: reusable worker definitions for the planner plus optional analyst, implementer, reviewer, and lean docs-oriented worker roles
-- `agents/<role>/prompt.md`: file-backed role prompt bodies referenced from `agents.json`
-- `skills/registry.json`: tracked skill registry for worker-preload skills
-- `skills/<skill>/SKILL.md`: tracked skill prompt bodies referenced from the registry
-- `tasks/*.json`: task-plan files the coordinator can validate or execute
-- `scripts/ai/pojo_lens_agents/`: installable CLI package exposing the
-  `pojolens-agents` console command
-- `scripts/ai/`: implementation home for AI memory and orchestration tooling
+---
 
-Runtime artifacts are intentionally kept outside `ai/` under a repo-local runtime root:
-- default runtime root: `.claude-orchestrator/`
-- run manifests: `.claude-orchestrator/runs/<run-id>/`
-- isolated workspaces: `.claude-orchestrator/workspaces/<run-id>/<task-id>/`
+## How it works
 
-Why this split:
-- tracked specs stay versioned with the repo
-- transient worker output does not pollute AI memory indexes
-- the runtime root stays easy to inspect or delete from the repo root
-- workers can run in isolated `copy` or `worktree` workspaces
-- repo-copy workspaces ignore `.claude-orchestrator/`, which prevents recursive copying during parallel or overlapping runs
+```
+  YOU                  COORDINATOR              WORKERS (Claude)
+  ─────────────────────────────────────────────────────────────────
+  $ wizard          ─► clarifies goal
+                       generates plan
+                       validates + estimates
+                                            ──► [analyst    ]  batch 1
+                                            ──► [implementer]  batch 2
+                                            ──► [reviewer   ]  batch 3
+                       collects results  ◄───
+  $ review          ─► shows per-task diffs & findings
+  $ validate-run    ─► runs worker-suggested tests
+  $ promote         ─► applies diffs back into repo
+  $ cleanup / prune ─► removes sandbox artifacts
+```
 
-Primary CLI:
+Everything between `run` and `promote` stays in `.claude-orchestrator/`
+and never touches the live repo.
+
+---
+
+## Setup
+
+**Directory matters for install — not for running.**
+
+`pip install -e .` reads `pyproject.toml` from the current directory,
+so you must run it from the **repo root** (where that file lives).
+After that, `pojolens-agents` resolves the repo root automatically from
+its installed package location — you can run commands from any
+subdirectory inside the repo.
 
 ```powershell
+# 1. cd to repo root first (the folder that contains pyproject.toml)
+cd C:\data\pojolens
+
+# 2. Install once
 py -3 -m pip install -e .
-pojolens-agents validate ai/orchestrator/tasks/example-parallel.json --json
-pojolens-agents wizard --dry-run --json
-pojolens-agents run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json
 ```
 
-The CLI resolves the repo root relative to its installed package location. Run it from anywhere inside the repository after `pip install -e .`; direct script invocation via `scripts/ai/claude-orchestrator.ps1` also works from the repository root.
-
-Direct script commands:
+**If `pojolens-agents` is not found after install**, Python's Scripts
+directory is not on your PATH.  Add it permanently (restart terminal after):
 
 ```powershell
-scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json
-scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --tui
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --estimate --json
-scripts/ai/claude-orchestrator.ps1 wizard --dry-run --json
-scripts/ai/claude-orchestrator.ps1 "tighten quickstart onboarding docs" --dry-run --json
-scripts/ai/claude-orchestrator.ps1 wizard --resume .claude-orchestrator/runs/<run-id> --dry-run --json
-scripts/ai/claude-orchestrator.ps1 wizard --retry .claude-orchestrator/runs/<run-id> --dry-run --json
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --effort low --json
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --max-parallel 2 --otel-endpoint http://localhost:4318/v1/traces --json
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --hitl --hitl-auto-approve --json
-scripts/ai/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
-scripts/ai/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
-scripts/ai/claude-orchestrator.ps1 status .claude-orchestrator/runs/<run-id> --json
-scripts/ai/claude-orchestrator.ps1 evaluate-run .claude-orchestrator/runs/<run-id> --json
-scripts/ai/claude-orchestrator.ps1 evaluate-corpus --json
-scripts/ai/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
-scripts/ai/claude-orchestrator.ps1 diff-run .claude-orchestrator/runs/<run-id> --stat --json
-scripts/ai/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
-scripts/ai/claude-orchestrator.ps1 export-trace .claude-orchestrator/runs/<run-id> --json
-scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
-scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --dry-run --json
-scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --execution-scope task-workspace --json
-scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --intents-only --dry-run --json
-scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --include-status blocked --allow-unsafe-commands --dry-run --json
-scripts/ai/claude-orchestrator.ps1 inventory --json
-scripts/ai/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json
-scripts/ai/claude-orchestrator.ps1 cleanup .claude-orchestrator/runs/<run-id> --json
-scripts/ai/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" --dry-run
-scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --notify --json
-scripts/ai/claude-orchestrator.ps1 console
-scripts/ai/claude-orchestrator.ps1 summarize-ledger --json
+[Environment]::SetEnvironmentVariable(
+    "PATH",
+    [Environment]::GetEnvironmentVariable("PATH","User") + ";" +
+    (py -3 -c "import sysconfig; print(sysconfig.get_path('scripts'))"),
+    "User"
+)
 ```
 
-Root-level pointer scripts are intentionally not kept; use `pojolens-agents`
-for the operator CLI or the direct scripts under `scripts/ai/`.
+Or skip PATH entirely and use the PowerShell shim, which always works
+from the repo root:
 
-Tracked samples:
-- `ai/orchestrator/tasks/example-review.json`: one-task reviewer sample for direct contract review without an upstream analyst hop
-- `ai/orchestrator/tasks/example-parallel.json`: two concurrent-ready analyst tasks with no automatic downstream reviewer stage
-- `ai/orchestrator/tasks/example-trace-multibatch.json`: small two-batch analyst fixture that proves retained event traces and branch-context lineage
-- `ai/orchestrator/tasks/example-materialized-chain.json`: heavier chained implementer sample that keeps reviewed dependency materialization and downstream review visible
-- `ai/orchestrator/tasks/example-implement-review-quickstart.json`: minimal implementer-to-reviewer coding sample that adds one grouped-query feature to the Spring Boot quickstart example
-- `ai/orchestrator/tasks/example-parallel-implement-review-quickstart-salary-range.json`: parallel implementer-plus-reviewer coding sample that adds and promotes a real salary-range quickstart endpoint
-- `ai/orchestrator/tasks/example-implement-review-quickstart-salary-range-fixup.json`: follow-up implementer-plus-reviewer sample that fixes docs/tests against an already-promoted controller contract
-- `ai/orchestrator/tasks/example-cheap-proof-docs.json`: smallest tracked cheap-proof docs plan using lean docs worker profiles for repeated low-cost orchestration validation
-- `ai/orchestrator/tasks/wp16-live-run-policy-proof.json`: tiny live governance proof that sets explicit `runPolicy` thresholds and demonstrates between-batch stop on a retained run
-- `ai/orchestrator/tasks/wp17-csv-typed-loader-slice.json`: practical write-capable CSV starter slice that uses lean implementer-plus-reviewer topology and non-contrived `runPolicy` ceilings
+```powershell
+scripts/ai/claude-orchestrator.ps1 wizard
+```
 
-Dry runs:
-- `plan --dry-run` prints the planner request and target output path without invoking Claude
-- `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
-- `run --dry-run --tui` still renders the live dashboard, but exits after the planned task records and run-finished event are written
-- `run --estimate` computes the same pre-flight pricing and wall-clock estimate without creating a retained run
-- `wizard` (or no subcommand) is the planner-first operator entry point: it runs a clarification loop (up to 3 haiku-powered questions when goal is underspecified), resolves intent, shows a staged plan summary, and presents an explicit approve/revise/stop checkpoint before launching run, review, promote, and validate
-- wizard `revise` at the checkpoint resets the goal, re-runs clarification and intent resolution, and re-validates up to 3 rounds; `stop` exits before `run_handler` with no side-effects
-- wizard `--plan <path>` skips clarification and intent resolution (plan already pinned); `--goal` or trailing words feed the clarification and resolution stages
-- wizard-triggered natural-language generation writes ephemeral plans under `.claude-orchestrator/generated-plans/` rather than mutating tracked `ai/orchestrator/tasks/`; if the target file already exists with a different `goal`, the wizard emits a collision warning and records `generatedPlanCollision` in the payload before overwriting
-- `prune` also evicts old generated plans (default: older than 30 days and not in the 20 most recent); the `generatedPlans` key in the `prune` result summarises candidates, removed paths, and kept paths
-- dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
-- `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
-- `validate --json` also reports each task's resolved `effort` and `effortSource`, so planner or worker reasoning level is inspectable before execution
-- `validate --json` also reports `topology` so you can inspect agent mix, read-only vs write-capable task count, batch shape, and conservative lean-plan warnings before a run
-- `validate --json` also reports `agentExtraTools` (agent-level declared tools by name) and per-task `extraTools` (resolved effective tool names) so the operator can verify custom tool wiring before execution
-- `validate --json`, `run --estimate --json`, and `run --dry-run --json` now also report `costEstimate` with per-task and per-batch USD/token ranges plus concurrency-adjusted wall-clock ranges
+Both the `pojolens-agents` CLI and the `.ps1` shim are equivalent.
+The shim is the fallback when PATH is not set up.
 
-Lifecycle helpers:
-- `console` starts a persistent interactive operator session with a Textual TUI (or plain REPL with `--no-tui`); all subcommands are available inline; type `/exit` to quit
-- `resume` continues a retained run in place from that run's `selected-plan.json` snapshot, defaults to tasks that are unfinished or missing from the manifest, and preserves already-completed task records
-- `wizard --resume` and `wizard --retry` reuse the same retained-run helpers but keep the guided review/promote/validate flow on top
-- `diff-run` renders literal workspace-vs-repo diffs for retained runs, supports task and path filtering, and can emit either full unified diffs or `--stat` summaries before promotion
-- same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
-- `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
-- `run`, `resume`, and `retry` accept `--tpm-limit <N>` and `--rpm-limit <N>` for proactive token- and request-per-minute throttling; the dispatcher waits before each task dispatch to stay within the sliding-window budget and overrides `ANTHROPIC_TPM_LIMIT` / `ANTHROPIC_RPM_LIMIT` env vars when set
-- `run`, `resume`, and `retry` accept `--notify` to fire a completion notification (desktop, webhook, or Slack) when the run finishes without needing config file changes; `--no-notify` suppresses config-file notifications for one run; configure channels in the `[notifications]` section of `pojolens-agents.toml` with `desktop`, `webhook_url`, `slack_webhook_url`, and `notify_on = ["success"|"failure"|"always"]`; install `pojolens-agents[notifications]` for desktop support via `plyer`
-- `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
-- `run` accepts `--estimate` to emit pre-flight model-pricing, token, cost, and wall-clock estimates without creating a run manifest
-- `run`, `resume`, `retry`, and `export-trace` accept `--otel-endpoint <url>`; when unset, `OTEL_EXPORTER_OTLP_ENDPOINT` enables OTEL emission automatically for live runs and retained trace export
-- `run` and `resume` accept `--hitl`, `--hitl-mode <batch|on-failure|always>`, and `--hitl-auto-approve`; HITL gates emit `hitl-gate` plus `hitl-approved` or `hitl-aborted`, write the manifest before waiting, and use either an interactive prompt or the run-local `hitl-gate.lock` sentinel file for decisions; `always` fires before **every** batch (including the first), `batch` fires before every batch with pending tasks, `on-failure` fires only when the completed batch contained failures; the sentinel file is validated by `gateId` so a stale file from a prior gate or interrupted run is ignored and the operator is re-prompted
-- `run` and `resume` accept `--follow-up-mode <ignore|inject>`; `inject` promotes structured worker `followUpTasks` into new pending tasks between batches, persists them back into the run-local `selected-plan.json`, and emits `task-injected` events; each `followUpTask` may include `conditionField`/`conditionValue` to gate injection on the named field of the emitter task's run record (case-insensitive substring match); tasks that fail the predicate emit `task-injection-skipped` with field, expected, and actual values in the event details
-- workers running under the SDK provider may call `write_shared_context(note, tags?)` to append a structured JSON line to the run's `shared-context.jsonl` scratchpad; downstream task prompts include a bounded tail of that file under "Shared context notes" so agents can leave observations for later workers without coupling through the formal `followUpTasks` schema; per-task `sharedContextTags` filters the injected lines to matching tags only; `sharedContextPath` in the run manifest points to the file
-- `run`, `resume`, and `retry` accept `--tui`; when stderr is interactive and `textual` is installed, the dashboard auto-enables unless `--watch` or `--json` is selected, and if `textual` is missing the command falls back to `--watch` with a warning
-- `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
-- retained-run summaries now also expose `lifecycleState`, `lifecycleStateReason`, and `approvalSummary` so review, validation, and promotion gates are visible without opening the raw manifest
-- `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency; it now also emits a compact `scoreSummary` for trendable pass/warn/fail comparisons
-- `evaluate-corpus` evaluates retained runs across the runtime root and aggregates score status, average score percent, and benchmark-dimension counts
-- `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
-- `export-trace` writes `pojo-lens-orchestrator-trace/v1` JSON under the run `trace/` directory by default, exporting run, batch, task, validation, and approval spans without changing the retained manifest
-- OTEL emission is opt-in. Install `pojolens-agents[otel]`, then set `OTEL_EXPORTER_OTLP_ENDPOINT` or pass `--otel-endpoint` to send the same retained span graph to any OTLP HTTP collector without a custom converter
-- `summarize-ledger` prints a human-readable or JSON summary of run-ledger entries; supports `--plan-name`, `--since`, and `--limit` filters
-- `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
-- the compatibility entrypoint remains `scripts/ai/claude-orchestrator.py`, but it is now a thin shim that lazy-loads `pojo_lens_agents.orchestrator_app`; retained-run summary/lifecycle, review/promote, validation checkpoints, and eval logic live in `run_summary`, `review_ops`, `validation_ops`, and `evals`
+Optional extras:
 
-Workspace modes:
-- `copy`: isolated sparse filesystem copy seeded only with declared `readPaths` and any existing files inside declared `writePaths`; safe default
-- `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
-- `repo`: live repo root; high-risk and opt-in only
+```powershell
+py -3 -m pip install -e ".[tui]"            # Textual live dashboard
+py -3 -m pip install -e ".[notifications]"  # desktop alerts via plyer
+py -3 -m pip install -e ".[otel]"           # OTEL trace export
+```
 
-Context discipline:
-- coordinator/project-manager memory lives in `AGENTS.md`, `ai/AGENTS.md`, and the `ai/state/*` hot snapshot; workers do not inherit that memory unless a task explicitly declares those files in `readPaths`
-- worker prompts default to `contextMode = minimal`
-- planner guidance now prefers the smallest actor set that can finish the work; `analyst` and `reviewer` are optional roles, not mandatory pipeline stages
-- for narrow code changes, prefer one `implementer` task or an `implementer -> reviewer` path only when the extra hop materially lowers risk
-- task plans now separate context from edit intent: `sharedContext.readPaths` plus task `readPaths` describe what to read, while task `writePaths` describe what the worker may change
-- task plans may also declare task-local `skills`; the router merges task skills, agent default skills, and a small inferred set for docs/release/benchmark/orchestrator work
-- agent and task definitions may also declare `outputProfile`; use `lean` for cheap docs/read-only proofs that should keep worker JSON terse
-- minimal mode includes the shared summary, the task's own read context, declared write scope, merged constraints, dependency outputs, and only task-local validation hints
-- per-task worker prompts now keep only coordinator- and workspace-specific rules in the prompt body; role-stable JSON/output discipline stays in the selected agent definition so task prompts do not repeat it
-- workers should treat the selected agent definition plus the task prompt and declared workspace as the full execution contract; if a repo file matters, declare it in `readPaths` or `writePaths`
-- agent definitions may also preload repo-local `skills`; the tracked workers now pass through `caveman` so the model can load that skill after agent setup instead of repeating style instructions in every prompt
-- the tracked skill registry lives under `ai/orchestrator/skills/registry.json`; add new reusable skills there and back them with `skills/<name>/SKILL.md`
-- skill validation is registry-backed when a nearby `skills/registry.json` exists, and validate/run surfaces now expose resolved per-task skills
-- role prompt files warn above `6 KB` and fail above `8 KB`; skill `SKILL.md` files warn above `3 KB` and fail above `4 KB`
-- validate/topology warns when a task resolves more than `4` skills; keep the stack at `5` or fewer and prefer fewer, sharper skills
-- tracked `docs-implementer` and `docs-reviewer` roles default to `modelProfile = simple`, `effort = low`, and `outputProfile = lean` for cheap docs-oriented proof runs
-- task plans may also declare an optional top-level `runPolicy` to govern aggregate run spend and per-task artifact sizes; `budgetBehavior` and `artifactBehavior` accept `warn` or `stop`, and `stop` applies before later batches rather than canceling tasks already running
-- task-plan `runPolicy` may also declare `followUpBehavior = "ignore" | "inject"`; `inject` is the tracked way to opt a plan into runtime follow-up task promotion without relying on one-off CLI overrides
-- task-plan `runPolicy` may also enable human-in-the-loop gates with `hitl: true` and `hitlMode: "batch"`, `"on-failure"`, or `"always"`; `always` fires before every batch without exception; CLI `--hitl` overrides are useful for one-off operator runs without editing tracked plans
-- dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
-- dependency outputs now also carry the upstream `branch_context_id` so downstream tasks can tell which reviewed branch produced the handed-off summary or diff layer
-- downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` on any `copy` or `worktree` task â€” including reviewer tasks â€” that needs reviewed upstream code state materialized into its workspace before execution; this is especially important when upstream tasks create new files that would otherwise be invisible to the downstream workspace
-- full shared file and validation context is opt-in via `contextMode = full`
-- dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
-- minimal-mode worker prompts now keep shared file lists out of the prompt body; workers still get the shared summary, but shared `readPaths` stay prompt-visible only in `contextMode = full`
-- live Claude invocations now pass only the selected agent definition instead of the full agent catalog, so per-task request envelopes stay smaller
-- copy-mode workspace hydration copies only declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` now fail validation explicitly, and oversized inputs above `512 KB` are surfaced instead of being skipped silently
-- if you expect `validate-run --execution-scope task-workspace` to work before promotion, declare any runtime-loaded config or fixture files in `readPaths` or `writePaths`; sparse copies only hydrate declared context
-- when `dependencyMaterialization = "apply-reviewed"` is enabled, reviewed dependency layers are replayed into the downstream `copy` or `worktree` workspace after base hydration; dry-runs stay summary-only but surface the planned mode in the prompt
+---
 
-Token and cost visibility:
-- each task record captures the resolved model, prompt size, and Claude usage when the CLI returns it
-- tracked model prices now live in `ai/orchestrator/model-pricing.json`, verified against Anthropic pricing pages, so pricing updates can land without code changes
-- task records and planner dry-runs include section-level prompt accounting (`prompt_sections` / `promptSections`) plus budget results (`prompt_budget` / `promptBudget`)
-- agent/task definitions may set `maxPromptEstimatedTokens` or `maxPromptChars`; the coordinator fails oversized prompts locally before invoking Claude
-- `validate --json` topology warnings now also flag reviewer prompt-budget risk when a reviewer materializes multiple write-capable dependencies with `apply-reviewed` but does not set an explicit `maxPromptEstimatedTokens`
-- `validate --json` topology warnings also flag docs-only plans that skip a declared docs consistency validation hint such as `scripts/docs/check-doc-consistency.ps1`
-- run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
-- `validate --json`, `run --estimate --json`, `run --dry-run --json`, and retained manifests now expose `costEstimate` with per-task token ranges, USD ranges, and batch-aware wall-clock ranges; dry-runs upgrade from heuristic prompt inputs to observed prompt estimates after prompt assembly
-- `runPolicy.runBudgetUsd` now governs aggregate `usage.totalCostUsd` across completed tasks; `budgetBehavior = "stop"` blocks unscheduled tasks before the next batch, while `warn` records the alert and continues; when the budget cap fires, a `budget-exceeded` run event is emitted with `{actualCostUsd, limitCostUsd, remainingTaskIds}`, the run payload includes `budgetExceeded: true`, `lifecycleState` is set to `budget_exceeded`, and the process exits with code `8`
-- `validate --json` also warns when `runPolicy.runBudgetUsd` is already below the minimum pre-flight estimate, so obviously under-budget plans are visible before the first task starts; `run --estimate` additionally warns in the `estimateBudgetWarning` field when the maximum estimated cost exceeds `runBudgetUsd`
-- `runPolicy.maxTaskStdoutBytes`, `maxTaskStderrBytes`, and `maxTaskResultBytes` govern per-task artifact size; `artifactBehavior = "stop"` blocks later scheduling after an oversized completed task, while `warn` keeps the run moving
-- `validate --json` exposes the tracked `runPolicy`, and `run --json` plus run manifests expose `runGovernance` with status, alert counts, highest-cost tasks, and aggregate artifact totals so run-level policy decisions stay inspectable
-- `validate --json`, `run --json`, and run manifests now expose `topology` with agent counts, read-only vs write-capable task counts, batch sizes, dependency depth, and conservative warnings when a read-only plan still adds a reviewer hop or a single write task is preceded by analyst-only work
-- `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now expose compact `traceSummary` and `branchSummary` rollups so event and branch lineage are visible without opening the raw event array
-- `review`, `validate-run`, and `promote` now persist coordinator checkpoints back into the run manifest as `coordinatorReview`, `coordinatorValidation`, and `coordinatorPromotion`, each with a run-local `summary.json` path for replayable operator evidence
-- `review` now surfaces `textQualityFindings` for docs-like text changes, blocks promotion on mojibake-like output, and warns when Unicode is introduced into an otherwise ASCII doc baseline so operators do not need to spot those issues manually in diffs
-- `export-trace` maps those retained events plus coordinator checkpoints into stable span ids and parent span ids so external tooling can compare runs without learning the manifest internals
-- OTEL emission reuses that retained span graph: `run` maps to `orchestrator.run`, `batch` to `orchestrator.batch`, `task` to `orchestrator.task`, `validation` to `orchestrator.validation`, and `approval` to `orchestrator.approval`; additional lineage parents are exported as OTEL span links
-- major orchestrator contracts are backed by Pydantic v2 models and Pydantic-backed dataclasses; task plans, agent definitions, run policies, task records, retained manifests, dependency handoffs, and coordinator checkpoints are validated at JSON boundaries while existing CLI and manifest field names remain stable
-- `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now also expose `effortOverride`, per-task resolved effort/source, and compact `effortCounts`; `evaluate-run` warns when read-only tasks use high effort on non-complex model profiles
-- retained-run summaries now also expose `taskOutputProfiles`, `outputProfileCounts`, `unexpectedlyVerboseTaskIds`, and `unexpectedlyVerboseTaskCount`; `evaluate-run` warns when retained output is unexpectedly verbose for the resolved profile
-- `example-eval-readonly-review.json` is the tracked read-only reviewer-hop fixture for score/eval surface regressions
-- operator-facing benchmark fields for WP32 are now `scoreSummary.status`, `scoreSummary.statusCounts`, `scoreSummary.scorePercent`, `scoreSummary.taskCount`, `scoreSummary.batchCount`, `scoreSummary.parallelWidth`, plus `benchmarkDimensions.{decompositionQuality,retryCorrectness,reviewPromotionAccuracy,parallelEfficiency}`
-- `validate --json`, `run --json`, and run manifests now expose resolved `taskModels`, `taskModelProfiles`, and `complexModelTaskIds` / `complexModelTaskCount` so accidental `opus` usage is obvious before or during a run
-- per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
-- live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and validation suggestions aggressively
-- worker results now distinguish known-empty from unknown list fields, and may emit structured `validationIntents`; use `[]` for known-empty `filesTouched` / `validationIntents` / `followUps` / `notes`, use `null` only for `filesTouched` / `followUps` / `notes` when those values are genuinely unknown, and task records preserve that in `unknown_fields` / `unknownFields`
-- workers may also emit structured `followUpTasks` alongside human-readable `followUps`; these stay inert by default, but `followUpBehavior = "inject"` or `--follow-up-mode inject` promotes them into real pending tasks with `dependsOn` wired to the emitting task and `injectedFrom` persisted in both task records and the selected-plan snapshot
-- live worker validation suggestions are structured-intent-only; raw worker `validationCommands` are rejected during live worker parsing and remain only as a legacy manifest/review compatibility path
-- `run` and `retry` now treat `--worker-validation-mode` as an explicit override; tracked agent/task `workerValidationMode` settings can drive the same enforcement with no CLI flag
-- live worker validation now defaults to `intents-only`; tracked worker agents no longer need per-role overrides just to suppress raw command suggestions
-- live worker JSON schemas now require `validationIntents` and omit `validationCommands`, so raw legacy command items are blocked at the schema boundary as well as during coordinator parsing
-- live planner, worker, and coordinator validation waits now emit phase-tagged slop-status lines on interactive `stderr` (for example `[TASK][FLOW] Slopsloshing .. (...)`) while subprocesses are still running, so `stdout` JSON remains machine-readable
-- the optional TUI dashboard consumes retained run events through an internal queue, adds `task-started` live state for running rows plus stderr tailing, and routes HITL approval through `[a] approve` / `[x] abort` without dropping the sentinel-file fallback
-- worker prompts now put stable coordinator sections ahead of run-specific workspace paths and dependency detail, avoid absolute workspace paths in the execution-context text, and keep the repeated worker-rules block compact enough to stay untruncated so provider-side prefix caching can reuse more of each request
+## Your first run — the wizard
 
-Rate limiting:
-- `--tpm-limit <N>` and `--rpm-limit <N>` (or `ANTHROPIC_TPM_LIMIT` / `ANTHROPIC_RPM_LIMIT` env vars) enable proactive token-per-minute and request-per-minute throttling; the dispatcher waits before each task dispatch to stay within the sliding-window budget
-- token budgets are pre-flight estimates: the rate limiter pre-deducts the estimated token count before each task executes, then records only the positive delta of `(actual − estimated)` as an advisory correction after the task completes; overruns within a batch are absorbed rather than rolled back
-- if actual usage exceeds the pre-deducted estimate, the overrun is charged to the window when the task record arrives; the limiter cannot retroactively cancel a task already dispatched, so the window budget is advisory for individual tasks but enforced across later batches
-- after follow-up task injection, the rate limiter recomputes the per-task token budget for the newly added tasks so injected follow-ups stay within the same window constraints as originally planned tasks
-- when `tpm_limit` is near or below the minimum cost estimate for a single task, the run will still dispatch that task but will wait for the full window to reset first; set `--tpm-limit` conservatively only when the API tier actually enforces a hard ceiling
+The wizard is the recommended entry point for every new task.  It
+asks what you want, generates a plan, shows a cost estimate, and waits
+for your explicit approval before invoking any workers.
 
-Model selection:
-- use `modelProfile = simple` for `claude-haiku-4-5`
-- use `modelProfile = balanced` for `claude-sonnet-4-6`
-- use `modelProfile = complex` for `claude-opus-4-7` only as an explicit exception when cheaper models are likely insufficient
-- `model` still works as an explicit override and wins over `modelProfile`
-- planner guidance now treats `complex` as the exceptional path; current tracked plans stay on `simple` or `balanced`
-- `ai/orchestrator/tasks/example-review.json` and `ai/orchestrator/tasks/example-parallel.json` show `simple` overrides for cheap read-only work
+```powershell
+pojolens-agents wizard
+```
 
-Concurrency:
-- ready tasks run in batches up to `--max-parallel`
-- parallel agent execution is a first-class requirement for independent tasks
-- each run gets a unique `run-id` plus a repo-local run manifest under `.claude-orchestrator/`; the manifest records an absolute external `workspacesDir` for copy/worktree sandboxes so workers cannot escape into the live repo by traversing parent directories
-- validate and run manifests expose `parallelConflicts` for overlapping write-capable task scopes
-- overlapping write-capable tasks are serialized conservatively by declared `writePaths` scope even when they are dependency-ready together
-- `ai/orchestrator/tasks/example-parallel.json` is the tracked sample for concurrent-ready tasks without a forced reviewer hop
+What happens internally:
 
-Coordinator rules:
-- workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
-- workers in `copy` or `worktree` mode should treat prompt dependency outputs as the only upstream handoff and should not inspect other task workspaces or prior run artifacts directly
-- task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations` and `write_scope_violations`; protected-path or out-of-scope edits fail the task record
-- `dependencyMaterialization = "apply-reviewed"` is opt-in, defaults to `summary-only`, is rejected for `workspaceMode = "repo"`, and requires direct dependencies whose effective workspace mode is `copy` or `worktree`
-- task records, review output, promotion summaries, and retry manifests now surface `dependency_materialization_mode` plus `dependency_layers_applied` so chained workspace state stays inspectable
-- `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
-- retry runs preserve an explicit source-run `workerValidationModeOverride` when one exists; older manifest-level `compat` fallbacks are not replayed into live workers
-- task plans or agent definitions may still declare `workerValidationMode = intents-only`, but live authoring rejects `workerValidationMode = compat`
-- `validate-run` accepts both raw `validation_commands` and structured `validation_intents`, defaults to `completed` tasks only unless `--include-status` expands the policy, can execute accepted suggestions from repo root or with `--execution-scope task-workspace` from the suggesting task workspace, and records coordinator-run results separately from worker suggestions in the run manifest
-- when retained completed tasks touch only docs-like text files and no equivalent docs validation was suggested, `validate-run` now adds a coordinator helper for `scripts/docs/check-doc-consistency.ps1` in repo execution scope so docs-only runs still have a default quality gate before promotion
-- structured `validation_intents` currently support `repo-script` and `tool` kinds, render back to command text for review output, execute without shell wrapping, and resolve PATH-backed tool wrappers like `mvn.cmd` before launch when needed
-- accepted raw `validation_commands` are still preserved verbatim for review output, but the coordinator now normalizes direct tool/repo-script shapes into an argv intent internally so they can run without `shell=True`; raw command strings are now explicitly a compatibility path
-- `validate-run --intents-only` rejects raw legacy `validation_commands` even when they normalize cleanly, accepts only worker-emitted structured intents, and reports which tasks still suggested legacy raw commands so migration is visible in the summary
-- `validate-run --execution-scope task-workspace` dedupes by command plus workspace, so the same validation suggestion can run separately for different worker sandboxes before promotion
-- run manifests and `run --json` / `retry --json` payloads now include the summarized `workerValidationMode`, any explicit `workerValidationModeOverride`, `taskWorkerValidationModes`, and `taskWorkerValidationModeSources`; task records also carry `worker_validation_mode_source`
-- `validate-run` still enforces command quality by default: direct repo-script or approved tool invocations are allowed, while shell-composed commands (`|`, `&&`, redirection, etc.) or unknown entrypoints are rejected unless `--allow-unsafe-commands` is used explicitly
-- worker prompts now tell workers to mirror approved validation hints exactly, avoid swapping entrypoints like `mvn` and `mvnw`, use `repo-script` only for `scripts/...` or `mvnw(.cmd)`, use `tool` only for approved executables, and emit `[]` instead of inventing `grep`, pseudo scripts, or shell fragments
-- worker prompts now also require explicit notes for parameter/default/normalization semantics, require tests to match the implemented contract rather than guessed behavior, and require README/docs updates or explicit follow-ups for user-visible example/API changes
-- worker JSON is normalized coordinator-side before it becomes a task record: summaries are compacted, `notes` / `followUps` / `validationIntents` are capped, malformed status or list fields fail the task, structured `validationIntents` are normalized, and nullable list fields preserve explicit unknowns instead of collapsing into `[]`
-- runtime mutation is bounded to future work only: the coordinator may inject new pending tasks between batches, but it does not rewrite completed task records or retroactively change earlier topology
-- `review` summarizes per-task file diffs from worker workspaces; `export-patch` writes unified diffs for copy/worktree runs; `promote` applies reviewed copy/worktree changes back into the repo
-- `promote` refuses protected-path violations, repo-mode records, path traversal, and conflicting multi-task ownership of the same changed file; exact duplicate operations with matching workspace content are deduped automatically so reviewer materialization does not force a `--task` workaround
-- `cleanup` removes run artifacts and deletes detached worktrees created for that run
-- the coordinator owns memory updates, final summaries, and merge decisions
-- prefer `copy` mode unless a task clearly needs git metadata
-- `ai/orchestrator/tasks/example-materialized-chain.json` is the tracked sample for a sequential implementer chain that opts into reviewed dependency materialization
-- `ai/orchestrator/tasks/wp13-live-materialized-prompt-proof.json` is the tracked live proof for a chained same-file regression slice that promotes only the downstream materialized workspace
-- review worker outputs before live promotion; use `promote --dry-run` when you want the adoption summary without mutating the repo
+```
+  Step 1  You describe your goal (or pass --goal "…")
+          ↓
+  Step 2  Planner asks up to 3 haiku-powered clarifying questions
+          ↓
+  Step 3  Planner generates or matches a task plan
+          ↓
+  Step 4  Coordinator validates topology and estimates cost:
+          ┌──────────────────────────────────────────────────────┐
+          │  Plan: add-pagination  │  2 tasks  │  est. ~$0.03   │
+          │  batch 1: implementer  (sonnet, copy workspace)      │
+          │  batch 2: reviewer     (haiku,  copy workspace)      │
+          └──────────────────────────────────────────────────────┘
+          ↓
+  Step 5  [accept]  run → review → promote → validate flow
+          [revise]  reset goal, re-clarify, re-validate (up to 3×)
+          [stop]    exit cleanly, no side-effects
+```
 
-Recommended operator flow:
-- `validate` the tracked plan before a live run
-- `run` or `resume` it, keeping `--json` for machine-readable stdout when scripting
-- use `status` for one retained run and `inventory` across the runtime root to find failed, blocked, resumable, costly, or promotion-ready runs quickly
-- use `evaluate-run` when you need a compact quality check over retained topology, branch lineage, validation suggestions, retry/resume metadata, and promotion-readiness signals
-- use `evaluate-corpus` when you need aggregate score status, average score percent, or first-pass benchmark-dimension counts across many retained runs
-- use `review` to inspect changed files, scope violations, dependency materialization, and validation suggestions
-- use `diff-run --stat` or full `diff-run` before promotion when you want the literal file delta rather than only the review summary
-- use `validate-run` to execute accepted validation intents
-- use `promote --dry-run` first to confirm whether promotion is allowed and why it would be refused if blocked
-- use `promote` only after review and validation are complete; for coding runs, treat the run as complete only after a repo-scope `validate-run` pass is recorded after promotion
-- use `cleanup` or `prune` to retire runtime artifacts you no longer need
+Try a completely free dry run first — no Claude workers are invoked,
+no API tokens spent:
+
+```powershell
+pojolens-agents wizard --dry-run --json
+```
+
+Pass a natural-language goal directly:
+
+```powershell
+pojolens-agents wizard --goal "add rate limiting to the /items endpoint"
+```
+
+---
+
+## Core concepts
+
+### Agents and roles
+
+```
+  Role              Model profile  Purpose
+  ───────────────── ─────────────  ─────────────────────────────────────
+  planner           simple         decomposes goals into task plans
+  analyst           simple         read-only investigation, no writes
+  implementer       balanced       writes or edits code
+  reviewer          balanced       reviews diffs, approves changes
+  docs-implementer  simple         docs-only write tasks (lean output)
+  docs-reviewer     simple         docs-only review tasks (lean output)
+```
+
+Definitions live in `ai/orchestrator/agents.json`.  Each has a
+`agents/<role>/prompt.md` file.  You rarely need to change these.
+
+### Task plans
+
+A task plan is a JSON file that tells the coordinator what to do:
+
+```json
+{
+  "version": 1,
+  "name":    "add-pagination",
+  "goal":    "Add cursor pagination to the /items endpoint",
+  "sharedContext": {
+    "summary":   "Spring Boot REST API, single Maven module",
+    "readPaths": ["src/main/java/com/example/ItemsController.java"]
+  },
+  "tasks": [
+    {
+      "id":          "implement",
+      "agent":       "implementer",
+      "description": "Add page/size params and Page<Item> return type",
+      "readPaths":   ["src/main/java/com/example/ItemsController.java"],
+      "writePaths":  ["src/main/java/com/example/ItemsController.java",
+                      "src/test/java/com/example/ItemsControllerTest.java"]
+    },
+    {
+      "id":        "review",
+      "agent":     "reviewer",
+      "dependsOn": ["implement"]
+    }
+  ]
+}
+```
+
+Tasks with no `dependsOn` overlap run **in parallel** (up to
+`--max-parallel`).  Tasks with `dependsOn` form a DAG and execute in
+topological batches.
+
+Start from the tracked samples in `ai/orchestrator/tasks/` and modify.
+
+### Workspace isolation
+
+Workers do not touch your live repo.  Each runs in a sandboxed
+workspace whose mode is set per task:
+
+```
+  ┌─────────────┬──────────────────────────────────────┬────────┐
+  │ Mode        │ What the worker sees                  │ Risk   │
+  ├─────────────┼──────────────────────────────────────┼────────┤
+  │ copy        │ Sparse copy — only declared readPaths │ Safe ✓ │
+  │             │ and existing writePaths files         │        │
+  ├─────────────┼──────────────────────────────────────┼────────┤
+  │ worktree    │ Full detached git worktree at HEAD    │ Medium │
+  ├─────────────┼──────────────────────────────────────┼────────┤
+  │ repo        │ Live repo root (high-risk, opt-in)    │ High ⚠ │
+  └─────────────┴──────────────────────────────────────┴────────┘
+```
+
+Default is `copy`.  Use `worktree` only when the task needs git
+metadata.  Avoid `repo` unless you have a specific reason.
+
+### Where things live
+
+```
+  repo/                              .claude-orchestrator/  (gitignored)
+  ├── ai/orchestrator/               ├── generated-plans/
+  │   ├── agents.json                └── runs/
+  │   ├── tasks/my-plan.json ──────►     └── <run-id>/
+  │   └── skills/registry.json              ├── manifest.json
+  └── src/  (read-only to workers)           ├── selected-plan.json
+                                             ├── shared-context.jsonl
+                                             └── workspaces/
+                                                 ├── implement/ (copy)
+                                                 └── review/    (copy)
+```
+
+Tracked specs stay versioned with the repo.  Transient worker output
+lives under `.claude-orchestrator/` and never pollutes AI memory indexes.
+
+---
+
+## Operator lifecycle
+
+```
+  ┌─────────┐    ┌─────────┐    ┌──────────┐    ┌──────────┐
+  │  PLAN   │──► │   RUN   │──► │ INSPECT  │──► │ PROMOTE  │
+  └─────────┘    └─────────┘    └──────────┘    └──────────┘
+  validate        run             status          review
+  wizard          resume          inventory       diff-run
+  estimate        retry           evaluate-run    validate-run
+                                  export-trace    promote
+                                                  ──► cleanup / prune
+```
+
+---
+
+## Phase 1 — Plan
+
+Validate a task plan before spending any tokens:
+
+```powershell
+# Topology check: agents, batches, cost estimate, warnings
+pojolens-agents validate ai/orchestrator/tasks/example-parallel.json --json
+
+# Cost/token/wall-clock estimate without creating a run
+pojolens-agents run ai/orchestrator/tasks/example-parallel.json --estimate --json
+```
+
+`validate --json` also reports:
+- resolved `effort` and model per task and source (`task` / `agent` / `default`)
+- `topology` — read-only vs write-capable task counts, batch shape, parallel width
+- `runPolicy` thresholds if declared
+- `agentExtraTools` and per-task `extraTools` for custom tool wiring
+
+---
+
+## Phase 2 — Run
+
+```powershell
+# Dry run: writes manifest and prompts, no Claude calls, free
+pojolens-agents run ai/orchestrator/tasks/example-parallel.json \
+    --dry-run --max-parallel 2 --json
+
+# Live run with TUI dashboard (needs pip install pojolens-agents[tui])
+pojolens-agents run ai/orchestrator/tasks/example-parallel.json \
+    --max-parallel 2 --tui
+
+# Live run, machine-readable output
+pojolens-agents run ai/orchestrator/tasks/example-parallel.json \
+    --max-parallel 2 --json
+```
+
+Useful run flags:
+
+| Flag | What it does |
+|------|-------------|
+| `--dry-run` | Manifest + prompts only — zero Claude calls |
+| `--estimate` | Pre-flight cost/token estimates, no manifest |
+| `--tui` | Live Textual dashboard; auto-enables on interactive stderr |
+| `--watch` | Line-by-line progress on stderr (no Textual required) |
+| `--json` | Machine-readable JSON on stdout |
+| `--max-parallel N` | Concurrent task limit per batch |
+| `--effort <level>` | Override planner/worker effort (`low`/`medium`/`high`) |
+| `--worker-validation-mode` | Override validation mode for this run |
+| `--follow-up-mode inject` | Promote worker `followUpTasks` into real tasks |
+
+### Resume and retry
+
+```
+  resume  ──  same run-id, same workspaces, continues unfinished tasks
+  retry   ──  new run-id, seeds completed deps from prior run
+```
+
+```powershell
+# Continue an interrupted run from where it stopped
+pojolens-agents resume .claude-orchestrator/runs/<run-id> --json
+
+# Retry only the failed tasks; completed tasks seed forward
+pojolens-agents retry .claude-orchestrator/runs/<run-id> \
+    --task <failed-task-id> --json
+```
+
+---
+
+## Phase 3 — Inspect
+
+```powershell
+# Summary of one run: status, costs, governance, promotion-readiness
+pojolens-agents status .claude-orchestrator/runs/<run-id> --json
+
+# All retained runs at a glance
+pojolens-agents inventory --json
+
+# Quality score: topology, validation quality, retry/resume consistency
+pojolens-agents evaluate-run .claude-orchestrator/runs/<run-id> --json
+
+# Aggregate scores across all retained runs
+pojolens-agents evaluate-corpus --json
+
+# Per-task diffs, scope violations, dependency materialization, findings
+pojolens-agents review .claude-orchestrator/runs/<run-id> --json
+
+# Literal file delta before promotion
+pojolens-agents diff-run .claude-orchestrator/runs/<run-id> --stat
+pojolens-agents diff-run .claude-orchestrator/runs/<run-id>        # full diff
+
+# Export patch file for external review tooling
+pojolens-agents export-patch .claude-orchestrator/runs/<run-id> \
+    --out .claude-orchestrator/runs/<run-id>/review/combined.patch
+
+# Export OTEL trace spans from retained run
+pojolens-agents export-trace .claude-orchestrator/runs/<run-id> --json
+```
+
+`status`, `inventory`, and retained manifests expose:
+
+| Field | Contents |
+|-------|----------|
+| `lifecycleState` | Current state: `running`, `completed`, `budget_exceeded`, … |
+| `lifecycleStateReason` | Why the state was set |
+| `approvalSummary` | Review / validation / promotion gate status |
+| `usageTotals` | Aggregated input, output, cache, cost |
+| `costEstimate` | Per-task and per-batch USD/token ranges |
+| `traceSummary` | Compact event and branch lineage rollup |
+| `runGovernance` | Budget alerts, artifact size totals |
+| `taskModels` | Resolved model per task (spot accidental opus usage) |
+
+---
+
+## Phase 4 — Validate
+
+Workers emit structured `validationIntents` (not raw shell commands).
+`validate-run` executes them:
+
+```powershell
+# Preview what would run, no execution
+pojolens-agents validate-run .claude-orchestrator/runs/<run-id> --dry-run --json
+
+# Execute accepted validation suggestions
+pojolens-agents validate-run .claude-orchestrator/runs/<run-id> --json
+
+# Run from inside each task workspace (before promotion)
+pojolens-agents validate-run .claude-orchestrator/runs/<run-id> \
+    --execution-scope task-workspace --json
+
+# Reject legacy raw validationCommands; accept only structured intents
+pojolens-agents validate-run .claude-orchestrator/runs/<run-id> \
+    --intents-only --dry-run --json
+```
+
+When retained completed tasks touch only docs-like files and no docs
+validation was suggested, `validate-run` automatically adds a
+`scripts/docs/check-doc-consistency.ps1` gate.
+
+---
+
+## Phase 5 — Promote
+
+`promote` applies reviewed worker diffs back into the live repo:
+
+```powershell
+# Always dry-run first to confirm nothing is blocked
+pojolens-agents promote .claude-orchestrator/runs/<run-id> --dry-run --json
+
+# Apply reviewed changes
+pojolens-agents promote .claude-orchestrator/runs/<run-id> --json
+
+# Confirm everything works after promotion
+pojolens-agents validate-run .claude-orchestrator/runs/<run-id> --json
+```
+
+`promote` **refuses** if any of these hold:
+- Worker touched a protected path (`TODO.md`, `ai/state/*`, etc.)
+- Conflicting changed-file ownership across selected tasks
+- Path traversal outside repo root
+- Duplicate operations with differing workspace content
+
+Exact duplicate operations with matching content are deduped
+automatically so reviewer materialization does not require `--task`
+workarounds.
+
+---
+
+## Phase 6 — Cleanup
+
+```powershell
+# Remove one run's artifacts and detached worktrees
+pojolens-agents cleanup .claude-orchestrator/runs/<run-id> --json
+
+# Prune aged runs (keeps newest N, skips incomplete by default)
+pojolens-agents prune --older-than-days 14 --keep 5 --dry-run --json
+pojolens-agents prune --older-than-days 14 --keep 5 --json
+
+# Prune also evicts old wizard-generated plans (30 days / 20 most recent)
+```
+
+---
+
+## Dry run reference
+
+| Command | Claude called? | Manifest written? | Cost |
+|---------|:-------------:|:-----------------:|:----:|
+| `validate` | No | No | Free |
+| `run --estimate` | No | No | Free |
+| `run --dry-run` | No | Yes (+ prompts) | Free |
+| `wizard --dry-run` | Planner only | Yes | ~1¢ |
+| `run` (live) | Yes | Yes | API cost |
+
+Dry-run manifests include `promptSections`, `promptBudget`, and
+`costEstimate` so you can check prompt size and cost before committing.
+
+---
+
+## Human-in-the-loop (HITL) gates
+
+Pause the run before a batch and wait for your approval:
+
+```powershell
+# Pause before every batch
+pojolens-agents run my-plan.json --hitl --hitl-mode always --json
+
+# Auto-approve gates (useful for testing the mechanism)
+pojolens-agents run my-plan.json --hitl --hitl-auto-approve --json
+```
+
+| Mode | When the gate fires |
+|------|---------------------|
+| `none` | Never (default) |
+| `batch` | Before every batch with pending tasks |
+| `on-failure` | Only when the completed batch had failures |
+| `always` | Before **every** batch including the first |
+
+The gate writes a manifest snapshot, then waits.  You can also write a
+`hitl-gate.lock` sentinel file in the run directory to approve or abort
+without interactive input — gateId validation prevents stale sentinels
+from prior gates being accidentally accepted.
+
+Set `hitl: true` and `hitlMode` in `runPolicy` to make the gate part
+of a tracked plan instead of a one-off CLI flag.
+
+---
+
+## Follow-up task injection
+
+Workers may emit structured `followUpTasks` in their JSON result.  By
+default they are inert.  Opt in at the plan level or per run:
+
+```json
+"runPolicy": { "followUpBehavior": "inject" }
+```
+
+```powershell
+pojolens-agents run my-plan.json --follow-up-mode inject
+```
+
+Injected tasks appear as new pending work between batches with a
+`dependsOn` edge back to the emitter.  Use `conditionField` /
+`conditionValue` to gate injection on a field of the emitter's run
+record (case-insensitive substring match); unmatched tasks emit a
+`task-injection-skipped` event instead.
+
+---
+
+## Shared context scratchpad
+
+Workers may call the built-in tool `write_shared_context(note, tags?)`
+to leave notes for later workers in the same run.
+
+```
+  task-1 writes → shared-context.jsonl (run-local)
+                          ↓
+  task-2 prompt  ← bounded tail injected as "Shared context notes"
+```
+
+Set `sharedContextTags` on a task to filter which notes it receives.
+`sharedContextPath` in the run manifest points to the file.
+
+---
+
+## Rate limiting
+
+Prevent 429 errors when your API tier has hard caps:
+
+```powershell
+pojolens-agents run my-plan.json --tpm-limit 50000 --rpm-limit 100
+```
+
+Or set `ANTHROPIC_TPM_LIMIT` / `ANTHROPIC_RPM_LIMIT` environment
+variables.
+
+How the limiter works:
+
+```
+  Before dispatch:  pre-deduct estimated tokens from the window
+  During task:      task runs; overrun is absorbed within the batch
+  After task:       charge only max(0, actual − estimated) as correction
+  Later batches:    throttled by the corrected window state
+  After injection:  recomputes budgets for newly injected tasks
+```
+
+The window budget is advisory for individual tasks (a task cannot be
+cancelled mid-flight) but enforced across later batches.  Only set
+`--tpm-limit` when your API tier actually enforces a hard ceiling.
+
+---
+
+## OTEL tracing (optional)
+
+Export run traces to any OTLP HTTP collector:
+
+```powershell
+# During a live run
+pojolens-agents run my-plan.json \
+    --otel-endpoint http://localhost:4318/v1/traces
+
+# Export from a retained run after the fact
+pojolens-agents export-trace .claude-orchestrator/runs/<run-id> \
+    --otel-endpoint http://localhost:4318/v1/traces
+```
+
+Or set `OTEL_EXPORTER_OTLP_ENDPOINT` and the coordinator picks it up
+automatically.
+
+Span kinds: `orchestrator.run` → `orchestrator.batch` → `orchestrator.task`
+/ `orchestrator.validation` / `orchestrator.approval`.  Additional
+lineage parents are exported as OTEL span links.
+
+---
+
+## Token and cost visibility
+
+```powershell
+# Before the run — topology + cost estimate
+pojolens-agents validate my-plan.json --json
+
+# Before the run — detailed USD/token/wall-clock ranges
+pojolens-agents run my-plan.json --estimate --json
+
+# After the run — per-task usage in the manifest
+pojolens-agents status .claude-orchestrator/runs/<run-id> --json
+```
+
+Cap aggregate run spend with `runPolicy`:
+
+```json
+"runPolicy": {
+  "runBudgetUsd":    0.50,
+  "budgetBehavior":  "stop",
+  "artifactBehavior":"warn",
+  "maxTaskResultBytes": 131072
+}
+```
+
+When the budget cap fires:
+- a `budget-exceeded` event is emitted with `{actualCostUsd, limitCostUsd, remainingTaskIds}`
+- `budgetExceeded: true` in the run payload
+- `lifecycleState` becomes `budget_exceeded`
+- process exits with code `8`
+
+`validate --json` warns when `runBudgetUsd` is already below the
+pre-flight minimum estimate so under-budget plans are visible before
+the first task starts.
+
+---
+
+## Notifications
+
+```powershell
+# Fire a desktop notification when the run finishes
+pojolens-agents run my-plan.json --notify
+
+# Suppress config-file notifications for one run
+pojolens-agents run my-plan.json --no-notify
+```
+
+Configure channels in `pojolens-agents.toml`:
+
+```toml
+[notifications]
+desktop           = true
+webhook_url       = "https://hooks.example.com/abc"
+slack_webhook_url = "https://hooks.slack.com/..."
+notify_on         = ["always"]    # or ["success"] / ["failure"]
+```
+
+Notifications fire in a background thread and are suppressed for
+`--dry-run` and `--estimate` runs.
+
+---
+
+## Writing a task plan
+
+Minimum viable plan (copy, extend, rename):
+
+```json
+{
+  "version": 1,
+  "name":    "my-plan",
+  "goal":    "One sentence describing the overall goal",
+  "sharedContext": {
+    "summary":   "One paragraph about the repo and feature area",
+    "readPaths": ["path/to/relevant/File.java"]
+  },
+  "tasks": [
+    {
+      "id":          "do-thing",
+      "agent":       "implementer",
+      "description": "What this specific worker should do",
+      "readPaths":   ["src/main/java/..."],
+      "writePaths":  ["src/main/java/...", "src/test/..."]
+    }
+  ]
+}
+```
+
+Common optional fields per task:
+
+| Field | Default | Purpose |
+|-------|---------|---------|
+| `workspaceMode` | `copy` | `copy` / `worktree` / `repo` |
+| `dependsOn` | `[]` | Task ids this task must wait for |
+| `modelProfile` | agent default | `simple` / `balanced` / `complex` |
+| `effort` | agent default | `low` / `medium` / `high` |
+| `outputProfile` | `standard` | `lean` for cheap read-only work |
+| `skills` | agent defaults | Extra skill names from registry |
+| `contextMode` | `minimal` | `full` to include all shared read paths |
+| `sharedContextTags` | `[]` | Filter shared-context scratchpad by tag |
+| `extraTools` | agent defaults | Custom shell/script tools for this task |
+| `sharedContextTags` | `[]` | Shared-context note filter by tag |
+| `conditionField` / `conditionValue` | none | Injection predicate on emitter record |
+
+Top-level `runPolicy` fields:
+
+| Field | Purpose |
+|-------|---------|
+| `runBudgetUsd` | Cap total cost across completed tasks |
+| `budgetBehavior` | `warn` or `stop` when cap fires |
+| `artifactBehavior` | `warn` or `stop` on oversized task output |
+| `followUpBehavior` | `ignore` (default) or `inject` |
+| `hitl` / `hitlMode` | Enable HITL gates in the tracked plan |
+
+---
+
+## Context discipline
+
+- Coordinator memory (`AGENTS.md`, `ai/state/*`) is not visible to workers
+  unless explicitly declared in `readPaths`
+- Worker prompts default to `contextMode = minimal`: shared summary,
+  task read context, write scope, dependency outputs, task validation hints
+- Add `contextMode = "full"` only when a task genuinely needs all shared
+  read paths in the prompt body
+- Dependency outputs carry a bounded upstream handoff: summary + key notes
+  + reviewer-only diff previews; no raw artifact files by default
+- `dependencyMaterialization = "apply-reviewed"` is opt-in per task and
+  replays reviewed upstream file state into the downstream workspace;
+  rejected for `workspaceMode = "repo"`; requires direct copy/worktree deps
+- Set `maxPromptEstimatedTokens` or `maxPromptChars` to fail oversized
+  prompts locally before invoking Claude
+
+---
+
+## Model selection
+
+| Profile | Model | Use when |
+|---------|-------|----------|
+| `simple` | `claude-haiku-4-5-20251001` | Read-only, docs, cheap proofs |
+| `balanced` | `claude-sonnet-4-6` | Most coding tasks (default) |
+| `complex` | `claude-opus-4-7` | Exceptional cases requiring deep reasoning |
+
+Set `modelProfile` on the agent or the task.  Use `model` for a direct
+override.  Tracked samples use `simple` for read-only analyst and
+docs-oriented work.
+
+---
+
+## Tracked samples
+
+| Plan file | What it demonstrates |
+|-----------|----------------------|
+| `example-parallel.json` | Two concurrent analyst tasks, no reviewer |
+| `example-review.json` | Single reviewer, direct contract review |
+| `example-implement-review-quickstart.json` | Minimal implementer→reviewer coding path |
+| `example-materialized-chain.json` | Sequential chain with `apply-reviewed` materialization |
+| `example-trace-multibatch.json` | Two-batch fixture for trace and lineage testing |
+| `example-cheap-proof-docs.json` | Lean docs profile — cheapest valid proof |
+| `wp16-live-run-policy-proof.json` | `runPolicy` budget cap with between-batch stop |
+| `wp17-csv-typed-loader-slice.json` | Practical write-capable CSV starter slice |
+
+Start with `example-parallel.json` (dry-run, free) to confirm the
+install works before running anything live.
+
+---
+
+## Console mode
+
+An interactive REPL with all subcommands available inline:
+
+```powershell
+pojolens-agents console           # Textual TUI (auto when textual installed)
+pojolens-agents console --no-tui  # Plain readline REPL
+```
+
+Type `/exit` to quit.  History and tab-completion are available in the
+plain REPL.
+
+---
+
+## Run lifecycle exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | All tasks completed |
+| `5` | At least one task was blocked |
+| `6` | At least one task failed |
+| `7` | Unsafe promotion attempted |
+| `8` | Run budget exceeded |
+| `9` | Unexpected crash |
+
+---
+
+## Summarize run ledger
+
+```powershell
+# Human-readable summary of all recorded runs
+pojolens-agents summarize-ledger
+
+# Filtered
+pojolens-agents summarize-ledger --plan-name add-pagination --since 2026-04-01 --json
+```
+
+---
+
+## Coordinator rules (summary)
+
+- Workers **must not** edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
+- Nothing reaches the live repo until `promote` is explicitly called
+- Protected-path violations fail the task record immediately; out-of-scope edits
+  are flagged in `protected_path_violations` and `write_scope_violations`
+- Retry preserves an explicit source-run `workerValidationModeOverride`; older
+  manifest-level `compat` fallbacks are not replayed into live workers
+- Worker JSON is normalised coordinator-side: summaries compacted, lists capped,
+  malformed status rejected, structured intents normalised
+- Runtime mutation is bounded to future batches; completed task records are never
+  rewritten by later injection
+
+Full contract details are in `SYSTEM-SPEC.md`.
+
+---
+
+## File layout reference
+
+```
+ai/orchestrator/
+├── README.md              ← this file (operating guide)
+├── SYSTEM-SPEC.md         ← portable orchestration contract
+├── agents.json            ← role definitions
+├── agents/<role>/
+│   └── prompt.md          ← file-backed role prompt body
+├── model-pricing.json     ← Anthropic model prices (update without code changes)
+├── skills/
+│   ├── registry.json      ← tracked skill registry
+│   └── <skill>/
+│       └── SKILL.md       ← skill prompt body (≤4 KB)
+└── tasks/
+    └── *.json             ← tracked task plans
+
+scripts/ai/
+├── pojo_lens_agents/      ← installable CLI package source
+└── claude-orchestrator.ps1← legacy shim (still works)
+
+.claude-orchestrator/      ← runtime root (gitignored)
+├── generated-plans/       ← wizard-generated ephemeral plans
+└── runs/
+    └── <run-id>/
+        ├── manifest.json          ← full run record
+        ├── selected-plan.json     ← snapshot of executed plan
+        ├── shared-context.jsonl   ← worker scratchpad
+        ├── hitl-gate.lock         ← optional HITL sentinel
+        └── workspaces/
+            └── <task-id>/         ← sparse copy or worktree
+```
+
+---
+
+## Scope
+
+- `ai/orchestrator/*` is control-plane memory for the local multi-agent system
+- `ai/core/*`, `ai/state/*`, and `ai/log/*` are project memory — repo facts,
+  active state, validation history, and handoff
+- do not use this directory as a duplicate roadmap or session-state store;
+  link back to project memory when the operator contract needs repo context

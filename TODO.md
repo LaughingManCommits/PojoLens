@@ -80,6 +80,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP66| Agent Shared Context File           | Complete | `write_shared_context` 5th base tool; `shared-context.jsonl` per-run scratchpad; prompt section injection; `sharedContextTags` filter; `sharedContextPath` in manifest; 24 regression tests; 1017 pass |
 | WP71| Generated Plan Cleanup              | Complete | `prune_generated_plans` in `runtime_admin.py` wired into `prune_runs`; default 30-day/20-count eviction; slug collision warning in `wizard_command`; `generatedPlanCollision` payload; 16 regression tests; 1033 pass |
 | WP72| Orchestrator Core Coverage          | Complete | `_assert_otel_endpoint` in `orchestrator_app.py` validates http/https before run start; `test_orchestrator_app.py` 21 tests (OTEL validation, wizard deps keys, json-flag interactive suppression, dispatch error propagation); Rate limiting section in README; advisory invariant in SYSTEM-SPEC; 1054 pass |
+| WP73| Wizard Saved Plans & Effort UI      | Complete | `discover_saved_plans`/`save_plan_to`/`_saved_plans_flow`; effort selection (low/medium/high → haiku/sonnet/opus); expanded checkpoint (save_only, save_and_start, edit); `--planner-effort` CLI flag; 16 regression tests; 1070 pass |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
 
@@ -805,6 +806,28 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP73: Wizard Saved Plans & Effort UI
+
+**Priority:** Medium → **Complete** (`2026-05-03`)
+
+**Goal:** Improve the wizard UI to support saved plans and AI-assisted plan creation with configurable Claude reasoning effort.
+
+**Tasks:**
+- [x] `discover_saved_plans(runtime_root)` — scan `runtime_root/saved-plans/*.json`, return `PlanPreview` list
+- [x] `save_plan_to(plan_path, dest_dir)` — copy plan file into saved-plans dir via `shutil.copy2`
+- [x] `_saved_plans_flow()` — interactive browser: list plans, per-plan actions (Start/Edit/Delete/Back), cancel returns `_SAVED_FLOW_STOP`
+- [x] Empty-goal input triggers saved-plans browser instead of top-level choose menu
+- [x] Effort selection: `low/medium/high → haiku-4-5/sonnet-4-6/opus-4-7`; interactive prompt when goal typed and no `--planner-effort`
+- [x] `--planner-effort` CLI flag on `wizard` subcommand; skips interactive prompt when set
+- [x] Expanded checkpoint: Start now / Save & start / Save for later / Request changes / Edit plan file / Cancel
+- [x] `plannerEffort` + `savedPlanPath` recorded in wizard payload
+- [x] 16 regression tests: `WizardSavedPlansFlowTest` (7), `WizardPlannerEffortTest` (6), `WizardCheckpointNewOptionsTest` (3)
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"` — 1070 pass
 
 ---
 

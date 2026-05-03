@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -213,6 +214,38 @@ def discover_plan_previews(tasks_dir: Path) -> list[PlanPreview]:
     return previews
 
 
+def discover_saved_plans(runtime_root: Path) -> list[PlanPreview]:
+    """Scan runtime_root/saved-plans/ for user-saved plan copies."""
+    saved_dir = runtime_root / "saved-plans"
+    if not saved_dir.is_dir():
+        return []
+    previews: list[PlanPreview] = []
+    for path in sorted(saved_dir.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        previews.append(
+            PlanPreview(
+                path=str(path.resolve()),
+                name=str(payload.get("name", path.stem) or path.stem),
+                goal=str(payload.get("goal", "") or "").strip(),
+                task_count=len(payload.get("tasks", []) or []),
+            )
+        )
+    return previews
+
+
+def save_plan_to(plan_path: Path, dest_dir: Path) -> Path:
+    """Copy plan file into dest_dir (created if needed). Returns destination path."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / plan_path.name
+    shutil.copy2(str(plan_path), str(dest))
+    return dest
+
+
 def _tokenize(text: str) -> set[str]:
     tokens = {
         token.strip().lower()
@@ -287,6 +320,8 @@ def resolve_goal_with_claude(
     *,
     args: argparse.Namespace,
     deps: dict[str, Any],
+    planner_model: str = "claude-haiku-4-5-20251001",
+    planner_effort_val: str = "low",
 ) -> dict[str, Any]:
     agents_path = Path(args.agents).resolve()
     agents = deps["load_agents"](agents_path)
@@ -302,8 +337,8 @@ def resolve_goal_with_claude(
         planner_agent_name,
         prompt,
         intent_output_schema_json(),
-        model="claude-haiku-4-5-20251001",
-        effort="low",
+        model=planner_model,
+        effort=planner_effort_val,
         permission_mode=planner_agent.permission_mode,
         allowed_tools=planner_agent.allowed_tools,
         disallowed_tools=planner_agent.disallowed_tools,
@@ -327,8 +362,8 @@ def resolve_goal_with_claude(
         "matchedPlanPath": str(payload.get("matchedPlanPath", "") or "").strip() or None,
         "matchedPlanName": str(payload.get("matchedPlanName", "") or "").strip() or None,
         "taskPlan": payload.get("taskPlan"),
-        "model": "claude-haiku-4-5-20251001",
-        "effort": "low",
+        "model": planner_model,
+        "effort": planner_effort_val,
     }
 
 
@@ -377,6 +412,8 @@ def clarify_goal_with_claude(
     *,
     args: argparse.Namespace,
     deps: dict[str, Any],
+    planner_model: str = "claude-haiku-4-5-20251001",
+    planner_effort_val: str = "low",
 ) -> dict[str, Any]:
     agents_path = Path(args.agents).resolve()
     agents = deps["load_agents"](agents_path)
@@ -392,8 +429,8 @@ def clarify_goal_with_claude(
         planner_agent_name,
         prompt,
         _clarification_output_schema_json(),
-        model="claude-haiku-4-5-20251001",
-        effort="low",
+        model=planner_model,
+        effort=planner_effort_val,
         permission_mode=planner_agent.permission_mode,
         allowed_tools=planner_agent.allowed_tools,
         disallowed_tools=planner_agent.disallowed_tools,
@@ -420,11 +457,16 @@ def _run_clarification_loop(
     *,
     args: argparse.Namespace,
     deps: dict[str, Any],
+    planner_model: str = "claude-haiku-4-5-20251001",
+    planner_effort_val: str = "low",
 ) -> tuple[str, list[dict[str, str]]]:
     answers: list[dict[str, str]] = []
     current_goal = goal
     try:
-        result = clarify_goal_with_claude(current_goal, previews, args=args, deps=deps)
+        result = clarify_goal_with_claude(
+            current_goal, previews, args=args, deps=deps,
+            planner_model=planner_model, planner_effort_val=planner_effort_val,
+        )
     except Exception:
         return current_goal, answers
     questions = result.get("questions", [])
@@ -466,6 +508,22 @@ def _format_staged_plan_summary(plan_path: str, validate_payload: dict[str, Any]
 _CHECKPOINT_PROCEED = "proceed"
 _CHECKPOINT_REVISE = "revise"
 _CHECKPOINT_STOP = "stop"
+_CHECKPOINT_SAVE_AND_START = "save_and_start"
+_CHECKPOINT_SAVE_ONLY = "save_only"
+_CHECKPOINT_EDIT = "edit"
+
+_SAVED_FLOW_STOP = "__stop__"
+_SAVED_ACTION_START = "start"
+_SAVED_ACTION_EDIT = "edit"
+_SAVED_ACTION_DELETE = "delete"
+_SAVED_ACTION_BACK = "back"
+
+_EFFORT_MODEL_MAP: dict[str, tuple[str, str]] = {
+    "low":    ("claude-haiku-4-5-20251001", "low"),
+    "medium": ("claude-sonnet-4-6",         "medium"),
+    "high":   ("claude-opus-4-7",           "high"),
+}
+_DEFAULT_PLANNER_EFFORT = "medium"
 
 
 def _plan_approval_checkpoint(
@@ -477,12 +535,68 @@ def _plan_approval_checkpoint(
     if not interactive:
         return _CHECKPOINT_PROCEED
     choices = [
-        PromptChoice(label="Proceed to run", value=_CHECKPOINT_PROCEED),
-        PromptChoice(label="Revise goal and re-plan", value=_CHECKPOINT_REVISE),
-        PromptChoice(label="Stop", value=_CHECKPOINT_STOP),
+        PromptChoice(label="Start now", value=_CHECKPOINT_PROCEED),
+        PromptChoice(label="Save & start", value=_CHECKPOINT_SAVE_AND_START),
+        PromptChoice(label="Save for later", value=_CHECKPOINT_SAVE_ONLY),
+        PromptChoice(label="Request changes", value=_CHECKPOINT_REVISE),
+        PromptChoice(label="Edit plan file", value=_CHECKPOINT_EDIT),
+        PromptChoice(label="Cancel", value=_CHECKPOINT_STOP),
     ]
     prompter.show_message(plan_summary)
     return prompter.choose("Plan ready — how to proceed?", choices, default_index=0)
+
+
+def _saved_plans_flow(
+    tracked_previews: list[PlanPreview],
+    runtime_root: Path,
+    prompter: WizardPrompter,
+) -> str:
+    """Interactive browser for saved and tracked plans.
+
+    Returns a plan path to start, or ``_SAVED_FLOW_STOP`` if the user exits.
+    """
+    saved_previews = discover_saved_plans(runtime_root)
+    all_previews = list(tracked_previews) + [p for p in saved_previews if p not in tracked_previews]
+
+    while True:
+        if not all_previews:
+            prompter.show_message("No saved plans found.")
+            return _SAVED_FLOW_STOP
+
+        plan_choices = [
+            PromptChoice(
+                label=preview.name,
+                value=preview.path,
+                detail=f"{preview.task_count} tasks | {preview.goal[:80]}",
+            )
+            for preview in all_previews
+        ]
+        plan_choices.append(PromptChoice(label="Cancel", value=_SAVED_FLOW_STOP))
+
+        selected_path = prompter.choose("Saved plans — select a plan", plan_choices, default_index=0)
+        if selected_path == _SAVED_FLOW_STOP:
+            return _SAVED_FLOW_STOP
+
+        action_choices = [
+            PromptChoice(label="Start", value=_SAVED_ACTION_START),
+            PromptChoice(label="Edit (show path)", value=_SAVED_ACTION_EDIT),
+            PromptChoice(label="Delete", value=_SAVED_ACTION_DELETE),
+            PromptChoice(label="Back to list", value=_SAVED_ACTION_BACK),
+        ]
+        action = prompter.choose(f"Plan: {selected_path}", action_choices, default_index=0)
+
+        if action == _SAVED_ACTION_START:
+            return selected_path
+        elif action == _SAVED_ACTION_EDIT:
+            prompter.show_message(f"Edit plan at: {selected_path}")
+            return _SAVED_FLOW_STOP
+        elif action == _SAVED_ACTION_DELETE:
+            try:
+                Path(selected_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+            all_previews = [p for p in all_previews if p.path != selected_path]
+        # _SAVED_ACTION_BACK: loop continues, re-shows plan list
 
 
 def _namespace(**kwargs: Any) -> SimpleNamespace:
@@ -603,11 +717,41 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
         _explicit_plan = str(getattr(args, "plan", "") or "").strip()
         _goal_active = goal_text
         _clarification_answers: list[dict[str, str]] = []
+        _planner_effort = str(getattr(args, "planner_effort", "") or "").strip()
+
+        if interactive and not _goal_active and not _explicit_plan:
+            _goal_active = prompter.ask_text("What do you want to accomplish?").strip()
+
+        # Empty goal in interactive mode → show saved plans browser
+        if interactive and not _goal_active and not _explicit_plan:
+            _saved_result = _saved_plans_flow(plan_previews, runtime_root, prompter)
+            if _saved_result == _SAVED_FLOW_STOP:
+                payload["steps"].append(
+                    {"name": "done", "status": "stopped", "summary": "Operator exited saved plans browser."}
+                )
+                return payload
+            _explicit_plan = _saved_result
+
+        # Effort selection: interactive, goal present, no explicit plan, no CLI effort arg
+        if interactive and _goal_active and not _explicit_plan and not _planner_effort:
+            _effort_choices = [
+                PromptChoice(label="Medium — Sonnet (recommended)", value="medium"),
+                PromptChoice(label="Low — Haiku (faster, cheaper)", value="low"),
+                PromptChoice(label="High — Opus (thorough, slower)", value="high"),
+            ]
+            _planner_effort = prompter.choose("Planner effort level", _effort_choices, default_index=0)
+
+        _effective_effort = _planner_effort or _DEFAULT_PLANNER_EFFORT
+        _planner_model, _planner_effort_val = _EFFORT_MODEL_MAP.get(
+            _effective_effort, _EFFORT_MODEL_MAP[_DEFAULT_PLANNER_EFFORT]
+        )
+        payload["plannerEffort"] = _effective_effort
 
         if interactive and _goal_active and not _dry_run_arg and not _explicit_plan:
             try:
                 _goal_active, _clarification_answers = _run_clarification_loop(
-                    _goal_active, plan_previews, prompter, args=args, deps=deps
+                    _goal_active, plan_previews, prompter, args=args, deps=deps,
+                    planner_model=_planner_model, planner_effort_val=_planner_effort_val,
                 )
             except Exception:
                 pass
@@ -626,7 +770,10 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
                 }
                 if not _dry_run_arg:
                     try:
-                        intent_payload = resolve_goal_with_claude(_goal_active, plan_previews, args=args, deps=deps)
+                        intent_payload = resolve_goal_with_claude(
+                            _goal_active, plan_previews, args=args, deps=deps,
+                            planner_model=_planner_model, planner_effort_val=_planner_effort_val,
+                        )
                     except Exception as exc:
                         intent_payload["warning"] = str(exc)
                 payload["intentResolution"] = intent_payload
@@ -700,19 +847,38 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
 
             if _checkpoint == _CHECKPOINT_PROCEED:
                 break
+            elif _checkpoint == _CHECKPOINT_SAVE_AND_START:
+                _saved_dest = save_plan_to(Path(plan_path), runtime_root / "saved-plans")
+                payload["savedPlanPath"] = str(_saved_dest)
+                break
+            elif _checkpoint == _CHECKPOINT_SAVE_ONLY:
+                _saved_dest = save_plan_to(Path(plan_path), runtime_root / "saved-plans")
+                payload["savedPlanPath"] = str(_saved_dest)
+                payload["steps"].append(
+                    {"name": "done", "status": "saved", "summary": f"Plan saved to {_saved_dest}."}
+                )
+                return payload
+            elif _checkpoint == _CHECKPOINT_EDIT:
+                prompter.show_message(f"Edit plan at: {plan_path}")
+                payload["steps"].append(
+                    {"name": "done", "status": "edit", "summary": f"Operator chose to edit plan at {plan_path}."}
+                )
+                return payload
             elif _checkpoint == _CHECKPOINT_STOP:
                 payload["steps"].append(
                     {"name": "done", "status": "stopped", "summary": "Operator stopped before run."}
                 )
                 return payload
             else:
+                # _CHECKPOINT_REVISE
                 _revised = prompter.ask_text("Revised goal", default=_goal_active) if interactive else _goal_active
                 _goal_active = _revised.strip() or _goal_active
                 _explicit_plan = ""
                 if interactive and _goal_active and not _dry_run_arg:
                     try:
                         _goal_active, _extra = _run_clarification_loop(
-                            _goal_active, plan_previews, prompter, args=args, deps=deps
+                            _goal_active, plan_previews, prompter, args=args, deps=deps,
+                            planner_model=_planner_model, planner_effort_val=_planner_effort_val,
                         )
                         _clarification_answers.extend(_extra)
                     except Exception:

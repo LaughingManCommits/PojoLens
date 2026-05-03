@@ -336,6 +336,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Emit the wizard receipt as JSON.",
     )
     _add_rate_limit_args(wizard_parser)
+    wizard_parser.add_argument(
+        "--planner-effort",
+        dest="planner_effort",
+        choices=["low", "medium", "high"],
+        default="",
+        help="AI planner reasoning effort: low (haiku), medium (sonnet), high (opus). Skips interactive effort prompt when set.",
+    )
     _add_verbose_arg(wizard_parser)
 
     validate_parser = subparsers.add_parser(

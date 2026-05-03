@@ -616,7 +616,9 @@ class WizardFlowTest(unittest.TestCase):
     def test_plan_approval_checkpoint_stop_exits_before_run(self):
         td, root, plan_path = self._make_plan_root()
         self.addCleanup(td.cleanup)
-        prompter = FakePrompter(choices=[plan_path, "stop"])
+        # plan is supplied explicitly so goal-ask and saved-plans flow are skipped;
+        # choices queue only needs the checkpoint value
+        prompter = FakePrompter(choices=["stop"])
         old_choose_prompter = wizard_layer.choose_prompter
         wizard_layer.choose_prompter = lambda **kwargs: prompter
         self.addCleanup(setattr, wizard_layer, "choose_prompter", old_choose_prompter)
@@ -628,7 +630,7 @@ class WizardFlowTest(unittest.TestCase):
                     json=False,
                     tui=False,
                     watch=False,
-                    plan="",
+                    plan=plan_path,
                     goal="",
                     goal_words=[],
                     resume_run_ref="",
@@ -674,10 +676,11 @@ class WizardFlowTest(unittest.TestCase):
     def test_plan_approval_checkpoint_revise_reruns_validation(self):
         td, root, plan_path = self._make_plan_root()
         self.addCleanup(td.cleanup)
-        # choices: [plan_path (round 0 select), "revise" (round 0 checkpoint),
-        #           plan_path (round 1 select), "proceed" (round 1 checkpoint)]
+        # choices: ["medium" (effort), plan_path (round 0 picker), "revise" (round 0 checkpoint),
+        #           plan_path (round 1 picker), "proceed" (round 1 checkpoint)]
+        # texts:   ["my refined goal" (goal ask), "2" (revised goal ask)]
         prompter = FakePrompter(
-            choices=[plan_path, "revise", plan_path, "proceed"],
+            choices=["medium", plan_path, "revise", plan_path, "proceed"],
             texts=["my refined goal", "2"],
             confirms=[False],
         )
@@ -703,6 +706,7 @@ class WizardFlowTest(unittest.TestCase):
                     max_parallel=2,
                     dry_run=False,
                     planner_agent="planner",
+                    planner_effort="",
                     verbose=False,
                 ),
                 deps={
@@ -795,3 +799,551 @@ class WizardFlowTest(unittest.TestCase):
         )
 
         self.assertIn("Retry failed tasks", " ".join(payload["nextActions"]))
+
+
+class WizardGoalPromptTest(unittest.TestCase):
+    """When interactive=True and no --goal flag, wizard asks for the goal via ask_text."""
+
+    def _make_plan_root(self) -> tuple[tempfile.TemporaryDirectory[str], Path, str]:
+        td = tempfile.TemporaryDirectory()
+        root = Path(td.name)
+        tasks_dir = root / "ai" / "orchestrator" / "tasks"
+        tasks_dir.mkdir(parents=True)
+        plan_path = tasks_dir / "alpha.json"
+        plan_path.write_text(
+            '{"version":1,"name":"alpha-plan","goal":"Alpha goal","tasks":[{"id":"a"}]}',
+            encoding="utf-8",
+        )
+        return td, root, str(plan_path.resolve())
+
+    def _make_deps(self, root: Path):
+        return {
+            "root": root,
+            "textual_available": lambda: False,
+            "slugify": lambda text: text.replace(" ", "-"),
+            "write_json": lambda path, data: None,
+            "error_factory": RuntimeError,
+            "load_agents": lambda path: {},
+            "ensure_claude_available": lambda b: None,
+            "claude_command": lambda *a, **k: [],
+            "agent_payload_for_claude": lambda a: {},
+            "run_subprocess": lambda *a, **k: None,
+            "extract_json_payload": lambda t: {},
+            "inventory_handler": lambda a: {"runs": []},
+            "validate_handler": lambda a: {
+                "planName": "alpha-plan",
+                "taskCount": 1,
+                "topology": {"maxParallelWidth": 1},
+                "tasks": [{"id": "a"}],
+            },
+            "run_handler": lambda a: {
+                "runId": "run-g",
+                "runDir": str(root / ".claude-orchestrator" / "runs" / "run-g"),
+                "dryRun": True,
+                "statusCounts": {"planned": 1},
+                "usageTotals": {"totalCostUsd": 0.0},
+            },
+            "resume_handler": lambda a: {},
+            "retry_handler": lambda a: {},
+            "status_handler": lambda a: {},
+            "review_handler": lambda a: {},
+            "diff_run_handler": lambda a: {},
+            "promote_handler": lambda a: {},
+            "validate_run_handler": lambda a: {},
+            "default_task_timeout_sec": 30,
+        }
+
+    def _interactive_patches(self):
+        """Context manager: make stdin+stderr look like a tty so interactive=True."""
+        import contextlib
+        @contextlib.contextmanager
+        def _ctx():
+            with mock.patch("sys.stdin") as mock_stdin, \
+                 mock.patch("sys.stderr") as mock_stderr:
+                mock_stdin.isatty = lambda: True
+                mock_stderr.isatty = lambda: True
+                yield
+        return _ctx()
+
+    def test_ask_text_called_when_interactive_and_no_goal(self):
+        """When interactive and no goal, wizard calls ask_text before proceeding."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+
+        prompter = FakePrompter(texts=["add pagination to items endpoint"])
+
+        with self._interactive_patches():
+            with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+                wizard_layer.wizard_command(
+                    argparse.Namespace(
+                        json=False,
+                        tui=False,
+                        watch=False,
+                        plan="",
+                        goal="",
+                        goal_words=[],
+                        resume_run_ref="",
+                        retry_run_ref="",
+                        agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                        claude_bin="claude",
+                        runtime_root=str(root / ".claude-orchestrator"),
+                        max_parallel=1,
+                        dry_run=True,
+                        planner_agent="planner",
+                        verbose=False,
+                    ),
+                    deps=self._make_deps(root),
+                )
+
+        self.assertIn("What do you want to accomplish?", prompter.messages)
+
+    def test_typed_goal_becomes_active_goal(self):
+        """Goal typed at the prompt becomes refinedGoal in clarification payload."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+
+        prompter = FakePrompter(texts=["add rate limiting"])
+
+        with self._interactive_patches():
+            with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+                payload = wizard_layer.wizard_command(
+                    argparse.Namespace(
+                        json=False,
+                        tui=False,
+                        watch=False,
+                        plan="",
+                        goal="",
+                        goal_words=[],
+                        resume_run_ref="",
+                        retry_run_ref="",
+                        agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                        claude_bin="claude",
+                        runtime_root=str(root / ".claude-orchestrator"),
+                        max_parallel=1,
+                        dry_run=True,
+                        planner_agent="planner",
+                        verbose=False,
+                    ),
+                    deps=self._make_deps(root),
+                )
+
+        self.assertEqual("add rate limiting", payload["clarification"]["refinedGoal"])
+
+    def test_empty_typed_goal_falls_through_to_plan_chooser(self):
+        """If user presses Enter with no input, wizard shows the tracked plan list."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+
+        prompter = FakePrompter(texts=[""])  # user pressed Enter
+
+        with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+            payload = wizard_layer.wizard_command(
+                argparse.Namespace(
+                    json=False,
+                    tui=False,
+                    watch=False,
+                    plan="",
+                    goal="",
+                    goal_words=[],
+                    resume_run_ref="",
+                    retry_run_ref="",
+                    agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                    claude_bin="claude",
+                    runtime_root=str(root / ".claude-orchestrator"),
+                    max_parallel=1,
+                    dry_run=True,
+                    planner_agent="planner",
+                    verbose=False,
+                ),
+                deps=self._make_deps(root),
+            )
+
+        # plan chooser was shown — selectedPlanPath is set to the tracked plan
+        self.assertIn("selectedPlanPath", payload)
+
+    def test_no_goal_prompt_when_not_interactive(self):
+        """Non-interactive mode (--json) never calls ask_text for goal."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+
+        prompter = FakePrompter()
+
+        with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+            wizard_layer.wizard_command(
+                argparse.Namespace(
+                    json=True,  # non-interactive
+                    tui=False,
+                    watch=False,
+                    plan=plan_path,
+                    goal="",
+                    goal_words=[],
+                    resume_run_ref="",
+                    retry_run_ref="",
+                    agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                    claude_bin="claude",
+                    runtime_root=str(root / ".claude-orchestrator"),
+                    max_parallel=1,
+                    dry_run=True,
+                    planner_agent="planner",
+                    verbose=False,
+                ),
+                deps=self._make_deps(root),
+            )
+
+        self.assertNotIn("What do you want to accomplish?", prompter.messages)
+
+
+class WizardSavedPlansFlowTest(unittest.TestCase):
+    """Tests for _saved_plans_flow function."""
+
+    def _make_runtime_root(self) -> tuple[tempfile.TemporaryDirectory[str], Path]:
+        td = tempfile.TemporaryDirectory()
+        return td, Path(td.name)
+
+    def _make_saved_plan(self, saved_dir: Path, name: str, goal: str) -> Path:
+        saved_dir.mkdir(parents=True, exist_ok=True)
+        plan_path = saved_dir / f"{name}.json"
+        plan_path.write_text(
+            json.dumps({"version": 1, "name": name, "goal": goal, "tasks": [{"id": "t1"}]}),
+            encoding="utf-8",
+        )
+        return plan_path
+
+    def test_empty_list_shows_message_and_returns_stop(self):
+        """No tracked or saved plans → shows message and returns _SAVED_FLOW_STOP."""
+        td, runtime_root = self._make_runtime_root()
+        self.addCleanup(td.cleanup)
+        prompter = FakePrompter()
+        result = wizard_layer._saved_plans_flow([], runtime_root, prompter)
+        self.assertEqual(wizard_layer._SAVED_FLOW_STOP, result)
+        self.assertTrue(any("No saved plans" in m for m in prompter.messages))
+
+    def test_cancel_from_plan_list_returns_stop(self):
+        """Selecting Cancel value from plan list returns _SAVED_FLOW_STOP."""
+        td, runtime_root = self._make_runtime_root()
+        self.addCleanup(td.cleanup)
+        saved_dir = runtime_root / "saved-plans"
+        self._make_saved_plan(saved_dir, "my-plan", "Do something")
+        prompter = FakePrompter(choices=[wizard_layer._SAVED_FLOW_STOP])
+        result = wizard_layer._saved_plans_flow([], runtime_root, prompter)
+        self.assertEqual(wizard_layer._SAVED_FLOW_STOP, result)
+
+    def test_start_action_returns_plan_path(self):
+        """Selecting Start for a plan returns that plan's resolved path."""
+        td, runtime_root = self._make_runtime_root()
+        self.addCleanup(td.cleanup)
+        saved_dir = runtime_root / "saved-plans"
+        plan_path = self._make_saved_plan(saved_dir, "my-plan", "Do something")
+        plan_path_str = str(plan_path.resolve())
+        prompter = FakePrompter(choices=[plan_path_str, wizard_layer._SAVED_ACTION_START])
+        result = wizard_layer._saved_plans_flow([], runtime_root, prompter)
+        self.assertEqual(plan_path_str, result)
+
+    def test_edit_action_shows_path_message_and_returns_stop(self):
+        """Edit action emits a show_message with the plan path and exits."""
+        td, runtime_root = self._make_runtime_root()
+        self.addCleanup(td.cleanup)
+        saved_dir = runtime_root / "saved-plans"
+        plan_path = self._make_saved_plan(saved_dir, "my-plan", "Do something")
+        plan_path_str = str(plan_path.resolve())
+        prompter = FakePrompter(choices=[plan_path_str, wizard_layer._SAVED_ACTION_EDIT])
+        result = wizard_layer._saved_plans_flow([], runtime_root, prompter)
+        self.assertEqual(wizard_layer._SAVED_FLOW_STOP, result)
+        self.assertTrue(any(plan_path_str in m for m in prompter.messages))
+
+    def test_delete_removes_file_and_loops_to_next(self):
+        """Delete removes the file; list refreshes and user can start another plan."""
+        td, runtime_root = self._make_runtime_root()
+        self.addCleanup(td.cleanup)
+        saved_dir = runtime_root / "saved-plans"
+        plan_a = self._make_saved_plan(saved_dir, "plan-a", "Goal A")
+        plan_b = self._make_saved_plan(saved_dir, "plan-b", "Goal B")
+        plan_a_str = str(plan_a.resolve())
+        plan_b_str = str(plan_b.resolve())
+        prompter = FakePrompter(choices=[
+            plan_a_str, wizard_layer._SAVED_ACTION_DELETE,
+            plan_b_str, wizard_layer._SAVED_ACTION_START,
+        ])
+        result = wizard_layer._saved_plans_flow([], runtime_root, prompter)
+        self.assertEqual(plan_b_str, result)
+        self.assertFalse(plan_a.exists())
+
+    def test_back_loops_to_plan_list(self):
+        """Back action re-shows the plan list without exiting."""
+        td, runtime_root = self._make_runtime_root()
+        self.addCleanup(td.cleanup)
+        saved_dir = runtime_root / "saved-plans"
+        plan_path = self._make_saved_plan(saved_dir, "my-plan", "Do something")
+        plan_path_str = str(plan_path.resolve())
+        # Round 1: select plan → back; Round 2: select plan → start
+        prompter = FakePrompter(choices=[
+            plan_path_str, wizard_layer._SAVED_ACTION_BACK,
+            plan_path_str, wizard_layer._SAVED_ACTION_START,
+        ])
+        result = wizard_layer._saved_plans_flow([], runtime_root, prompter)
+        self.assertEqual(plan_path_str, result)
+
+    def test_tracked_previews_appear_in_browser(self):
+        """Tracked plan previews are shown alongside saved plans."""
+        td, runtime_root = self._make_runtime_root()
+        self.addCleanup(td.cleanup)
+        tracked = wizard_layer.PlanPreview(
+            path="/tracked/alpha.json",
+            name="alpha",
+            goal="tracked goal",
+            task_count=2,
+        )
+        prompter = FakePrompter(choices=[wizard_layer._SAVED_FLOW_STOP])
+        wizard_layer._saved_plans_flow([tracked], runtime_root, prompter)
+        self.assertTrue(any("Saved plans" in m for m in prompter.messages))
+
+
+class WizardPlannerEffortTest(unittest.TestCase):
+    """Tests for effort level selection in wizard plan mode."""
+
+    def _make_plan_root(self) -> tuple[tempfile.TemporaryDirectory[str], Path, str]:
+        td = tempfile.TemporaryDirectory()
+        root = Path(td.name)
+        tasks_dir = root / "ai" / "orchestrator" / "tasks"
+        tasks_dir.mkdir(parents=True)
+        plan_path = tasks_dir / "alpha.json"
+        plan_path.write_text(
+            '{"version":1,"name":"alpha-plan","goal":"Alpha goal","tasks":[{"id":"a"}]}',
+            encoding="utf-8",
+        )
+        return td, root, str(plan_path.resolve())
+
+    def _base_deps(self, root: Path) -> dict:
+        return {
+            "root": root,
+            "textual_available": lambda: False,
+            "slugify": lambda t: t.replace(" ", "-"),
+            "write_json": lambda p, d: None,
+            "error_factory": RuntimeError,
+            "load_agents": lambda p: {},
+            "ensure_claude_available": lambda b: None,
+            "claude_command": lambda *a, **k: [],
+            "agent_payload_for_claude": lambda a: {},
+            "run_subprocess": lambda *a, **k: None,
+            "extract_json_payload": lambda t: {},
+            "inventory_handler": lambda a: {"runs": []},
+            "validate_handler": lambda a: {
+                "planName": "alpha-plan", "taskCount": 1,
+                "topology": {"maxParallelWidth": 1}, "tasks": [{"id": "a"}],
+            },
+            "run_handler": lambda a: {
+                "runId": "run-e",
+                "runDir": str(root / ".claude-orchestrator" / "runs" / "run-e"),
+                "dryRun": True, "statusCounts": {"planned": 1},
+                "usageTotals": {"totalCostUsd": 0.0},
+            },
+            "resume_handler": lambda a: {},
+            "retry_handler": lambda a: {},
+            "status_handler": lambda a: {},
+            "review_handler": lambda a: {},
+            "promote_handler": lambda a: {},
+            "validate_run_handler": lambda a: {},
+            "default_task_timeout_sec": 30,
+        }
+
+    def test_effort_high_maps_to_opus(self):
+        model, effort_val = wizard_layer._EFFORT_MODEL_MAP["high"]
+        self.assertIn("opus", model.lower())
+        self.assertEqual("high", effort_val)
+
+    def test_effort_medium_maps_to_sonnet(self):
+        model, effort_val = wizard_layer._EFFORT_MODEL_MAP["medium"]
+        self.assertIn("sonnet", model.lower())
+        self.assertEqual("medium", effort_val)
+
+    def test_effort_low_maps_to_haiku(self):
+        model, effort_val = wizard_layer._EFFORT_MODEL_MAP["low"]
+        self.assertIn("haiku", model.lower())
+        self.assertEqual("low", effort_val)
+
+    def test_effort_prompt_shown_when_goal_typed_interactively(self):
+        """Interactive goal entry triggers the planner effort chooser."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+        # texts: goal; choices: effort, then plan fallback picker
+        prompter = FakePrompter(texts=["add caching"], choices=["low", plan_path])
+
+        with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+            with mock.patch("sys.stdin") as si, mock.patch("sys.stderr") as se:
+                si.isatty = lambda: True
+                se.isatty = lambda: True
+                wizard_layer.wizard_command(
+                    argparse.Namespace(
+                        json=False, tui=False, watch=False, plan="",
+                        goal="", goal_words=[], resume_run_ref="", retry_run_ref="",
+                        agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                        claude_bin="claude",
+                        runtime_root=str(root / ".claude-orchestrator"),
+                        max_parallel=1, dry_run=True, planner_agent="planner",
+                        planner_effort="", verbose=False,
+                    ),
+                    deps=self._base_deps(root),
+                )
+
+        self.assertTrue(any("Planner effort" in m for m in prompter.messages))
+
+    def test_cli_effort_arg_skips_prompt(self):
+        """When --planner-effort is supplied, the effort chooser is not presented."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+        # No effort choice needed in queue — only the fallback plan picker
+        prompter = FakePrompter(texts=["add caching"], choices=[plan_path])
+
+        with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+            with mock.patch("sys.stdin") as si, mock.patch("sys.stderr") as se:
+                si.isatty = lambda: True
+                se.isatty = lambda: True
+                wizard_layer.wizard_command(
+                    argparse.Namespace(
+                        json=False, tui=False, watch=False, plan="",
+                        goal="", goal_words=[], resume_run_ref="", retry_run_ref="",
+                        agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                        claude_bin="claude",
+                        runtime_root=str(root / ".claude-orchestrator"),
+                        max_parallel=1, dry_run=True, planner_agent="planner",
+                        planner_effort="high", verbose=False,
+                    ),
+                    deps=self._base_deps(root),
+                )
+
+        self.assertFalse(any("Planner effort" in m for m in prompter.messages))
+
+    def test_planner_effort_recorded_in_payload(self):
+        """wizard_command stores the effective effort in payload['plannerEffort']."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+        payload = wizard_layer.wizard_command(
+            argparse.Namespace(
+                json=True, tui=False, watch=False, plan=plan_path,
+                goal="", goal_words=[], resume_run_ref="", retry_run_ref="",
+                agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                claude_bin="claude",
+                runtime_root=str(root / ".claude-orchestrator"),
+                max_parallel=1, dry_run=True, planner_agent="planner",
+                planner_effort="low", verbose=False,
+            ),
+            deps=self._base_deps(root),
+        )
+        self.assertEqual("low", payload.get("plannerEffort"))
+
+
+class WizardCheckpointNewOptionsTest(unittest.TestCase):
+    """Tests for save_only, save_and_start, and edit checkpoint options."""
+
+    def _make_plan_root(self) -> tuple[tempfile.TemporaryDirectory[str], Path, str]:
+        td = tempfile.TemporaryDirectory()
+        root = Path(td.name)
+        tasks_dir = root / "ai" / "orchestrator" / "tasks"
+        tasks_dir.mkdir(parents=True)
+        plan_path = tasks_dir / "alpha.json"
+        plan_path.write_text(
+            '{"version":1,"name":"alpha-plan","goal":"Alpha goal","tasks":[{"id":"a"}]}',
+            encoding="utf-8",
+        )
+        return td, root, str(plan_path.resolve())
+
+    def _base_deps(self, root: Path) -> tuple[dict, list]:
+        run_called: list[bool] = []
+        deps = {
+            "root": root,
+            "textual_available": lambda: False,
+            "slugify": lambda t: t,
+            "write_json": lambda p, d: None,
+            "error_factory": RuntimeError,
+            "load_agents": lambda p: {},
+            "ensure_claude_available": lambda b: None,
+            "claude_command": lambda *a, **k: [],
+            "agent_payload_for_claude": lambda a: {},
+            "run_subprocess": lambda *a, **k: None,
+            "extract_json_payload": lambda t: {},
+            "inventory_handler": lambda a: {"runs": []},
+            "validate_handler": lambda a: {"planName": "alpha-plan", "taskCount": 1, "tasks": []},
+            "run_handler": lambda a: run_called.append(True) or {
+                "runId": "run-c",
+                "runDir": str(root / ".claude-orchestrator" / "runs" / "run-c"),
+                "dryRun": False, "statusCounts": {"completed": 1},
+                "usageTotals": {"totalCostUsd": 0.0},
+            },
+            "resume_handler": lambda a: {},
+            "retry_handler": lambda a: {},
+            "status_handler": lambda a: {"reviewSummary": {"changedTaskCount": 0}},
+            "review_handler": lambda a: {},
+            "promote_handler": lambda a: {"promotionAllowed": True, "blockedReasons": [], "filesPromoted": 0},
+            "validate_run_handler": lambda a: {},
+            "default_task_timeout_sec": 30,
+        }
+        return deps, run_called
+
+    def _interactive_args(self, root: Path, plan_path: str) -> argparse.Namespace:
+        return argparse.Namespace(
+            json=False, tui=False, watch=False, plan=plan_path,
+            goal="", goal_words=[], resume_run_ref="", retry_run_ref="",
+            agents=str(root / "ai" / "orchestrator" / "agents.json"),
+            claude_bin="claude",
+            runtime_root=str(root / ".claude-orchestrator"),
+            max_parallel=1, dry_run=False, planner_agent="planner",
+            planner_effort="", verbose=False,
+        )
+
+    def test_save_only_stops_wizard_and_creates_file(self):
+        """save_only saves the plan file and exits without running."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+        deps, run_called = self._base_deps(root)
+        prompter = FakePrompter(choices=["save_only"])
+
+        with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+            with mock.patch("sys.stdin") as si, mock.patch("sys.stderr") as se:
+                si.isatty = lambda: True
+                se.isatty = lambda: True
+                payload = wizard_layer.wizard_command(
+                    self._interactive_args(root, plan_path), deps=deps
+                )
+
+        self.assertEqual([], run_called)
+        self.assertIn("savedPlanPath", payload)
+        self.assertTrue(Path(payload["savedPlanPath"]).exists())
+        self.assertEqual("saved", payload["steps"][-1]["status"])
+
+    def test_save_and_start_saves_plan_and_runs(self):
+        """save_and_start saves the plan and continues to run."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+        deps, run_called = self._base_deps(root)
+        prompter = FakePrompter(choices=["save_and_start"], confirms=[False, False])
+
+        with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+            with mock.patch("sys.stdin") as si, mock.patch("sys.stderr") as se:
+                si.isatty = lambda: True
+                se.isatty = lambda: True
+                payload = wizard_layer.wizard_command(
+                    self._interactive_args(root, plan_path), deps=deps
+                )
+
+        self.assertEqual([True], run_called)
+        self.assertIn("savedPlanPath", payload)
+        self.assertTrue(Path(payload["savedPlanPath"]).exists())
+
+    def test_edit_checkpoint_stops_wizard_without_running(self):
+        """edit checkpoint emits plan path message and exits without running."""
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+        deps, run_called = self._base_deps(root)
+        prompter = FakePrompter(choices=["edit"])
+
+        with mock.patch.object(wizard_layer, "choose_prompter", return_value=prompter):
+            with mock.patch("sys.stdin") as si, mock.patch("sys.stderr") as se:
+                si.isatty = lambda: True
+                se.isatty = lambda: True
+                payload = wizard_layer.wizard_command(
+                    self._interactive_args(root, plan_path), deps=deps
+                )
+
+        self.assertEqual([], run_called)
+        self.assertEqual("edit", payload["steps"][-1]["status"])
+        self.assertTrue(any(plan_path in m for m in prompter.messages))
