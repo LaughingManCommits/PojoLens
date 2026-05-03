@@ -11,6 +11,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Persistent operator console** - added `pojo_lens_agents.console` with a
+  `pojolens-agents console` session mode that stays alive until `/exit`;
+  supports `/help`, `/jobs`, `/focus [job-id]`, and `/clear` meta-commands;
+  routes all orchestrator commands inline; dispatches `run` / `resume` /
+  `retry` as managed background jobs so the operator can issue further commands
+  while a long run proceeds; waits for background jobs on exit; handles
+  `EOFError` and `KeyboardInterrupt` gracefully; reuses existing handler
+  dispatch and `command_dispatch.print_payload`; and does not replace the
+  one-shot CLI contract.
+
 - **Human diff view before promote** - added `pojo_lens_agents.diff_run` plus
   the `diff-run` command for retained runs, with task and path filters,
   `--stat` summaries, structured per-file unified diff JSON payloads, ANSI or

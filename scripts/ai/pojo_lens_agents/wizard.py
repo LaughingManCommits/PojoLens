@@ -34,6 +34,7 @@ except ImportError as exc:  # pragma: no cover
 
 KNOWN_COMMANDS = {
     "config",
+    "console",
     "validate",
     "plan",
     "run",

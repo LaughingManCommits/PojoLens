@@ -1037,6 +1037,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     _add_verbose_arg(summarize_ledger_parser)
 
+    console_parser = subparsers.add_parser(
+        "console",
+        help="Start a persistent operator console session (type /exit to quit).",
+    )
+    console_parser.add_argument(
+        "--agents",
+        default=str(DEFAULT_AGENTS_PATH),
+        help="Path to the tracked agents JSON file.",
+    )
+    console_parser.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        help="Runtime root for run inventory.",
+    )
+    _add_provider_bin_arg(console_parser)
+    _add_verbose_arg(console_parser)
+
     config_path_hint = _pre_parse_config_path(raw_argv)
     try:
         from pojo_lens_agents.config_loader import load_config

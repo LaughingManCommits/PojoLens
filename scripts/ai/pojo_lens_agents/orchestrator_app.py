@@ -1462,32 +1462,42 @@ def wizard_command(args: argparse.Namespace) -> dict[str, Any]:
     )
 
 
+def _build_handlers() -> dict[str, Any]:
+    return {
+        'validate': validate_command,
+        'plan': plan_with_claude,
+        'run': run_plan,
+        'resume': resume_run,
+        'retry': retry_run,
+        'review': review_run,
+        'export-patch': export_patch,
+        'diff-run': diff_run_command,
+        'export-trace': export_trace,
+        'promote': promote_run,
+        'cleanup': cleanup_run,
+        'inventory': inventory_runs,
+        'status': status_run,
+        'evaluate-run': evaluate_run_quality,
+        'evaluate-corpus': evaluate_run_corpus,
+        'prune': prune_runs,
+        'validate-run': validate_run,
+        'summarize-ledger': summarize_ledger,
+        'config': config_command,
+        'wizard': wizard_command,
+    }
+
+
 def main() -> int:
-    return dispatch_main(
-        parse_args(),
-        handlers={
-            'validate': validate_command,
-            'plan': plan_with_claude,
-            'run': run_plan,
-            'resume': resume_run,
-            'retry': retry_run,
-            'review': review_run,
-            'export-patch': export_patch,
-            'diff-run': diff_run_command,
-            'export-trace': export_trace,
-            'promote': promote_run,
-            'cleanup': cleanup_run,
-            'inventory': inventory_runs,
-            'status': status_run,
-            'evaluate-run': evaluate_run_quality,
-            'evaluate-corpus': evaluate_run_corpus,
-            'prune': prune_runs,
-            'validate-run': validate_run,
-            'summarize-ledger': summarize_ledger,
-            'config': config_command,
-            'wizard': wizard_command,
-        },
-    )
+    args = parse_args()
+    if args.command == "console":
+        from pojo_lens_agents.cli_parser import parse_args as _child_parse_args
+        from pojo_lens_agents.console import run_console_session
+        return run_console_session(
+            args,
+            handlers=_build_handlers(),
+            parse_args_fn=_child_parse_args,
+        )
+    return dispatch_main(args, _build_handlers())
 
 
 if __name__ == '__main__':
