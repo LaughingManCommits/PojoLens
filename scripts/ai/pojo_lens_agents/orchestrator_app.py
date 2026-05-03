@@ -1536,6 +1536,10 @@ def main() -> int:
             return run_tui_console(args, handlers=handlers, parse_args_fn=_child_parse_args)
         from pojo_lens_agents.console import run_console_session
         return run_console_session(args, handlers=handlers, parse_args_fn=_child_parse_args)
+    if args.command == "operator":
+        from pojo_lens_agents.cli_parser import parse_args as _child_parse_args
+        from pojo_lens_agents.tui_operator import run_operator_tui
+        return run_operator_tui(args, handlers=_build_handlers(), parse_args_fn=_child_parse_args)
     return dispatch_main(args, _build_handlers())
 
 

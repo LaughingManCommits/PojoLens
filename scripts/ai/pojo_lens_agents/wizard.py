@@ -31,6 +31,7 @@ from pojo_lens_agents.tui_app import textual_is_available
 KNOWN_COMMANDS = {
     "config",
     "console",
+    "operator",
     "validate",
     "plan",
     "run",

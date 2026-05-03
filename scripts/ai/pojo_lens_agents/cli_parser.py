@@ -1115,6 +1115,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_provider_bin_arg(console_parser)
     _add_verbose_arg(console_parser)
 
+    operator_parser = subparsers.add_parser(
+        "operator",
+        help="Start the Matrix/cyberpunk multi-screen operator TUI console.",
+    )
+    operator_parser.add_argument(
+        "--agents",
+        default=str(DEFAULT_AGENTS_PATH),
+        help="Path to the tracked agents JSON file.",
+    )
+    operator_parser.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        dest="runtime_root",
+        help="Runtime root for run inventory and saved plans.",
+    )
+    _add_provider_bin_arg(operator_parser)
+    _add_verbose_arg(operator_parser)
+
     config_path_hint = _pre_parse_config_path(raw_argv)
     try:
         from pojo_lens_agents.config_loader import load_config
