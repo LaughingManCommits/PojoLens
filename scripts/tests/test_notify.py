@@ -347,6 +347,24 @@ class TestDispatchNotifications(unittest.TestCase):
         )
         self.assertEqual(len(calls), 0)
 
+    def test_notify_on_empty_list_never_dispatches(self) -> None:
+        calls: list[dict] = []
+        dispatch_notifications(
+            _COMPLETED_PAYLOAD,
+            {"desktop": True, "notify_on": []},
+            _desktop_fn=lambda p: calls.append(p),
+        )
+        self.assertEqual(len(calls), 0)
+
+    def test_notify_on_none_defaults_to_always(self) -> None:
+        calls: list[dict] = []
+        dispatch_notifications(
+            _COMPLETED_PAYLOAD,
+            {"desktop": True},
+            _desktop_fn=lambda p: calls.append(p),
+        )
+        self.assertEqual(len(calls), 1)
+
 
 class TestLoadNotificationsConfig(unittest.TestCase):
     def setUp(self) -> None:
@@ -439,6 +457,54 @@ class TestNotifyCliFlags(unittest.TestCase):
         args = self._parse(["run", "plan.json"])
         self.assertFalse(args.notify)
         self.assertFalse(args.no_notify)
+
+
+class TestFireNotificationsAsync(unittest.TestCase):
+    def _make_args(self, **kwargs: object) -> object:
+        import argparse
+        ns = argparse.Namespace(notify=False, no_notify=False, config="")
+        for k, v in kwargs.items():
+            setattr(ns, k, v)
+        return ns
+
+    def _run(self, args: object, payload: dict, notif_config: dict) -> list[dict]:
+        from unittest.mock import patch
+        calls: list[dict] = []
+        with patch("ai.pojo_lens_agents.orchestrator_app.config_loader_layer") as mock_cfg, \
+             patch("ai.pojo_lens_agents.orchestrator_app.notify_layer") as mock_notify:
+            mock_cfg.load_notifications_config.return_value = notif_config
+            mock_notify.dispatch_notifications.side_effect = lambda p, cfg, **kw: calls.append(
+                {"payload": p, "config": cfg, "kwargs": kw}
+            )
+            from ai.pojo_lens_agents.orchestrator_app import _fire_notifications_async
+            _fire_notifications_async(args, payload)  # type: ignore[arg-type]
+        return calls
+
+    def test_dry_run_payload_suppresses_dispatch(self) -> None:
+        args = self._make_args()
+        calls = self._run(args, {"dryRun": True, "statusCounts": {}}, {"desktop": True})
+        self.assertEqual(calls, [])
+
+    def test_estimated_only_payload_suppresses_dispatch(self) -> None:
+        args = self._make_args()
+        calls = self._run(args, {"estimatedOnly": True, "dryRun": True}, {"desktop": True})
+        self.assertEqual(calls, [])
+
+    def test_no_notify_arg_suppresses_dispatch(self) -> None:
+        args = self._make_args(no_notify=True)
+        calls = self._run(args, _COMPLETED_PAYLOAD, {"desktop": True})
+        self.assertEqual(calls, [])
+
+    def test_live_run_dispatches(self) -> None:
+        args = self._make_args()
+        calls = self._run(args, _COMPLETED_PAYLOAD, {"desktop": True})
+        self.assertEqual(len(calls), 1)
+
+    def test_notify_flag_passes_force_desktop(self) -> None:
+        args = self._make_args(notify=True)
+        calls = self._run(args, _COMPLETED_PAYLOAD, {})
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0]["kwargs"].get("force_desktop"))
 
 
 if __name__ == "__main__":

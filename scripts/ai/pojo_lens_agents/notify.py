@@ -153,7 +153,8 @@ def dispatch_notifications(
     notification_payload = build_notification_payload(run_payload)
     status = notification_payload.get("status", "completed")
 
-    notify_on: list[str] = config.get("notify_on") or ["always"]
+    notify_on_raw = config.get("notify_on")
+    notify_on: list[str] = notify_on_raw if notify_on_raw is not None else ["always"]
     should_notify = (
         "always" in notify_on
         or (status == "completed" and "success" in notify_on)

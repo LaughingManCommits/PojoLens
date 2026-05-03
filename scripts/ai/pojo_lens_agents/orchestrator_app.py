@@ -751,6 +751,8 @@ def _resolve_tui_mode(*, requested: bool, watch: bool, json_output: bool, stderr
 def _fire_notifications_async(args: argparse.Namespace, payload: dict[str, Any]) -> None:
     if bool(getattr(args, "no_notify", False)):
         return
+    if payload.get("dryRun") or payload.get("estimatedOnly"):
+        return
     notify_flag = bool(getattr(args, "notify", False))
     config_path = str(getattr(args, "config", "") or "").strip() or None
 

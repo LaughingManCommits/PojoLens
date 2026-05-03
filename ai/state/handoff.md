@@ -7,14 +7,14 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-03`: WP56 complete; `notify.py` (desktop/webhook/Slack), `load_notifications_config` in config_loader, `--notify`/`--no-notify` on run/resume/retry, daemon-thread dispatch in orchestrator_app; 888 tests pass.
+- `2026-05-03`: WP56 complete + after-care; dry-run/estimate suppression, `notify_on=[]` fix; 895 tests pass.
 - `2026-05-03`: WP69 complete; planner-first wizard flow with clarification loop, staged plan summary, approve/revise/stop checkpoint, revision loop (3 rounds max); 841 tests pass.
 - `2026-05-03`: WP68 + follow-ups complete; shared Matrix theme, `Header` in OrchestratorApp, DataTable column widths/right-align, wizard card containers; 837 tests pass.
 - `2026-05-03`: WP60 complete; shared partial streaming reaches watch and TUI surfaces; 836 tests passed.
 - `2026-05-03`: Queue is WP62 -> WP70 -> WP63 -> WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
 
 ## Facts
-- `2026-05-03`: `notify.py` owns notification channels; `dispatch_notifications` injects `_desktop_fn/_webhook_fn/_slack_fn`; `_fire_notifications_async` daemon thread (join 15s) wired to run_plan/resume_run/retry_run in orchestrator_app.
+- `2026-05-03`: `notify.py` owns notification channels; `dispatch_notifications` injects `_desktop_fn/_webhook_fn/_slack_fn`; `_fire_notifications_async` daemon thread (join 15s) wired to run_plan/resume_run/retry_run; skips on `dryRun`/`estimatedOnly` payloads.
 - `2026-05-03`: `config_loader.py` has `load_notifications_config` ([notifications] TOML, ALLOWED_NOTIFICATIONS, VALID_NOTIFY_ON); `_find_config_path` shared by both load functions.
 - `2026-05-03`: `console.py` owns session state and shared routing (`DispatchRoute`/`route_line`).
 - `2026-05-03`: `tui_console.py` owns all Textual UI; `tui_app.py` owns run dashboard and `textual_is_available`; `wizard.py` is pure logic.

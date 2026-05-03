@@ -355,7 +355,12 @@ status and cost summary.
   task counts, total cost, duration, and a one-line summary. Small enough to
   fit in a Slack message or desktop toast.
 
-**Decision:** Complete. `notify.py` with `build_notification_payload`, `notify_desktop` (plyer optional), `notify_webhook` (urllib), `notify_slack` (Block Kit); `load_notifications_config` in `config_loader.py` reading `[notifications]` TOML section with `ALLOWED_NOTIFICATIONS`/`VALID_NOTIFY_ON` validation; `--notify`/`--no-notify` mutually-exclusive flags on run/resume/retry; `_fire_notifications_async` daemon thread (join timeout=15s) in `orchestrator_app.py` wired to all three run entry points; `notifications = ["plyer>=2.0"]` extras in `pyproject.toml`; 42 tests in `test_notify.py`; 888 tests pass.
+**Decision:** Complete. `notify.py` with `build_notification_payload`, `notify_desktop` (plyer optional), `notify_webhook` (urllib), `notify_slack` (Block Kit); `load_notifications_config` in `config_loader.py` reading `[notifications]` TOML section with `ALLOWED_NOTIFICATIONS`/`VALID_NOTIFY_ON` validation; `--notify`/`--no-notify` mutually-exclusive flags on run/resume/retry; `_fire_notifications_async` daemon thread (join timeout=15s) in `orchestrator_app.py` wired to all three run entry points; `notifications = ["plyer>=2.0"]` extras in `pyproject.toml`; 49 tests in `test_notify.py`; 895 tests pass.
+
+**After-care (2026-05-03):**
+- Fixed: `_fire_notifications_async` now returns early when `payload.get("dryRun") or payload.get("estimatedOnly")` is truthy — `--dry-run` and `--estimate` runs no longer fire misleading "0 completed" notifications.
+- Fixed: `notify_on = []` (explicit empty list in config) now correctly means "never notify"; changed `config.get("notify_on") or ["always"]` to `notify_on_raw if notify_on_raw is not None else ["always"]` so only a missing key defaults to "always".
+- Added 7 tests: `test_notify_on_empty_list_never_dispatches`, `test_notify_on_none_defaults_to_always`, `TestFireNotificationsAsync` (dry_run suppression, estimate suppression, no_notify suppression, live run dispatches, force_desktop flag propagation); 895 tests pass.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
