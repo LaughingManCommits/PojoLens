@@ -332,6 +332,151 @@ def resolve_goal_with_claude(
     }
 
 
+def _clarification_output_schema_json() -> str:
+    return json.dumps(
+        {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["questions", "refinedGoal"],
+            "properties": {
+                "questions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "maxItems": 3,
+                },
+                "refinedGoal": {"type": "string"},
+            },
+        }
+    )
+
+
+def _clarification_prompt(goal: str, previews: list[PlanPreview]) -> str:
+    lines = [
+        "You are a planning assistant. Determine if the operator goal needs clarification before selecting or generating a task plan.",
+        "Return JSON only.",
+        f"Goal: {goal}",
+        "Tracked plans (context):",
+    ]
+    for preview in previews[:10]:
+        lines.append(f"- name={preview.name} | goal={preview.goal}")
+    lines.extend(
+        [
+            "Rules:",
+            "- If the goal is clear enough to proceed, return an empty questions array and a refinedGoal that sharpens the original.",
+            "- If the goal needs clarification, return up to 3 focused questions and a best-guess refinedGoal.",
+            "- Questions must be specific and answerable by the operator.",
+            "- Never ask for information that is already implied by the goal.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def clarify_goal_with_claude(
+    goal: str,
+    previews: list[PlanPreview],
+    *,
+    args: argparse.Namespace,
+    deps: dict[str, Any],
+) -> dict[str, Any]:
+    agents_path = Path(args.agents).resolve()
+    agents = deps["load_agents"](agents_path)
+    planner_agent_name = str(getattr(args, "planner_agent", "planner") or "planner")
+    if planner_agent_name not in agents:
+        return {"questions": [], "refinedGoal": goal}
+    planner_agent = agents[planner_agent_name]
+    deps["ensure_claude_available"](args.claude_bin)
+    prompt = _clarification_prompt(goal, previews)
+    command = deps["claude_command"](
+        args.claude_bin,
+        deps["agent_payload_for_claude"](agents, selected_names=[planner_agent_name]),
+        planner_agent_name,
+        prompt,
+        _clarification_output_schema_json(),
+        model="claude-haiku-4-5-20251001",
+        effort="low",
+        permission_mode=planner_agent.permission_mode,
+        allowed_tools=planner_agent.allowed_tools,
+        disallowed_tools=planner_agent.disallowed_tools,
+        max_budget_usd=planner_agent.max_budget_usd,
+    )
+    completed = deps["run_subprocess"](
+        command,
+        cwd=deps["root"],
+        timeout_sec=planner_agent.timeout_sec,
+        progress_action=None,
+    )
+    result = deps["extract_json_payload"](completed.stdout)
+    if not isinstance(result, dict):
+        return {"questions": [], "refinedGoal": goal}
+    questions = [str(q) for q in (result.get("questions") or []) if q][:3]
+    refined_goal = str(result.get("refinedGoal", "") or "").strip() or goal
+    return {"questions": questions, "refinedGoal": refined_goal}
+
+
+def _run_clarification_loop(
+    goal: str,
+    previews: list[PlanPreview],
+    prompter: WizardPrompter,
+    *,
+    args: argparse.Namespace,
+    deps: dict[str, Any],
+) -> tuple[str, list[dict[str, str]]]:
+    answers: list[dict[str, str]] = []
+    current_goal = goal
+    try:
+        result = clarify_goal_with_claude(current_goal, previews, args=args, deps=deps)
+    except Exception:
+        return current_goal, answers
+    questions = result.get("questions", [])
+    current_goal = result.get("refinedGoal", current_goal) or current_goal
+    for question in questions:
+        answer = prompter.ask_text(question, default="")
+        answers.append({"question": question, "answer": answer})
+        if answer:
+            current_goal = f"{current_goal}; {answer}"
+    return current_goal, answers
+
+
+def _format_staged_plan_summary(plan_path: str, validate_payload: dict[str, Any]) -> str:
+    plan_name = str(validate_payload.get("planName", "") or Path(plan_path).stem)
+    task_count = int(validate_payload.get("taskCount", 0) or 0)
+    tasks = list(validate_payload.get("tasks", []) or [])
+    lines = [
+        f"[bold]Plan:[/bold] {plan_name}",
+        f"[bold]Tasks:[/bold] {task_count}",
+    ]
+    for task in tasks[:10]:
+        task_id = str(task.get("id", "") or "")
+        agent = str(task.get("agent", "") or "")
+        if task_id:
+            lines.append("  • " + task_id + (f" [{agent}]" if agent else ""))
+    if len(tasks) > 10:
+        lines.append(f"  … and {len(tasks) - 10} more")
+    return "\n".join(lines)
+
+
+_CHECKPOINT_PROCEED = "proceed"
+_CHECKPOINT_REVISE = "revise"
+_CHECKPOINT_STOP = "stop"
+
+
+def _plan_approval_checkpoint(
+    plan_summary: str,
+    prompter: WizardPrompter,
+    *,
+    interactive: bool,
+) -> str:
+    if not interactive:
+        return _CHECKPOINT_PROCEED
+    choices = [
+        PromptChoice(label="Proceed to run", value=_CHECKPOINT_PROCEED),
+        PromptChoice(label="Revise goal and re-plan", value=_CHECKPOINT_REVISE),
+        PromptChoice(label="Stop", value=_CHECKPOINT_STOP),
+    ]
+    prompter.show_message(plan_summary)
+    return prompter.choose("Plan ready — how to proceed?", choices, default_index=0)
+
+
 def _namespace(**kwargs: Any) -> SimpleNamespace:
     return SimpleNamespace(**kwargs)
 
@@ -446,69 +591,112 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
         goal_text = " ".join(str(item) for item in goal_words).strip()
 
     if payload["mode"] == "plan":
-        if getattr(args, "plan", ""):
-            plan_path = str(Path(args.plan).resolve())
-        elif goal_text:
-            local_matches = local_goal_matches(goal_text, plan_previews)
-            intent_payload = {
-                "goal": goal_text,
-                "localMatches": local_matches,
-                "mode": "match" if local_matches and float(local_matches[0]["score"]) >= 0.2 else "generate",
-            }
-            if not bool(getattr(args, "dry_run", False)):
-                try:
-                    intent_payload = resolve_goal_with_claude(goal_text, plan_previews, args=args, deps=deps)
-                except Exception as exc:
-                    intent_payload["warning"] = str(exc)
-            payload["intentResolution"] = intent_payload
-            if intent_payload["mode"] == "match" and intent_payload.get("matchedPlanPath"):
-                plan_path = str(Path(str(intent_payload["matchedPlanPath"])).resolve())
-            elif intent_payload["mode"] == "generate" and isinstance(intent_payload.get("taskPlan"), dict):
-                generated_plan_payload = dict(intent_payload["taskPlan"])
-                generated_plan_path = _generated_plan_path(runtime_root, goal_text, deps["slugify"])
-                payload["generatedPlanPath"] = str(generated_plan_path)
-                if not bool(getattr(args, "dry_run", False)):
-                    deps["write_json"](generated_plan_path, generated_plan_payload)
-                    plan_path = str(generated_plan_path)
-        if plan_path is None:
-            choices = [
-                PromptChoice(
-                    label=preview.name,
-                    value=preview.path,
-                    detail=f"{preview.task_count} tasks | {preview.goal[:100]}",
+        _dry_run_arg = bool(getattr(args, "dry_run", False))
+        _explicit_plan = str(getattr(args, "plan", "") or "").strip()
+        _goal_active = goal_text
+        _clarification_answers: list[dict[str, str]] = []
+
+        if interactive and _goal_active and not _dry_run_arg and not _explicit_plan:
+            try:
+                _goal_active, _clarification_answers = _run_clarification_loop(
+                    _goal_active, plan_previews, prompter, args=args, deps=deps
                 )
-                for preview in plan_previews
-            ]
-            if not choices:
-                raise deps["error_factory"]("No tracked plans found under ai/orchestrator/tasks")
-            plan_path = prompter.choose("Select a tracked plan", choices, default_index=0)
-        payload["selectedPlanPath"] = plan_path
+            except Exception:
+                pass
+        payload["clarification"] = {"refinedGoal": _goal_active, "answers": _clarification_answers}
 
-        validate_payload = deps["validate_handler"](
-            _namespace(
-                agents=args.agents,
-                task_plan=plan_path,
-                dry_run=True,
-                json=False,
-                fingerprint_only=False,
-                verbose=False,
-                claude_bin=args.claude_bin,
+        for _plan_round in range(3):
+            plan_path = str(Path(_explicit_plan).resolve()) if _explicit_plan else None
+            generated_plan_payload = None
+
+            if plan_path is None and _goal_active:
+                local_matches = local_goal_matches(_goal_active, plan_previews)
+                intent_payload = {
+                    "goal": _goal_active,
+                    "localMatches": local_matches,
+                    "mode": "match" if local_matches and float(local_matches[0]["score"]) >= 0.2 else "generate",
+                }
+                if not _dry_run_arg:
+                    try:
+                        intent_payload = resolve_goal_with_claude(_goal_active, plan_previews, args=args, deps=deps)
+                    except Exception as exc:
+                        intent_payload["warning"] = str(exc)
+                payload["intentResolution"] = intent_payload
+                if intent_payload["mode"] == "match" and intent_payload.get("matchedPlanPath"):
+                    plan_path = str(Path(str(intent_payload["matchedPlanPath"])).resolve())
+                elif intent_payload["mode"] == "generate" and isinstance(intent_payload.get("taskPlan"), dict):
+                    generated_plan_payload = dict(intent_payload["taskPlan"])
+                    generated_plan_path = _generated_plan_path(runtime_root, _goal_active, deps["slugify"])
+                    payload["generatedPlanPath"] = str(generated_plan_path)
+                    if not _dry_run_arg:
+                        deps["write_json"](generated_plan_path, generated_plan_payload)
+                        plan_path = str(generated_plan_path)
+
+            if plan_path is None:
+                _plan_choices = [
+                    PromptChoice(
+                        label=preview.name,
+                        value=preview.path,
+                        detail=f"{preview.task_count} tasks | {preview.goal[:100]}",
+                    )
+                    for preview in plan_previews
+                ]
+                if not _plan_choices:
+                    raise deps["error_factory"]("No tracked plans found under ai/orchestrator/tasks")
+                plan_path = prompter.choose("Select a tracked plan", _plan_choices, default_index=0)
+            payload["selectedPlanPath"] = plan_path
+
+            validate_payload = deps["validate_handler"](
+                _namespace(
+                    agents=args.agents,
+                    task_plan=plan_path,
+                    dry_run=True,
+                    json=False,
+                    fingerprint_only=False,
+                    verbose=False,
+                    claude_bin=args.claude_bin,
+                )
             )
-        )
-        payload["preflight"] = validate_payload
-        payload["steps"].append(
-            {
-                "name": "preflight",
-                "status": "completed",
-                "summary": f"Validated {validate_payload.get('planName')} with {validate_payload.get('taskCount')} tasks.",
-            }
-        )
+            payload["preflight"] = validate_payload
+            payload["steps"] = [s for s in payload["steps"] if s["name"] != "preflight"]
+            payload["steps"].append(
+                {
+                    "name": "preflight",
+                    "status": "completed",
+                    "summary": f"Validated {validate_payload.get('planName')} with {validate_payload.get('taskCount')} tasks.",
+                }
+            )
 
-        if interactive and not bool(getattr(args, "dry_run", False)):
+            _plan_summary = _format_staged_plan_summary(plan_path, validate_payload)
+            _checkpoint = _plan_approval_checkpoint(_plan_summary, prompter, interactive=interactive)
+            payload["planCheckpoint"] = _checkpoint
+
+            if _checkpoint == _CHECKPOINT_PROCEED:
+                break
+            elif _checkpoint == _CHECKPOINT_STOP:
+                payload["steps"].append(
+                    {"name": "done", "status": "stopped", "summary": "Operator stopped before run."}
+                )
+                return payload
+            else:
+                _revised = prompter.ask_text("Revised goal", default=_goal_active) if interactive else _goal_active
+                _goal_active = _revised.strip() or _goal_active
+                _explicit_plan = ""
+                if interactive and _goal_active and not _dry_run_arg:
+                    try:
+                        _goal_active, _extra = _run_clarification_loop(
+                            _goal_active, plan_previews, prompter, args=args, deps=deps
+                        )
+                        _clarification_answers.extend(_extra)
+                    except Exception:
+                        pass
+                payload["clarification"] = {"refinedGoal": _goal_active, "answers": _clarification_answers}
+
+        if interactive and not _dry_run_arg:
             dry_run_first = prompter.confirm("Dry run first?", default=True)
             max_parallel_text = prompter.ask_text("Max parallel", default=str(args.max_parallel))
         else:
-            dry_run_first = bool(getattr(args, "dry_run", False))
+            dry_run_first = _dry_run_arg
             max_parallel_text = str(args.max_parallel)
         try:
             max_parallel = max(int(max_parallel_text), 1)

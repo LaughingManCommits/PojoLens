@@ -69,7 +69,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
 | WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
 | WP68| Matrix Console Visual System        | Complete | Shared `_MTX_VARS` token set + `get_css_variables()` on all App subclasses; full Matrix CSS in `ConsoleApp` and `OrchestratorApp`; wizard prompts styled; `RunSummaryBar`/`FooterBar`/`_status_style()` use Matrix colors; 837 tests pass |
-| WP69| Planner-First Wizard Flow           | Planned | Make planner the first-class stage inside `wizard`: clarification loop, staged workspace/setup proposal, explicit approve/edit checkpoint, then execution handoff |
+| WP69| Planner-First Wizard Flow           | Complete | Make planner the first-class stage inside `wizard`: clarification loop, staged workspace/setup proposal, explicit approve/edit checkpoint, then execution handoff |
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
 | WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; tool-loop `[tool: name]` markers; `[task-id]` line-prefixed stderr; subprocess-provider gated; `_PARTIAL_FACTORY_CTX` contextvar injection; TUI `LogPane` streaming; 38 tests; 836 pass |
 | WP62| Hard Budget Cap Enforcement          | Planned | Harden `budgetBehavior=stop` to cancel remaining batches when `runBudgetUsd` is exceeded mid-run with proper events, manifest state, and regression coverage |
@@ -507,58 +507,52 @@ kept as hardcoded hex (widget-level CSS limitation; values match theme).
 
 ## WP69: Planner-First Wizard Flow
 
-**Priority:** High
+**Priority:** High → **Complete** (`2026-05-03`)
 
 **Goal:** Make the planner the first-class first stage inside `wizard`, so the
 operator talks to the planner first, gets a staged workspace/setup proposal,
 reviews or edits that proposal, and only then launches worker execution.
 
-**Context:**
-- We already have `plan` plus wizard goal routing, but the current operator
-  flow still treats planning as a thin prelude instead of the main
-  conversation.
-- The ownership model should stay strict: `wizard` owns the operator workflow,
-  `planner` owns clarification and decomposition, and workers start only after
-  the planner stage is accepted.
-- This must integrate into the current wizard/console/run surface. It should
-  not become a detached side command that duplicates planning behavior outside
-  the main operator path.
-- The staged planner output must cover more than tasks alone: target scope,
-  proposed write boundaries, validation expectations, assumptions, and
-  execution posture.
-
 **Tasks:**
-- [ ] Define the planner-first wizard stage sequence explicitly:
-      goal intake -> clarification loop -> proposed plan/setup summary ->
-      operator approve/edit step -> execution handoff.
-- [ ] Refactor `wizard.py` so the default new-work path enters planner mode
-      first instead of jumping directly from goal capture to run preparation.
-- [ ] Let the planner ask bounded follow-up questions when the goal is
-      underspecified, especially around files/modules, intended outcome,
-      validation expectations, and risk/cost posture.
-- [ ] Extend the staged planner result so it includes proposed task graph,
-      write scopes, validation commands, execution-profile hints, and explicit
-      assumptions, not just task decomposition.
-- [ ] Add an explicit wizard checkpoint before `run`: accept as-is, revise
-      goal/constraints, narrow scope, or stop without executing.
-- [ ] Ensure the same planner-first behavior is reached from the persistent
-      console when users invoke `wizard`, so the planner stays inside the
-      integrated operator workflow.
-- [ ] Reuse existing planner/generated-plan machinery where possible; avoid
-      duplicating plan generation logic between `plan`, `wizard`, and console.
-- [ ] Update CLI/help/docs text so `wizard` is clearly the planner-first entry
-      point while `plan` remains a lower-level direct command.
-- [ ] Update both `ai/orchestrator/README.md` and
-      `ai/orchestrator/SYSTEM-SPEC.md` alongside the WP69 package so the
-      planner-first wizard flow is documented in the operator contract and
-      usage guide.
-- [ ] Add focused regression coverage for clarification flow, staged-plan
-      review, approve/edit branches, no-run exit path, and handoff from an
-      accepted planner stage into the existing execution pipeline.
+- [x] Define planner-first stage sequence: goal intake → clarification loop →
+      staged plan summary → approve/revise/stop checkpoint → execution handoff.
+- [x] Add `_clarification_output_schema_json()`, `_clarification_prompt()`,
+      `clarify_goal_with_claude()`, and `_run_clarification_loop()` to
+      `wizard.py`; planner agent (haiku, effort=low) asks up to 3 focused
+      questions when goal is underspecified; operator answers fed back into
+      `_goal_active` for intent resolution.
+- [x] Add `_format_staged_plan_summary()` to render plan name, task count, and
+      first 10 task IDs with agent labels after `validate_handler` runs.
+- [x] Add `_CHECKPOINT_PROCEED / _REVISE / _STOP` constants and
+      `_plan_approval_checkpoint()` which calls `prompter.choose()` (not
+      `confirm()`) so existing tests are unaffected.
+- [x] Refactor `wizard_command` plan mode into a 3-round revision loop:
+      clarification (pre-loop), then per-round: intent resolution → plan
+      selection → validate → staged summary → checkpoint. Revise resets
+      `_explicit_plan = ""` and re-enters clarification for the new goal.
+      Stop returns early before `run_handler`. Proceed breaks to execution.
+- [x] Update wizard CLI help text in `cli_parser.py` to describe the
+      planner-first flow.
+- [x] Add 4 focused regression tests to `test_wizard.py`:
+      `test_plan_approval_checkpoint_noninteractive_returns_proceed`,
+      `test_format_staged_plan_summary_includes_plan_name_and_tasks`,
+      `test_plan_approval_checkpoint_stop_exits_before_run`,
+      `test_plan_approval_checkpoint_revise_reruns_validation`.
+- [x] All existing wizard tests pass unchanged (approve uses `choose()` default
+      → "proceed", no `confirms` consumed).
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/docs/check-doc-consistency.ps1`
+
+**Decision:** Complete. `wizard.py` now has a planner-first operator flow:
+interactive runs with a free-text goal enter a clarification stage (Claude haiku
+asks up to 3 focused questions, operator answers refine `_goal_active`). After
+intent resolution and preflight validation a staged plan summary is shown and the
+operator chooses Proceed / Revise / Stop. Revise resets the goal, re-runs
+clarification and resolution up to 3 rounds. Stop exits before `run_handler`.
+Non-interactive mode always proceeds immediately. Explicit `--plan` flag skips
+clarification (goal already pinned). 841 tests pass.
 
 ---
 

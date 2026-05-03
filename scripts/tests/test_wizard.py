@@ -435,6 +435,158 @@ class WizardFlowTest(unittest.TestCase):
         self.assertEqual("run-dir", getattr(captured["args"], "run_ref"))
         self.assertEqual(4, getattr(captured["args"], "max_parallel"))
 
+    def test_plan_approval_checkpoint_noninteractive_returns_proceed(self):
+        prompter = FakePrompter()
+        result = wizard_layer._plan_approval_checkpoint("plan summary", prompter, interactive=False)
+        self.assertEqual("proceed", result)
+        self.assertEqual([], prompter.messages)
+
+    def test_format_staged_plan_summary_includes_plan_name_and_tasks(self):
+        summary = wizard_layer._format_staged_plan_summary(
+            "/path/to/plan.json",
+            {
+                "planName": "my-plan",
+                "taskCount": 3,
+                "tasks": [
+                    {"id": "task-a", "agent": "coder"},
+                    {"id": "task-b"},
+                    {"id": "task-c", "agent": "tester"},
+                ],
+            },
+        )
+        self.assertIn("my-plan", summary)
+        self.assertIn("task-a", summary)
+        self.assertIn("task-b", summary)
+        self.assertIn("[coder]", summary)
+
+    def test_plan_approval_checkpoint_stop_exits_before_run(self):
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+        prompter = FakePrompter(choices=[plan_path, "stop"])
+        old_choose_prompter = wizard_layer.choose_prompter
+        wizard_layer.choose_prompter = lambda **kwargs: prompter
+        self.addCleanup(setattr, wizard_layer, "choose_prompter", old_choose_prompter)
+        run_called: list[bool] = []
+
+        with mock.patch.object(wizard_layer.sys.stdin, "isatty", return_value=True), mock.patch.object(wizard_layer.sys.stderr, "isatty", return_value=True):
+            payload = wizard_layer.wizard_command(
+                argparse.Namespace(
+                    json=False,
+                    tui=False,
+                    watch=False,
+                    plan="",
+                    goal="",
+                    goal_words=[],
+                    resume_run_ref="",
+                    retry_run_ref="",
+                    agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                    claude_bin="claude",
+                    runtime_root=str(root / ".claude-orchestrator"),
+                    max_parallel=2,
+                    dry_run=False,
+                    planner_agent="planner",
+                    verbose=False,
+                ),
+                deps={
+                    "root": root,
+                    "textual_available": lambda: False,
+                    "slugify": lambda text: text.replace(" ", "-"),
+                    "write_json": lambda path, data: None,
+                    "error_factory": RuntimeError,
+                    "load_agents": lambda path: {"planner": object()},
+                    "ensure_claude_available": lambda bin: None,
+                    "claude_command": lambda *args, **kwargs: [],
+                    "agent_payload_for_claude": lambda *args, **kwargs: "{}",
+                    "run_subprocess": lambda *args, **kwargs: None,
+                    "extract_json_payload": lambda text: {},
+                    "inventory_handler": lambda args: {"runCount": 0, "runs": []},
+                    "validate_handler": lambda args: {"planName": "alpha-plan", "taskCount": 1, "tasks": []},
+                    "run_handler": lambda args: run_called.append(True) or {},
+                    "resume_handler": lambda args: {},
+                    "retry_handler": lambda args: {},
+                    "status_handler": lambda args: {},
+                    "review_handler": lambda args: {},
+                    "promote_handler": lambda args: {},
+                    "validate_run_handler": lambda args: {},
+                    "default_task_timeout_sec": 30,
+                },
+            )
+
+        self.assertEqual([], run_called)
+        last_step = payload["steps"][-1]
+        self.assertEqual("stopped", last_step["status"])
+        self.assertEqual("stop", payload["planCheckpoint"])
+
+    def test_plan_approval_checkpoint_revise_reruns_validation(self):
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+        # choices: [plan_path (round 0 select), "revise" (round 0 checkpoint),
+        #           plan_path (round 1 select), "proceed" (round 1 checkpoint)]
+        prompter = FakePrompter(
+            choices=[plan_path, "revise", plan_path, "proceed"],
+            texts=["my refined goal", "2"],
+            confirms=[False],
+        )
+        old_choose_prompter = wizard_layer.choose_prompter
+        wizard_layer.choose_prompter = lambda **kwargs: prompter
+        self.addCleanup(setattr, wizard_layer, "choose_prompter", old_choose_prompter)
+        validate_calls: list[bool] = []
+
+        with mock.patch.object(wizard_layer.sys.stdin, "isatty", return_value=True), mock.patch.object(wizard_layer.sys.stderr, "isatty", return_value=True):
+            payload = wizard_layer.wizard_command(
+                argparse.Namespace(
+                    json=False,
+                    tui=False,
+                    watch=False,
+                    plan="",
+                    goal="",
+                    goal_words=[],
+                    resume_run_ref="",
+                    retry_run_ref="",
+                    agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                    claude_bin="claude",
+                    runtime_root=str(root / ".claude-orchestrator"),
+                    max_parallel=2,
+                    dry_run=False,
+                    planner_agent="planner",
+                    verbose=False,
+                ),
+                deps={
+                    "root": root,
+                    "textual_available": lambda: False,
+                    "slugify": lambda text: text.replace(" ", "-"),
+                    "write_json": lambda path, data: None,
+                    "error_factory": RuntimeError,
+                    "load_agents": lambda path: {"planner": object()},
+                    "ensure_claude_available": lambda bin: None,
+                    "claude_command": lambda *args, **kwargs: [],
+                    "agent_payload_for_claude": lambda *args, **kwargs: "{}",
+                    "run_subprocess": lambda *args, **kwargs: None,
+                    "extract_json_payload": lambda text: {},
+                    "inventory_handler": lambda args: {"runCount": 0, "runs": []},
+                    "validate_handler": lambda args: validate_calls.append(True) or {"planName": "alpha-plan", "taskCount": 1, "tasks": []},
+                    "run_handler": lambda args: {
+                        "runId": "run-rev",
+                        "runDir": str(root / ".claude-orchestrator" / "runs" / "run-rev"),
+                        "dryRun": False,
+                        "statusCounts": {"completed": 1},
+                        "usageTotals": {"totalCostUsd": 0.0},
+                    },
+                    "resume_handler": lambda args: {},
+                    "retry_handler": lambda args: {},
+                    "status_handler": lambda args: {"reviewSummary": {"changedTaskCount": 0}},
+                    "review_handler": lambda args: {},
+                    "promote_handler": lambda args: {"promotionAllowed": True, "blockedReasons": [], "filesPromoted": 0},
+                    "validate_run_handler": lambda args: {},
+                    "default_task_timeout_sec": 30,
+                },
+            )
+
+        self.assertEqual(2, len(validate_calls))
+        self.assertIn("Revised goal", prompter.messages)
+        self.assertEqual("proceed", payload["planCheckpoint"])
+        self.assertIn("clarification", payload)
+
     def test_failed_run_returns_next_actions(self):
         td, root, plan_path = self._make_plan_root()
         self.addCleanup(td.cleanup)

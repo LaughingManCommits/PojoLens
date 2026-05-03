@@ -261,7 +261,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     wizard_parser = subparsers.add_parser(
         "wizard",
-        help="Guided operator flow for validate, run, review, promote, and validate-run.",
+        help="Planner-first guided flow: clarify goal, review staged plan, approve/revise, then run/review/promote/validate.",
     )
     wizard_parser.add_argument(
         "goal_words",

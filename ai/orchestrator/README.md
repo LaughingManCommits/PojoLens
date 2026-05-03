@@ -102,7 +102,9 @@ Dry runs:
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
 - `run --dry-run --tui` still renders the live dashboard, but exits after the planned task records and run-finished event are written
 - `run --estimate` computes the same pre-flight pricing and wall-clock estimate without creating a retained run
-- `wizard` (or no subcommand) loads retained-run inventory, picks a tracked plan or optional natural-language goal, runs validate plus run in one guided flow, and can continue straight into review, promote, and post-promotion validation
+- `wizard` (or no subcommand) is the planner-first operator entry point: it runs a clarification loop (up to 3 haiku-powered questions when goal is underspecified), resolves intent, shows a staged plan summary, and presents an explicit approve/revise/stop checkpoint before launching run, review, promote, and validate
+- wizard `revise` at the checkpoint resets the goal, re-runs clarification and intent resolution, and re-validates up to 3 rounds; `stop` exits before `run_handler` with no side-effects
+- wizard `--plan <path>` skips clarification and intent resolution (plan already pinned); `--goal` or trailing words feed the clarification and resolution stages
 - wizard-triggered natural-language generation writes ephemeral plans under `.claude-orchestrator/generated-plans/` rather than mutating tracked `ai/orchestrator/tasks/`
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
