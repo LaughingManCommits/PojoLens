@@ -28,10 +28,12 @@ here.  The persistent REPL (ConsoleApp) remains in tui_console.py.
 """
 from __future__ import annotations
 
+import datetime
 import io
 import json
 import sys
 import threading
+import traceback
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
@@ -581,9 +583,8 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         self.app.sub_title = "MISSION CONTROL"
 
     # ── Actions ────────────────────────────────────────────────────────────────
-
-    def action_new_plan(self) -> None:
-        self.app.push_screen(GoalInputScreen())  # type: ignore[attr-defined]
+    # action_new_plan is intentionally NOT defined here — the binding bubbles to
+    # OperatorApp.action_new_plan which uses push_screen_wait to chain all wizard steps.
 
     def action_saved_plans(self) -> None:
         self.app.push_screen(SavedPlansScreen())  # type: ignore[attr-defined]
@@ -619,7 +620,7 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         self.app.exit(0)  # type: ignore[attr-defined]
 
     def action_activate_item(self) -> None:
-        self.action_new_plan()
+        self.run_worker(self.app.action_new_plan, thread=False)  # type: ignore[attr-defined]
 
 
 # ── GoalInputScreen ────────────────────────────────────────────────────────────
@@ -1121,12 +1122,12 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(
+        self.app.call_from_thread(
             lambda: self.query_one("#log", RichLog).write(text)
         )
 
     def _set_status(self, status: str) -> None:
-        self.call_from_thread(lambda: setattr(self, "_status", status))
+        self.app.call_from_thread(lambda: setattr(self, "_status", status))
 
     def _run_wizard(self) -> None:
         import io as _io
@@ -1222,7 +1223,7 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         self._log("")
         self._log("[bold #00ff41]═══ WIZARD COMPLETE — press BACK TO HOME ═══[/]")
         self._done = True
-        self.call_from_thread(
+        self.app.call_from_thread(
             lambda: setattr(self.app, "sub_title", "COMPLETE")  # type: ignore[attr-defined]
         )
 
@@ -1329,7 +1330,7 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
         except Exception:
             previews = []
         self._previews = previews
-        self.call_from_thread(self._populate_table)
+        self.app.call_from_thread(self._populate_table)
 
     def _populate_table(self) -> None:
         table = self.query_one("#plans-table", DataTable)
@@ -1490,7 +1491,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         log = self.query_one("#details-log", RichLog)
         plan_data = _load_plan_json(self._plan_path)
         if plan_data is None:
-            self.call_from_thread(
+            self.app.call_from_thread(
                 lambda: log.write(f"[#ff2244]ERROR: could not load plan: {self._plan_path}[/]")
             )
             return
@@ -1505,7 +1506,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
                 "[dim #2a5a3a]Actions: [A] Approve+Run  [V] Validate  "
                 "[D] Dry Run  [S] Save Copy  [Esc] Back[/]"
             )
-        self.call_from_thread(_write)
+        self.app.call_from_thread(_write)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-run":
@@ -1617,10 +1618,10 @@ class RunPlanScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(lambda: self.query_one("#run-log", RichLog).write(text))
+        self.app.call_from_thread(lambda: self.query_one("#run-log", RichLog).write(text))
 
     def _set_status(self, s: str) -> None:
-        self.call_from_thread(lambda: setattr(self, "_run_status", s))
+        self.app.call_from_thread(lambda: setattr(self, "_run_status", s))
 
     def _execute_run(self) -> None:
         import io as _io
@@ -1796,7 +1797,7 @@ class ValidateRunScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(lambda: self.query_one("#val-log", RichLog).write(text))
+        self.app.call_from_thread(lambda: self.query_one("#val-log", RichLog).write(text))
 
     def _run_validation(self) -> None:
         import io as _io
@@ -1882,15 +1883,15 @@ class ValidateRunScreen(Screen):  # type: ignore[type-arg,misc]
         # Update title based on result
         valid = payload.get("valid") if payload else None
         if valid is True:
-            self.call_from_thread(lambda: setattr(self.query_one("#val-title", Static), "update",
+            self.app.call_from_thread(lambda: setattr(self.query_one("#val-title", Static), "update",
                                                   lambda _: None))
-            self.call_from_thread(
+            self.app.call_from_thread(
                 lambda: self.query_one("#val-title", Static).update(
                     "[bold #00ff41][ VALIDATE ]  ✓ VALID[/]"
                 )
             )
         elif valid is False:
-            self.call_from_thread(
+            self.app.call_from_thread(
                 lambda: self.query_one("#val-title", Static).update(
                     "[bold #ff2244][ VALIDATE ]  ✗ ERRORS FOUND[/]"
                 )
@@ -1993,7 +1994,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                 pass
 
         self._entries = entries
-        self.call_from_thread(self._populate_table)
+        self.app.call_from_thread(self._populate_table)
 
     def _populate_table(self) -> None:
         table = self.query_one("#runs-table", DataTable)
@@ -2140,7 +2141,7 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(lambda: self.query_one("#detail-log", RichLog).write(text))
+        self.app.call_from_thread(lambda: self.query_one("#detail-log", RichLog).write(text))
 
     def _load_details(self) -> None:
         handlers      = getattr(self.app, "_handlers", {})
@@ -2258,10 +2259,10 @@ class ResumeRetryScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(lambda: self.query_one("#rr-log", RichLog).write(text))
+        self.app.call_from_thread(lambda: self.query_one("#rr-log", RichLog).write(text))
 
     def _set_status(self, s: str) -> None:
-        self.call_from_thread(lambda: setattr(self, "_op_status", s))
+        self.app.call_from_thread(lambda: setattr(self, "_op_status", s))
 
     def _execute_op(self) -> None:
         import io as _io
@@ -2411,7 +2412,7 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(lambda: self.query_one("#mem-log", RichLog).write(text))
+        self.app.call_from_thread(lambda: self.query_one("#mem-log", RichLog).write(text))
 
     def action_refresh(self) -> None:
         self.run_worker(self._run_refresh, thread=True, name="mem-refresh")
@@ -2521,7 +2522,7 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(lambda: self.query_one("#set-log", RichLog).write(text))
+        self.app.call_from_thread(lambda: self.query_one("#set-log", RichLog).write(text))
 
     def _load_config(self) -> None:
         handlers      = getattr(self.app, "_handlers", {})
@@ -2649,10 +2650,10 @@ class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
         self.query_one("#diff-status", Static).update(f"[#00ff41][ SIGNAL ] {s}[/]")
 
     def _set_status(self, s: str) -> None:
-        self.call_from_thread(lambda: setattr(self, "_diff_status", s))
+        self.app.call_from_thread(lambda: setattr(self, "_diff_status", s))
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(lambda: self.query_one("#diff-log", RichLog).write(text))
+        self.app.call_from_thread(lambda: self.query_one("#diff-log", RichLog).write(text))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-promote":
@@ -2744,7 +2745,7 @@ class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
                             task  = str(f.get("taskId") or "-")
                             table.add_row(fname[-28:], task[:8], key=fname)
 
-                    self.call_from_thread(lambda: _fill(files))
+                    self.app.call_from_thread(lambda: _fill(files))
 
             except Exception as exc:
                 self._log(f"[#ff2244]diff-run: {exc}[/]")
@@ -2915,7 +2916,7 @@ class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
         try:
             raw = json.loads(Path(agents_path).read_text(encoding="utf-8"))
         except Exception as exc:
-            self.call_from_thread(lambda: detail.write(f"[#ff2244]Load error: {exc}[/]"))
+            self.app.call_from_thread(lambda: detail.write(f"[#ff2244]Load error: {exc}[/]"))
             return
 
         agents = self._parse_agents(raw)
@@ -2931,7 +2932,7 @@ class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
             if agents:
                 self._show_agent_detail(agents[0])
 
-        self.call_from_thread(_fill)
+        self.app.call_from_thread(_fill)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         idx = event.cursor_row
@@ -2988,7 +2989,7 @@ class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
                     warn  = " [#ff2244]⚠ collides with base tool[/]" if tname in self._BASE_TOOLS else ""
                     detail.write(f"    [{col}]•[/{col}] {tname} ({tkind}){warn}")
 
-        self.call_from_thread(_write)
+        self.app.call_from_thread(_write)
 
 
 # ── SkillsScreen ──────────────────────────────────────────────────────────────
@@ -3081,7 +3082,7 @@ class SkillsScreen(Screen):  # type: ignore[type-arg,misc]
         try:
             raw = json.loads(Path(skills_path).read_text(encoding="utf-8"))
         except Exception as exc:
-            self.call_from_thread(lambda: detail.write(f"[#ff2244]Load error: {exc}[/]"))
+            self.app.call_from_thread(lambda: detail.write(f"[#ff2244]Load error: {exc}[/]"))
             return
 
         skills = self._parse_skills(raw)
@@ -3110,7 +3111,7 @@ class SkillsScreen(Screen):  # type: ignore[type-arg,misc]
             if skills:
                 self._show_skill_detail(skills[0])
 
-        self.call_from_thread(_fill)
+        self.app.call_from_thread(_fill)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         idx = event.cursor_row
@@ -3152,7 +3153,7 @@ class SkillsScreen(Screen):  # type: ignore[type-arg,misc]
                 except OSError:
                     detail.write(f"  [dim](file not found)[/]")
 
-        self.call_from_thread(_write)
+        self.app.call_from_thread(_write)
 
 
 # ── EstimateScreen / EstimateResultScreen ──────────────────────────────────────
@@ -3274,7 +3275,7 @@ class EstimateResultScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
     def _log(self, text: str) -> None:
-        self.call_from_thread(lambda: self.query_one("#est-log", RichLog).write(text))
+        self.app.call_from_thread(lambda: self.query_one("#est-log", RichLog).write(text))
 
     def _run_estimate(self) -> None:
         import io as _io
@@ -3369,11 +3370,15 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         *,
         handlers: dict[str, Any],
         parse_args_fn: Callable[..., Any],
+        auto_start_wizard: bool = False,
+        logger: _ErrorLog | None = None,
     ) -> None:
         super().__init__()
         self._args        = args
         self._handlers    = handlers
         self._parse_args_fn = parse_args_fn
+        self._auto_start_wizard = auto_start_wizard
+        self._logger      = logger or _ErrorLog(Path("error.log"))
 
         # Expose runtime paths as app attributes so screens can read them
         self._runtime_root = str(getattr(args, "runtime_root", DEFAULT_RUNTIME_ROOT) or DEFAULT_RUNTIME_ROOT)
@@ -3382,7 +3387,24 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         self._tasks_dir    = str(DEFAULT_TASKS_DIR)
 
     def on_mount(self) -> None:
+        self._logger.info("OperatorApp mounted — runtime_root=%s", self._runtime_root)
         self.push_screen(HomeScreen())
+        if self._auto_start_wizard:
+            self.run_worker(self.action_new_plan, thread=False)
+
+    def on_worker_state_changed(self, event: Any) -> None:
+        try:
+            from textual.worker import WorkerState
+            if event.worker.state == WorkerState.ERROR:
+                err = event.worker.error
+                tb = "".join(traceback.format_exception(type(err), err, err.__traceback__))
+                self._logger.error(
+                    "Worker '%s' failed:\n%s",
+                    event.worker.name or repr(event.worker),
+                    tb,
+                )
+        except Exception:
+            pass
 
     # ── Wizard flow: n → goal → effort → workspace → governance → run ──────────
 
@@ -3416,32 +3438,39 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
             claude_bin=self._claude_bin,
         ))
 
-    # HomeScreen routes through its own bindings; expose as app actions too:
-
-    async def action_new_plan_home(self) -> None:
-        await self.action_new_plan()
-
-
-# ── Wizard flow orchestration ──────────────────────────────────────────────────
-# HomeScreen drives the flow directly via action_new_plan binding, which calls
-# OperatorApp.action_new_plan via app reference.  The pattern:
-#
-#   HomeScreen.action_new_plan → app.push_screen(GoalInputScreen())
-#
-# GoalInputScreen.dismiss(goal) pops itself; the HomeScreen action_new_plan
-# continues in OperatorApp.action_new_plan above for the remaining steps.
-#
-# For simplicity, GoalInputScreen pushes next screens directly to the app,
-# and OperatorApp.action_new_plan is called from HomeScreen.action_new_plan.
-
 
 # ── Entry point ────────────────────────────────────────────────────────────────
+
+class _ErrorLog:
+    """Minimal file-based error log — avoids Python logging module to prevent Textual conflicts."""
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+
+    def _write(self, level: str, msg: str) -> None:
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            with open(self._path, "a", encoding="utf-8") as f:
+                f.write(f"{ts}  {level:<8}  {msg}\n")
+        except OSError:
+            pass
+
+    def info(self, msg: str, *args: Any) -> None:
+        self._write("INFO", msg % args if args else msg)
+
+    def error(self, msg: str, *args: Any) -> None:
+        self._write("ERROR", msg % args if args else msg)
+
+    def debug(self, msg: str, *args: Any) -> None:
+        self._write("DEBUG", msg % args if args else msg)
+
 
 def run_operator_tui(
     args: Any,
     *,
     handlers: dict[str, Any],
     parse_args_fn: Callable[..., Any],
+    auto_start_wizard: bool = False,
 ) -> int:
     """Launch the multi-screen operator TUI. Returns exit code."""
     if TEXTUAL_IMPORT_ERROR is not None:
@@ -3449,6 +3478,13 @@ def run_operator_tui(
             "Operator TUI requires textual. Install 'pojolens-agents[tui]'."
         ) from TEXTUAL_IMPORT_ERROR
 
-    app = OperatorApp(args, handlers=handlers, parse_args_fn=parse_args_fn)
-    result = app.run()
-    return result if isinstance(result, int) else 0
+    logger = _ErrorLog(Path("error.log"))
+
+    app = OperatorApp(args, handlers=handlers, parse_args_fn=parse_args_fn,
+                      auto_start_wizard=auto_start_wizard, logger=logger)
+    try:
+        result = app.run()
+        return result if isinstance(result, int) else 0
+    except Exception:
+        logger.error("Uncaught exception in OperatorApp.run()\n%s", traceback.format_exc())
+        raise
