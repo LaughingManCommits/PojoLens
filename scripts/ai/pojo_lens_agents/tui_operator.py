@@ -341,6 +341,79 @@ def _plan_summary_rich(plan_data: dict[str, Any]) -> list[str]:
         if len(tasks) > 20:
             lines.append(f"  [dim]... +{len(tasks) - 20} more tasks[/]")
 
+    # Aggregate read / write paths and skills across all tasks
+    all_read: list[str] = []
+    all_write: list[str] = []
+    all_skills: set[str] = set()
+    all_hints: list[str] = []
+    for t in tasks:
+        all_read.extend(list(t.get("readPaths") or []))
+        all_write.extend(list(t.get("writePaths") or []))
+        all_skills.update(list(t.get("skills") or []))
+        for h in list(t.get("validationHints") or []):
+            vh = h if isinstance(h, str) else str(h.get("hint") or h.get("description") or h)
+            if vh:
+                all_hints.append(vh)
+    sc_block = plan_data.get("sharedContext") or {}
+    all_read.extend(list(sc_block.get("readPaths") or []))
+
+    if all_read:
+        unique_read = sorted(set(all_read))
+        lines.append("")
+        lines.append("[bold #00e5ff]═══ Read Paths ═══[/]")
+        for p in unique_read[:12]:
+            lines.append(f"  [dim #00e5ff]→[/] {p}")
+        if len(unique_read) > 12:
+            lines.append(f"  [dim]+{len(unique_read)-12} more[/]")
+
+    if all_write:
+        unique_write = sorted(set(all_write))
+        lines.append("")
+        lines.append("[bold #00e5ff]═══ Write Paths ═══[/]")
+        for p in unique_write[:12]:
+            lines.append(f"  [#ffaa00]→[/] {p}")
+        if len(unique_write) > 12:
+            lines.append(f"  [dim]+{len(unique_write)-12} more[/]")
+
+    if all_skills:
+        lines.append("")
+        lines.append(f"[bold #00e5ff]Skills:[/] {', '.join(sorted(all_skills))}")
+        if len(all_skills) > 4:
+            lines.append(f"  [#ffaa00]⚠ {len(all_skills)} skills — check stack limit (5 max)[/]")
+
+    if all_hints:
+        lines.append("")
+        lines.append("[bold #00e5ff]═══ Validation Hints ═══[/]")
+        for h in all_hints[:8]:
+            lines.append(f"  [#00ff41]✓[/] {h}")
+        if len(all_hints) > 8:
+            lines.append(f"  [dim]+{len(all_hints)-8} more hints[/]")
+
+    # Full run policy detail
+    rp2 = plan_data.get("runPolicy") or {}
+    if rp2:
+        lines.append("")
+        lines.append("[bold #00e5ff]═══ Run Policy ═══[/]")
+        for key2, label2 in [
+            ("runBudgetUsd",      "Budget USD"),
+            ("budgetBehavior",    "Budget Behavior"),
+            ("artifactBehavior",  "Artifact Behavior"),
+            ("hitlMode",          "HITL Mode"),
+            ("followUpBehavior",  "Follow-Up"),
+            ("maxTaskStdoutBytes","Max Stdout"),
+            ("maxTaskStderrBytes","Max Stderr"),
+            ("maxTaskResultBytes","Max Result"),
+        ]:
+            val2 = rp2.get(key2)
+            if val2 is not None:
+                lines.append(f"  [#00e5ff]{label2}:[/] {val2}")
+
+    # Protection reminder
+    lines.append("")
+    lines.append("[dim #2a5a3a]── Protected paths (workers must not edit) ──[/]")
+    for pp in ["TODO.md", "ai/state/*", "ai/log/*", "ai/indexes/*"]:
+        lines.append(f"  [dim #ff2244]⚠[/] [dim]{pp}[/]")
+
     return lines
 
 
@@ -373,6 +446,8 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("v", "validate",    "Validate",    show=False),
         Binding("d", "dry_run",     "Dry Run",     show=False),
         Binding("p", "promote",     "Promote",     show=False),
+        Binding("a", "agents",      "Agents",      show=False),
+        Binding("k", "skills",      "Skills",      show=False),
         Binding("m", "memory",      "Memory",      show=False),
         Binding("t", "settings",    "Settings",    show=False),
         Binding("q", "quit_app",    "Quit",        show=False),
@@ -386,9 +461,11 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         ("r", "RUNS",             "Run / Resume / Retry retained runs"),
         ("l", "LEDGER",           "Run history, cost summary, status"),
         ("v", "VALIDATE",         "Validate a plan file"),
-        ("d", "DRY RUN",          "Cost estimate without execution"),
+        ("d", "DRY RUN",          "Cost estimate / dry-run without execution"),
         ("p", "PROMOTE",          "Review diffs and promote changes"),
         ("──", None, None),
+        ("a", "AGENTS",           "Inspect agent definitions and prompt sizes"),
+        ("k", "SKILLS",           "Inspect skill registry and file sizes"),
         ("m", "MEMORY TOOLS",     "Refresh / query AI memory"),
         ("t", "SETTINGS",         "View configuration defaults"),
         ("──", None, None),
@@ -493,8 +570,8 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
                             yield Static(label, classes="menu-label")
                             yield Static(desc, classes="menu-desc")
         yield Static(
-            "[dim #2a5a3a]KEYBOARD: [N] new  [S] saved  [R] runs  "
-            "[L] ledger  [V] validate  [M] memory  [T] settings  [Q] quit[/]",
+            "[dim #2a5a3a]KEYBOARD: [N] new  [S] saved  [R] runs  [L] ledger  "
+            "[V] validate  [D] dry-run  [A] agents  [K] skills  [M] memory  [T] settings  [Q] quit[/]",
             id="status-bar",
         )
         yield Footer()
@@ -521,10 +598,16 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         self.app.push_screen(ValidatePlanScreen())  # type: ignore[attr-defined]
 
     def action_dry_run(self) -> None:
-        self.app.notify("Select a plan first via [S] Saved Plans.", title="Dry Run")
+        self.app.push_screen(EstimateScreen())  # type: ignore[attr-defined]
 
     def action_promote(self) -> None:
         self.app.push_screen(RunLedgerScreen(mode="promote"))  # type: ignore[attr-defined]
+
+    def action_agents(self) -> None:
+        self.app.push_screen(AgentsScreen())  # type: ignore[attr-defined]
+
+    def action_skills(self) -> None:
+        self.app.push_screen(SkillsScreen())  # type: ignore[attr-defined]
 
     def action_memory(self) -> None:
         self.app.push_screen(MemoryToolsScreen())  # type: ignore[attr-defined]
@@ -1174,6 +1257,15 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
     #screen-hint {
         color: $text_dim;
     }
+    #search-bar {
+        height: 3;
+        background: $bg_input;
+        border-bottom: solid $green 20%;
+        padding: 0 1;
+    }
+    #search-input {
+        width: 1fr;
+    }
     #plans-table {
         height: 1fr;
     }
@@ -1194,6 +1286,8 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
     def __init__(self) -> None:
         super().__init__()
         self._previews: list[PlanPreview] = []
+        self._visible_previews: list[PlanPreview] = []
+        self._filter: str = ""
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -1203,6 +1297,9 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
                 "[R] Run  [V] Validate  [D] Details  [E] Edit  [Esc] Back",
                 id="screen-hint",
             )
+        with Horizontal(id="search-bar"):
+            yield Static("FILTER: ", classes="dim")
+            yield Input(placeholder="type to filter by name or goal...", id="search-input")
         yield DataTable(id="plans-table")
         yield Static("", id="empty-notice")
         with Horizontal(id="action-bar"):
@@ -1237,14 +1334,25 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
     def _populate_table(self) -> None:
         table = self.query_one("#plans-table", DataTable)
         table.clear()
-        if not self._previews:
-            self.query_one("#empty-notice", Static).update(
+        filt = self._filter.lower()
+        visible = [
+            p for p in self._previews
+            if not filt
+            or filt in (p.name or "").lower()
+            or filt in (p.goal or "").lower()
+        ]
+        self._visible_previews = visible
+        if not visible:
+            msg = (
                 "[dim #2a5a3a][ construct scan complete ][/]\n"
                 "[dim]No saved plans found. Create a new plan to enter the system.[/]"
+                if not self._previews else
+                f"[dim]No plans match filter: {filt}[/]"
             )
+            self.query_one("#empty-notice", Static).update(msg)
             return
         self.query_one("#empty-notice", Static).update("")
-        for preview in self._previews:
+        for preview in visible:
             path_obj = Path(preview.path)
             source   = (
                 "saved"   if "saved-plans" in str(path_obj) else
@@ -1259,14 +1367,20 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
                 key=preview.path,
             )
 
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "search-input":
+            self._filter = event.value
+            self._populate_table()
+
     def _selected_path(self) -> str | None:
         table = self.query_one("#plans-table", DataTable)
         if not table.row_count:
             return None
+        visible = getattr(self, "_visible_previews", self._previews)
         row_key = table.cursor_row
-        if row_key < 0 or row_key >= len(self._previews):
+        if row_key < 0 or row_key >= len(visible):
             return None
-        return self._previews[row_key].path
+        return visible[row_key].path
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-run":
@@ -1966,7 +2080,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
     def action_promote_run(self) -> None:
         run_dir = self._selected_run_dir()
         if run_dir:
-            self.app.push_screen(ResumeRetryScreen(run_dir, mode="promote"))  # type: ignore[attr-defined]
+            self.app.push_screen(DiffReviewScreen(run_dir))  # type: ignore[attr-defined]
         else:
             self.app.notify("Select a run first.", title="No Run Selected")  # type: ignore[attr-defined]
 
@@ -2462,6 +2576,778 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
 
         self._log("")
         self._log("[dim #2a5a3a][ trace ] settings loaded[/]")
+
+
+# ── DiffReviewScreen ──────────────────────────────────────────────────────────
+
+class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
+    """Review workspace diffs and promote changes for a retained run."""
+
+    BINDINGS = [
+        Binding("escape", "go_back",        "Back",          show=True),
+        Binding("p",      "promote_run",    "Promote",       show=True),
+        Binding("e",      "export_patch",   "Export Patch",  show=True),
+        Binding("c",      "coord_validate", "Coord. Val.",   show=True),
+    ]
+
+    CSS = """
+    DiffReviewScreen { background: $bg; }
+    #top-bar {
+        height: auto;
+        background: $bg_panel;
+        border-bottom: heavy $green 25%;
+        padding: 1 2;
+    }
+    #diff-title  { color: $cyan; text-style: bold; }
+    #diff-ref    { color: $text_dim; }
+    #diff-status { color: $green; margin-top: 1; }
+    #split-view  { height: 1fr; layout: horizontal; }
+    #file-list   { width: 38; border-right: heavy $green 20%; }
+    #diff-log    { width: 1fr; }
+    #action-bar  {
+        height: 3;
+        background: $bg_input;
+        border-top: solid $green 25%;
+        align: left middle;
+        padding: 0 1;
+    }
+    """
+
+    _diff_status: reactive[str] = reactive("loading diff...")
+
+    def __init__(self, run_ref: str) -> None:
+        super().__init__()
+        self._run_ref = run_ref
+        self._file_entries: list[dict[str, Any]] = []
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="top-bar"):
+            yield Static("[ DIFF REVIEW ]  Workspace changes", id="diff-title")
+            yield Static(self._run_ref, id="diff-ref")
+            yield Static("[ SIGNAL ] loading...", id="diff-status")
+        with Horizontal(id="split-view"):
+            yield DataTable(id="file-list")
+            yield RichLog(id="diff-log", markup=True, auto_scroll=False, wrap=True, highlight=False)
+        with Horizontal(id="action-bar"):
+            yield Button("PROMOTE",        id="btn-promote",  variant="primary")
+            yield Button("EXPORT PATCH",   id="btn-export")
+            yield Button("COORD. VALID.",  id="btn-coord")
+            yield Button("BACK",           id="btn-back")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = "POJOLENS  //  DIFF REVIEW"
+        table = self.query_one("#file-list", DataTable)
+        table.cursor_type = "row"
+        table.zebra_stripes = True
+        table.add_column("File", key="file", width=28)
+        table.add_column("Task", key="task", width=8)
+        self.run_worker(self._load_diff, thread=True, name="load-diff")
+
+    def watch__diff_status(self, s: str) -> None:
+        self.query_one("#diff-status", Static).update(f"[#00ff41][ SIGNAL ] {s}[/]")
+
+    def _set_status(self, s: str) -> None:
+        self.call_from_thread(lambda: setattr(self, "_diff_status", s))
+
+    def _log(self, text: str) -> None:
+        self.call_from_thread(lambda: self.query_one("#diff-log", RichLog).write(text))
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-promote":
+            self.action_promote_run()
+        elif event.button.id == "btn-export":
+            self.action_export_patch()
+        elif event.button.id == "btn-coord":
+            self.action_coord_validate()
+        elif event.button.id == "btn-back":
+            self.action_go_back()
+
+    def action_go_back(self) -> None:
+        self.dismiss(None)
+
+    def _load_diff(self) -> None:
+        import io as _io
+        handlers      = getattr(self.app, "_handlers", {})
+        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        if parse_args_fn is None:
+            self._log("[#ff2244]No parse_args_fn on app.[/]")
+            return
+
+        # Review summary
+        self._set_status("loading review summary...")
+        if "review" in handlers:
+            try:
+                args    = parse_args_fn(["review", self._run_ref, "--json"])
+                buf     = _io.StringIO()
+                old_out = sys.stdout
+                sys.stdout = buf  # type: ignore[assignment]
+                try:
+                    review_payload: dict[str, Any] = handlers["review"](args)
+                except Exception as exc:
+                    review_payload = {}
+                    self._log(f"[#ff2244]review error: {exc}[/]")
+                finally:
+                    sys.stdout = old_out
+                    captured = buf.getvalue().strip()
+                if captured:
+                    self._log("[bold #00e5ff]═══ REVIEW SUMMARY ═══[/]")
+                    for line in captured.splitlines():
+                        self._log(line)
+                elif review_payload:
+                    self._log("[bold #00e5ff]═══ REVIEW SUMMARY ═══[/]")
+                    for k, v in sorted(review_payload.items()):
+                        if k != "_consoleText" and v is not None:
+                            self._log(f"  [#00e5ff]{k}:[/] {str(v)[:80]}")
+            except Exception as exc:
+                self._log(f"[#ffaa00]review load: {exc}[/]")
+
+        # Diff output
+        self._set_status("loading diff output...")
+        if "diff-run" in handlers:
+            try:
+                args    = parse_args_fn(["diff-run", self._run_ref, "--json"])
+                buf     = _io.StringIO()
+                old_out = sys.stdout
+                sys.stdout = buf  # type: ignore[assignment]
+                try:
+                    diff_payload: dict[str, Any] = handlers["diff-run"](args)
+                except Exception as exc:
+                    diff_payload = {}
+                    self._log(f"[#ff2244]diff-run error: {exc}[/]")
+                finally:
+                    sys.stdout = old_out
+                    captured = buf.getvalue().strip()
+
+                if captured:
+                    self._log("")
+                    self._log("[bold #00e5ff]═══ WORKSPACE DIFF ═══[/]")
+                    for line in captured.splitlines():
+                        if line.startswith("+") and not line.startswith("+++"):
+                            self._log(f"[#00ff41]{line}[/]")
+                        elif line.startswith("-") and not line.startswith("---"):
+                            self._log(f"[#ff2244]{line}[/]")
+                        elif line.startswith("@@"):
+                            self._log(f"[#00e5ff]{line}[/]")
+                        else:
+                            self._log(line)
+
+                files = list(diff_payload.get("changedFiles") or diff_payload.get("files") or [])
+                if files:
+                    self._file_entries = files
+
+                    def _fill(fs: list[dict[str, Any]]) -> None:
+                        table = self.query_one("#file-list", DataTable)
+                        for f in fs[:100]:
+                            fname = str(f.get("path") or f.get("file") or "-")
+                            task  = str(f.get("taskId") or "-")
+                            table.add_row(fname[-28:], task[:8], key=fname)
+
+                    self.call_from_thread(lambda: _fill(files))
+
+            except Exception as exc:
+                self._log(f"[#ff2244]diff-run: {exc}[/]")
+
+        self._set_status("[P] Promote  [E] Export Patch  [C] Coord. Validate  [Esc] Back")
+
+    def action_promote_run(self) -> None:
+        self.app.push_screen(ResumeRetryScreen(self._run_ref, mode="promote"))  # type: ignore[attr-defined]
+
+    def action_export_patch(self) -> None:
+        self.run_worker(self._do_export_patch, thread=True, name="export-patch")
+
+    def action_coord_validate(self) -> None:
+        self.run_worker(self._do_coord_validate, thread=True, name="coord-validate")
+
+    def _do_export_patch(self) -> None:
+        import io as _io
+        handlers      = getattr(self.app, "_handlers", {})
+        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        if parse_args_fn is None or "export-patch" not in handlers:
+            self._log("[#ff2244]export-patch handler not available.[/]")
+            return
+        try:
+            args    = parse_args_fn(["export-patch", self._run_ref])
+            buf     = _io.StringIO()
+            old_out = sys.stdout
+            sys.stdout = buf  # type: ignore[assignment]
+            try:
+                payload: dict[str, Any] = handlers["export-patch"](args)
+            except Exception as exc:
+                payload = {}
+                self._log(f"[#ff2244]export-patch error: {exc}[/]")
+            finally:
+                sys.stdout = old_out
+                captured = buf.getvalue().strip()
+            if captured:
+                for line in captured.splitlines():
+                    self._log(line)
+            patch_path = str(payload.get("patchPath") or payload.get("path") or "")
+            if patch_path:
+                self._log(f"[bold #00ff41]patch exported: {patch_path}[/]")
+        except Exception as exc:
+            self._log(f"[#ff2244]export-patch: {exc}[/]")
+
+    def _do_coord_validate(self) -> None:
+        import io as _io
+        handlers      = getattr(self.app, "_handlers", {})
+        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        if parse_args_fn is None or "validate-run" not in handlers:
+            self._log("[#ff2244]validate-run handler not available.[/]")
+            return
+        self._set_status("[ SIGNAL ] running coordinator validation...")
+        try:
+            args    = parse_args_fn(["validate-run", self._run_ref, "--json"])
+            buf     = _io.StringIO()
+            old_out = sys.stdout
+            sys.stdout = buf  # type: ignore[assignment]
+            try:
+                payload = handlers["validate-run"](args)
+            except Exception as exc:
+                payload = {}
+                self._log(f"[#ff2244]validate-run error: {exc}[/]")
+            finally:
+                sys.stdout = old_out
+                captured = buf.getvalue().strip()
+            if captured:
+                self._log("[bold #00e5ff]═══ COORDINATOR VALIDATION ═══[/]")
+                for line in captured.splitlines():
+                    self._log(line)
+            valid = payload.get("valid") or payload.get("passed")
+            if valid is True:
+                self._set_status("[ EXIT ] coord. validation PASSED")
+                self._log("[bold #00ff41]✓ COORDINATOR VALIDATION PASSED[/]")
+            elif valid is False:
+                self._set_status("[ EXIT ] coord. validation FAILED")
+                self._log("[bold #ff2244]✗ COORDINATOR VALIDATION FAILED[/]")
+            else:
+                self._set_status("[ EXIT ] coord. validation complete")
+        except Exception as exc:
+            self._log(f"[#ff2244]coord validate: {exc}[/]")
+
+
+# ── AgentsScreen ──────────────────────────────────────────────────────────────
+
+class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
+    """Inspect available agent definitions from agents.json."""
+
+    BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
+
+    CSS = """
+    AgentsScreen { background: $bg; }
+    #top-bar {
+        height: auto;
+        background: $bg_panel;
+        border-bottom: heavy $green 25%;
+        padding: 1 2;
+    }
+    #ag-title { color: $cyan; text-style: bold; }
+    #ag-path  { color: $text_dim; }
+    #split    { height: 1fr; layout: horizontal; }
+    #ag-table { width: 42; border-right: heavy $green 20%; }
+    #ag-detail { width: 1fr; }
+    #action-bar {
+        height: 3;
+        background: $bg_input;
+        border-top: solid $green 25%;
+        align: right middle;
+        padding: 0 2;
+    }
+    """
+
+    _BASE_TOOLS = frozenset({
+        "read_file", "write_file", "str_replace_based_edit_tool",
+        "bash", "write_shared_context",
+    })
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._agents_data: list[dict[str, Any]] = []
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="top-bar"):
+            yield Static("[ AGENTS ]  Available agent definitions", id="ag-title")
+            yield Static("", id="ag-path")
+        with Horizontal(id="split"):
+            yield DataTable(id="ag-table")
+            yield RichLog(id="ag-detail", markup=True, auto_scroll=False, wrap=True, highlight=False)
+        with Horizontal(id="action-bar"):
+            yield Button("BACK", id="btn-back")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = "POJOLENS  //  AGENTS"
+        agents_path = str(getattr(self.app, "_agents", DEFAULT_AGENTS_PATH))
+        self.query_one("#ag-path", Static).update(agents_path)
+        table = self.query_one("#ag-table", DataTable)
+        table.cursor_type = "row"
+        table.zebra_stripes = True
+        table.add_column("Name",    key="name",    width=22)
+        table.add_column("Role",    key="role",    width=12)
+        table.add_column("Skills",  key="skills",  width=7)
+        self.run_worker(self._load_agents, thread=True, name="load-agents")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-back":
+            self.action_go_back()
+
+    def action_go_back(self) -> None:
+        self.dismiss(None)
+
+    def _parse_agents(self, data: Any) -> list[dict[str, Any]]:
+        if isinstance(data, list):
+            return [a for a in data if isinstance(a, dict)]
+        if isinstance(data, dict):
+            if "agents" in data:
+                inner = data["agents"]
+                if isinstance(inner, list):
+                    return [a for a in inner if isinstance(a, dict)]
+                if isinstance(inner, dict):
+                    return [{"name": k, **v} for k, v in inner.items() if isinstance(v, dict)]
+            return [{"name": k, **v} for k, v in data.items() if isinstance(v, dict)]
+        return []
+
+    def _load_agents(self) -> None:
+        agents_path = str(getattr(self.app, "_agents", DEFAULT_AGENTS_PATH))
+        detail = self.query_one("#ag-detail", RichLog)
+        try:
+            raw = json.loads(Path(agents_path).read_text(encoding="utf-8"))
+        except Exception as exc:
+            self.call_from_thread(lambda: detail.write(f"[#ff2244]Load error: {exc}[/]"))
+            return
+
+        agents = self._parse_agents(raw)
+        self._agents_data = agents
+
+        def _fill() -> None:
+            table = self.query_one("#ag-table", DataTable)
+            for ag in agents:
+                name   = str(ag.get("name") or ag.get("role") or "-")
+                role   = str(ag.get("role") or "-")
+                skills = str(len(ag.get("skills") or ag.get("defaultSkills") or []))
+                table.add_row(name[:22], role[:12], skills, key=name)
+            if agents:
+                self._show_agent_detail(agents[0])
+
+        self.call_from_thread(_fill)
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        idx = event.cursor_row
+        if 0 <= idx < len(self._agents_data):
+            self._show_agent_detail(self._agents_data[idx])
+
+    def _show_agent_detail(self, ag: dict[str, Any]) -> None:
+        def _write() -> None:
+            detail = self.query_one("#ag-detail", RichLog)
+            detail.clear()
+            name  = str(ag.get("name") or ag.get("role") or "-")
+            role  = str(ag.get("role") or "-")
+            model = str(ag.get("modelProfile") or ag.get("model") or "-")
+            pfile = str(ag.get("promptFile") or ag.get("systemPromptPath") or "-")
+            val_m = str(ag.get("validationMode") or ag.get("workerValidationMode") or "-")
+            skills = list(ag.get("skills") or ag.get("defaultSkills") or [])
+            tools  = list(ag.get("extraTools") or [])
+            out_p  = str(ag.get("outputProfile") or "-")
+
+            detail.write(f"[bold #00e5ff]Agent: {name}[/]")
+            detail.write(f"  [#00e5ff]Role            :[/] {role}")
+            detail.write(f"  [#00e5ff]Model Profile   :[/] {model}")
+            detail.write(f"  [#00e5ff]Output Profile  :[/] {out_p}")
+            detail.write(f"  [#00e5ff]Validation Mode :[/] {val_m}")
+            detail.write(f"  [#00e5ff]Prompt File     :[/] {pfile}")
+
+            if pfile != "-":
+                try:
+                    size = Path(pfile).stat().st_size
+                    if size > 8192:
+                        detail.write(f"  [bold #ff2244]⚠ PROMPT TOO LARGE: {size} bytes (limit 8 KB)[/]")
+                    elif size > 6144:
+                        detail.write(f"  [#ffaa00]⚠ Prompt large: {size} bytes (warn 6 KB)[/]")
+                    else:
+                        detail.write(f"  [#00ff41]✓ Prompt size: {size} bytes[/]")
+                except OSError:
+                    detail.write("  [dim](prompt file not found)[/]")
+
+            if skills:
+                detail.write("")
+                detail.write(f"  [#00e5ff]Skills ({len(skills)}):[/]")
+                for s in skills:
+                    detail.write(f"    [#00ff41]•[/] {s}")
+                if len(skills) > 4:
+                    detail.write(f"    [#ffaa00]⚠ {len(skills)} skills — check stack limit (5 max)[/]")
+
+            if tools:
+                detail.write("")
+                detail.write(f"  [#00e5ff]Extra Tools ({len(tools)}):[/]")
+                for t in tools:
+                    tname = str(t.get("name") or t if isinstance(t, str) else "-")
+                    tkind = str(t.get("kind") or t.get("type") or "-") if isinstance(t, dict) else "-"
+                    col   = "#ff2244" if tname in self._BASE_TOOLS else "#00e5ff"
+                    warn  = " [#ff2244]⚠ collides with base tool[/]" if tname in self._BASE_TOOLS else ""
+                    detail.write(f"    [{col}]•[/{col}] {tname} ({tkind}){warn}")
+
+        self.call_from_thread(_write)
+
+
+# ── SkillsScreen ──────────────────────────────────────────────────────────────
+
+class SkillsScreen(Screen):  # type: ignore[type-arg,misc]
+    """Inspect the skill registry from skills/registry.json."""
+
+    BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
+
+    CSS = """
+    SkillsScreen { background: $bg; }
+    #top-bar {
+        height: auto;
+        background: $bg_panel;
+        border-bottom: heavy $green 25%;
+        padding: 1 2;
+    }
+    #sk-title { color: $cyan; text-style: bold; }
+    #sk-path  { color: $text_dim; }
+    #split    { height: 1fr; layout: horizontal; }
+    #sk-table  { width: 36; border-right: heavy $green 20%; }
+    #sk-detail { width: 1fr; }
+    #action-bar {
+        height: 3;
+        background: $bg_input;
+        border-top: solid $green 25%;
+        align: right middle;
+        padding: 0 2;
+    }
+    """
+
+    _WARN_BYTES  = 6 * 1024
+    _ERROR_BYTES = 8 * 1024
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._skills_data: list[dict[str, Any]] = []
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="top-bar"):
+            yield Static("[ SKILLS ]  Skill registry", id="sk-title")
+            yield Static("", id="sk-path")
+        with Horizontal(id="split"):
+            yield DataTable(id="sk-table")
+            yield RichLog(id="sk-detail", markup=True, auto_scroll=False, wrap=True, highlight=False)
+        with Horizontal(id="action-bar"):
+            yield Button("BACK", id="btn-back")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = "POJOLENS  //  SKILLS"
+        try:
+            from pojo_lens_agents.orchestrator_contracts import DEFAULT_SKILL_REGISTRY_PATH
+            skills_path = str(DEFAULT_SKILL_REGISTRY_PATH)
+        except ImportError:
+            skills_path = "ai/orchestrator/skills/registry.json"
+        self.query_one("#sk-path", Static).update(skills_path)
+        table = self.query_one("#sk-table", DataTable)
+        table.cursor_type = "row"
+        table.zebra_stripes = True
+        table.add_column("Skill", key="name",  width=22)
+        table.add_column("Size",  key="size",  width=8)
+        table.add_column("State", key="state", width=6)
+        self.run_worker(lambda: self._load_skills(skills_path), thread=True, name="load-skills")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-back":
+            self.action_go_back()
+
+    def action_go_back(self) -> None:
+        self.dismiss(None)
+
+    def _parse_skills(self, data: Any) -> list[dict[str, Any]]:
+        if isinstance(data, list):
+            return [s for s in data if isinstance(s, dict)]
+        if isinstance(data, dict):
+            if "skills" in data:
+                inner = data["skills"]
+                if isinstance(inner, list):
+                    return [s for s in inner if isinstance(s, dict)]
+                if isinstance(inner, dict):
+                    return [{"name": k, **v} for k, v in inner.items() if isinstance(v, dict)]
+            return [{"name": k, **v} if isinstance(v, dict) else {"name": k, "description": str(v)}
+                    for k, v in data.items()]
+        return []
+
+    def _load_skills(self, skills_path: str) -> None:
+        detail = self.query_one("#sk-detail", RichLog)
+        try:
+            raw = json.loads(Path(skills_path).read_text(encoding="utf-8"))
+        except Exception as exc:
+            self.call_from_thread(lambda: detail.write(f"[#ff2244]Load error: {exc}[/]"))
+            return
+
+        skills = self._parse_skills(raw)
+        self._skills_data = skills
+
+        def _fill() -> None:
+            table = self.query_one("#sk-table", DataTable)
+            for sk in skills:
+                name  = str(sk.get("name") or sk.get("id") or "-")
+                pfile = str(sk.get("promptFile") or sk.get("file") or sk.get("path") or "")
+                size_str   = "-"
+                state_str  = "OK"
+                state_color = "#00ff41"
+                if pfile:
+                    try:
+                        sz = Path(pfile).stat().st_size
+                        size_str = f"{sz//1024}KB" if sz >= 1024 else f"{sz}B"
+                        if sz > self._ERROR_BYTES:
+                            state_str, state_color = "ERR", "#ff2244"
+                        elif sz > self._WARN_BYTES:
+                            state_str, state_color = "WARN", "#ffaa00"
+                    except OSError:
+                        size_str, state_str, state_color = "?", "?", "#ffaa00"
+                state_cell = Text(state_str, style=state_color) if Text is not None else state_str
+                table.add_row(name[:22], size_str, state_cell, key=name)
+            if skills:
+                self._show_skill_detail(skills[0])
+
+        self.call_from_thread(_fill)
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        idx = event.cursor_row
+        if 0 <= idx < len(self._skills_data):
+            self._show_skill_detail(self._skills_data[idx])
+
+    def _show_skill_detail(self, sk: dict[str, Any]) -> None:
+        def _write() -> None:
+            detail = self.query_one("#sk-detail", RichLog)
+            detail.clear()
+            name  = str(sk.get("name") or sk.get("id") or "-")
+            desc  = str(sk.get("description") or "")
+            pfile = str(sk.get("promptFile") or sk.get("file") or sk.get("path") or "-")
+            tags  = list(sk.get("tags") or [])
+
+            detail.write(f"[bold #00e5ff]Skill: {name}[/]")
+            if desc:
+                detail.write(f"  [dim]{desc[:200]}[/]")
+            detail.write(f"  [#00e5ff]Prompt File:[/] {pfile}")
+            if tags:
+                detail.write(f"  [#00e5ff]Tags:[/] {', '.join(tags)}")
+
+            if pfile != "-":
+                try:
+                    sz = Path(pfile).stat().st_size
+                    if sz > self._ERROR_BYTES:
+                        detail.write(f"  [bold #ff2244]⚠ TOO LARGE: {sz} bytes (limit {self._ERROR_BYTES//1024} KB)[/]")
+                    elif sz > self._WARN_BYTES:
+                        detail.write(f"  [#ffaa00]⚠ Large: {sz} bytes (warn {self._WARN_BYTES//1024} KB)[/]")
+                    else:
+                        detail.write(f"  [#00ff41]✓ Size: {sz} bytes[/]")
+                    content_lines = Path(pfile).read_text(encoding="utf-8", errors="replace").splitlines()
+                    detail.write("")
+                    detail.write("[dim #2a5a3a]── Content preview ──[/]")
+                    for ln in content_lines[:20]:
+                        detail.write(f"[dim]{ln}[/]")
+                    if len(content_lines) > 20:
+                        detail.write(f"[dim]... +{len(content_lines)-20} more lines[/]")
+                except OSError:
+                    detail.write(f"  [dim](file not found)[/]")
+
+        self.call_from_thread(_write)
+
+
+# ── EstimateScreen / EstimateResultScreen ──────────────────────────────────────
+
+class EstimateScreen(Screen):  # type: ignore[type-arg,misc]
+    """Entry point for --estimate / --dry-run: enter plan path + choose mode."""
+
+    BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
+
+    CSS = """
+    EstimateScreen { align: center middle; }
+    #card {
+        width: 80; height: auto;
+        border: heavy $green 30%;
+        background: $bg_panel;
+        padding: 2 3;
+    }
+    #card-title { color: $cyan; text-style: bold; margin-bottom: 1; }
+    #mode-list  { height: 5; margin-bottom: 1; }
+    .field-label { color: $cyan; margin-top: 1; }
+    #btns { height: auto; align: right middle; margin-top: 1; }
+    """
+
+    _MODES = [
+        ("estimate", "ESTIMATE  — token/cost ranges without a retained run  (fast)"),
+        ("dry-run",  "DRY RUN   — tighter prompt-assembly estimate, no retained run"),
+    ]
+
+    def __init__(self, plan_path: str = "") -> None:
+        super().__init__()
+        self._plan_path = plan_path
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="card"):
+            yield Static("[ ESTIMATE / DRY RUN ]  Cost and token projection", id="card-title")
+            yield Static("Plan file path:", classes="field-label")
+            yield Input(value=self._plan_path, placeholder="ai/orchestrator/tasks/my-plan.json", id="plan-input")
+            yield Static("Mode:", classes="field-label")
+            yield OptionList(*[label for _, label in self._MODES], id="mode-list")
+            with Horizontal(id="btns"):
+                yield Button("RUN →", id="btn-run", variant="primary")
+                yield Button("CANCEL", id="btn-cancel")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = "POJOLENS  //  ESTIMATE"
+        self.query_one("#mode-list", OptionList).highlighted = 0
+        if not self._plan_path:
+            self.query_one("#plan-input", Input).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-run":
+            self._submit()
+        elif event.button.id == "btn-cancel":
+            self.action_go_back()
+
+    def on_input_submitted(self, _: Input.Submitted) -> None:
+        self._submit()
+
+    def _submit(self) -> None:
+        path = self.query_one("#plan-input", Input).value.strip()
+        idx  = int(self.query_one("#mode-list", OptionList).highlighted or 0)
+        mode, _ = self._MODES[idx]
+        if path:
+            self.dismiss(None)
+            self.app.push_screen(EstimateResultScreen(path, mode=mode))  # type: ignore[attr-defined]
+        else:
+            self.app.notify("Enter a plan file path first.", title="Required")  # type: ignore[attr-defined]
+
+    def action_go_back(self) -> None:
+        self.dismiss(None)
+
+
+class EstimateResultScreen(Screen):  # type: ignore[type-arg,misc]
+    """Display output from --estimate or --dry-run."""
+
+    BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
+
+    CSS = """
+    EstimateResultScreen { background: $bg; }
+    #top-bar {
+        height: auto; background: $bg_panel;
+        border-bottom: heavy $green 25%; padding: 1 2;
+    }
+    #est-title { color: $cyan; text-style: bold; }
+    #est-plan  { color: $text_dim; }
+    #est-log   { height: 1fr; }
+    #action-bar {
+        height: 3; background: $bg_input;
+        border-top: solid $green 25%; align: right middle; padding: 0 2;
+    }
+    """
+
+    def __init__(self, plan_path: str, *, mode: str = "estimate") -> None:
+        super().__init__()
+        self._plan_path = plan_path
+        self._mode      = mode
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="top-bar"):
+            yield Static(f"[ {self._mode.upper()} ]", id="est-title")
+            yield Static(self._plan_path, id="est-plan")
+        yield RichLog(id="est-log", markup=True, auto_scroll=True, wrap=True, highlight=False)
+        with Horizontal(id="action-bar"):
+            yield Button("BACK", id="btn-back")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = f"POJOLENS  //  {self._mode.upper()}"
+        self.run_worker(self._run_estimate, thread=True, name="estimate")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-back":
+            self.action_go_back()
+
+    def action_go_back(self) -> None:
+        self.dismiss(None)
+
+    def _log(self, text: str) -> None:
+        self.call_from_thread(lambda: self.query_one("#est-log", RichLog).write(text))
+
+    def _run_estimate(self) -> None:
+        import io as _io
+        handlers      = getattr(self.app, "_handlers", {})
+        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        if parse_args_fn is None:
+            self._log("[#ff2244]No parse_args_fn on app.[/]")
+            return
+        runtime_root = str(getattr(self.app, "_runtime_root", DEFAULT_RUNTIME_ROOT))
+        agents       = str(getattr(self.app, "_agents",       DEFAULT_AGENTS_PATH))
+        claude_bin   = str(getattr(self.app, "_claude_bin",   "claude"))
+
+        cmd = ["run", self._plan_path,
+               "--runtime-root", runtime_root, "--agents", agents,
+               "--provider-bin", claude_bin, "--json"]
+        if self._mode == "estimate":
+            cmd.append("--estimate")
+        elif self._mode == "dry-run":
+            cmd.append("--dry-run")
+
+        self._log(f"[#00e5ff][ SIGNAL ] {self._mode} starting...[/]")
+        try:
+            args = parse_args_fn(cmd)
+        except Exception as exc:
+            self._log(f"[#ff2244]Arg error: {exc}[/]")
+            return
+
+        buf     = _io.StringIO()
+        old_out = sys.stdout
+        sys.stdout = buf  # type: ignore[assignment]
+        try:
+            payload: dict[str, Any] = handlers.get("run", lambda a: {})(args)
+        except Exception as exc:
+            payload = {}
+            self._log(f"[#ff2244]Error: {exc}[/]")
+        finally:
+            sys.stdout = old_out
+            captured = buf.getvalue().strip()
+
+        if captured:
+            for line in captured.splitlines():
+                self._log(line)
+
+        if payload:
+            self._log("")
+            self._log(f"[bold #00e5ff]═══ {self._mode.upper()} RESULT ═══[/]")
+
+            estimate = payload.get("estimate") or payload.get("costEstimate") or {}
+            if isinstance(estimate, dict) and estimate:
+                self._log("[bold #00e5ff]── Cost / Token Estimate ──[/]")
+                for k, v in sorted(estimate.items()):
+                    self._log(f"  [#00e5ff]{k}:[/] {v}")
+
+            tasks = list(payload.get("tasks") or payload.get("taskEstimates") or [])
+            if tasks:
+                self._log("")
+                self._log("[bold #00e5ff]── Per-Task Estimates ──[/]")
+                for t in tasks:
+                    tid  = str(t.get("taskId") or t.get("id") or "?")
+                    mdl  = str(t.get("model") or t.get("modelProfile") or "-")
+                    cost = t.get("estimatedCostUsd") or t.get("costUsd") or t.get("cost")
+                    toks = t.get("estimatedTokens") or t.get("tokens")
+                    c_s  = f"[#ffaa00]${cost:.5f}[/]" if isinstance(cost, (int, float)) else "-"
+                    t_s  = f"{toks:,}" if isinstance(toks, int) else "-"
+                    self._log(f"  [#00e5ff]▸ {tid}[/] [{mdl}]  cost {c_s}  tokens {t_s}")
+
+            total = payload.get("totalEstimatedCostUsd") or payload.get("totalCostUsd")
+            if total is not None:
+                self._log("")
+                self._log(f"[bold #ffaa00]Total estimated: ${total:.5f}[/]")
+
+        self._log("")
+        self._log(f"[dim #2a5a3a][ EXIT ] {self._mode} complete[/]")
 
 
 # ── OperatorApp ────────────────────────────────────────────────────────────────

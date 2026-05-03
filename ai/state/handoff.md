@@ -7,6 +7,7 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-03`: WP74 is complete; `tui_operator.py` multi-screen Textual operator console — 17 screens, AgentsScreen, SkillsScreen, DiffReviewScreen, EstimateScreen, search filter in SavedPlansScreen, `operator` subcommand; 1074 pass.
 - `2026-05-03`: WP73 is complete; wizard saved plans browser, effort selection (low/medium/high → haiku/sonnet/opus), expanded checkpoint, `--planner-effort` flag, 16 regression tests; 1070 pass.
 - `2026-05-03`: WP72 is complete; OTEL endpoint validated at startup; 21 new orchestrator dispatch tests; 1054 pass.
 - `2026-05-03`: WP69 is complete; planner is first wizard stage with clarification, staged setup, approve/edit, handoff into run.
@@ -15,6 +16,7 @@
 - `2026-05-03`: Queue is WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 -> Release Gate.
 
 ## Facts
+- `2026-05-03`: `tui_operator.py` is the multi-screen operator TUI; `operator` subcommand launches it; `"operator"` in `KNOWN_COMMANDS`; DiffReviewScreen wired to promote flow; AgentsScreen/SkillsScreen on [A]/[K]; EstimateScreen on [D].
 - `2026-05-03`: `console.py` owns session state and shared routing (`DispatchRoute`/`route_line`).
 - `2026-05-03`: `tui_console.py` owns all Textual UI; `tui_app.py` owns the run dashboard and `textual_is_available`; `wizard.py` is pure logic.
 - `2026-05-03`: Planner is first wizard stage inside `wizard`; clarification loop → staged setup proposal → approve/edit checkpoint → execution handoff.

@@ -5,6 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
+- `2026-05-03`: WP74 is complete; `tui_operator.py` multi-screen Textual operator console fully wired -- 17 screens, AgentsScreen, SkillsScreen, DiffReviewScreen, EstimateScreen, search filter, `operator` subcommand.
 - `2026-05-03`: WP73 is complete; wizard now supports saved plans browser, effort selection (low/medium/high → haiku/sonnet/opus), expanded checkpoint options, and `--planner-effort` CLI flag.
 - `2026-05-03`: WP72 is complete; OTEL endpoint validated at startup; 21 new orchestrator dispatch tests.
 - `2026-05-03`: WP69 is complete; planner is the first wizard stage with clarification, staged setup, approve/edit, and handoff into run.
@@ -12,6 +13,7 @@
 - `2026-05-03`: WP60, WP50, WP59, WP67, WP58, WP57, WP55 complete.
 
 ## Verified
+- `2026-05-03`: Full Python suite at `1074` tests after WP74.
 - `2026-05-03`: Full Python suite at `1070` tests after WP73.
 - `2026-05-03`: `scripts/docs/check-doc-consistency.ps1` passed.
 

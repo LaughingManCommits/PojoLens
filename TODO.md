@@ -81,6 +81,8 @@ Execution order is dependency-first, not ticket-number order.
 | WP71| Generated Plan Cleanup              | Complete | `prune_generated_plans` in `runtime_admin.py` wired into `prune_runs`; default 30-day/20-count eviction; slug collision warning in `wizard_command`; `generatedPlanCollision` payload; 16 regression tests; 1033 pass |
 | WP72| Orchestrator Core Coverage          | Complete | `_assert_otel_endpoint` in `orchestrator_app.py` validates http/https before run start; `test_orchestrator_app.py` 21 tests (OTEL validation, wizard deps keys, json-flag interactive suppression, dispatch error propagation); Rate limiting section in README; advisory invariant in SYSTEM-SPEC; 1054 pass |
 | WP73| Wizard Saved Plans & Effort UI      | Complete | `discover_saved_plans`/`save_plan_to`/`_saved_plans_flow`; effort selection (low/medium/high → haiku/sonnet/opus); expanded checkpoint (save_only, save_and_start, edit); `--planner-effort` CLI flag; 16 regression tests; 1070 pass |
+| WP74| Operator TUI Full Wiring            | Complete | `tui_operator.py` multi-screen Textual console; HomeScreen + 17 screens; DiffReviewScreen, AgentsScreen, SkillsScreen, EstimateScreen/EstimateResultScreen; search filter in SavedPlansScreen; Agents+Skills bindings; EstimateScreen from [D]; DiffReviewScreen from promote; `operator` subcommand wired; 1074 pass |
+| WP75| HITL TUI Live Gate Integration      | Planned  | Wire HitlGateScreen to live run event stream; poll retained run for pending HITL sentinels; approve/abort from TUI; gate id display; cost-so-far; completed batch summary |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
 
@@ -428,38 +430,38 @@ the orchestrator rather than a pile of neon overrides.
 
 **Tasks:**
 - [x] Define one shared Textual theme/token layer for operator UI colors,
-      borders, emphasis states, spacing, titles, and status semantics instead
-      of scattering hex values across `tui_console.py` and `tui_app.py`.
-      Implemented as `_MTX_VARS` dict (shared in `tui_console.py`, mirrored in
-      `tui_app.py`) + `get_css_variables()` override on all App subclasses.
+  borders, emphasis states, spacing, titles, and status semantics instead
+  of scattering hex values across `tui_console.py` and `tui_app.py`.
+  Implemented as `_MTX_VARS` dict (shared in `tui_console.py`, mirrored in
+  `tui_app.py`) + `get_css_variables()` override on all App subclasses.
 - [x] Rework `ConsoleApp` layout and styling into a polished Matrix-style
-      console: restrained black/green base, secondary accent(s), legible
-      hierarchy, consistent panel framing, and command/output styling that
-      still reads clearly during long sessions.
+  console: restrained black/green base, secondary accent(s), legible
+  hierarchy, consistent panel framing, and command/output styling that
+  still reads clearly during long sessions.
 - [x] Restyle the run dashboard widgets in `tui_app.py` to match the same
-      visual language so the run-only TUI and persistent console feel like one
-      operator product. Added `OrchestratorApp.get_css_variables()` + full
-      Matrix CSS; `RunSummaryBar` and `FooterBar` use Matrix Rich markup;
-      `_status_style()` returns Matrix hex colors; title updated to
-      `POJOLENS // <PLAN>  RUN MONITOR`.
+  visual language so the run-only TUI and persistent console feel like one
+  operator product. Added `OrchestratorApp.get_css_variables()` + full
+  Matrix CSS; `RunSummaryBar` and `FooterBar` use Matrix Rich markup;
+  `_status_style()` returns Matrix hex colors; title updated to
+  `POJOLENS // <PLAN>  RUN MONITOR`.
 - [x] Restyle wizard prompt screens in `tui_console.py` so `_ChoiceApp`,
-      `_ConfirmApp`, and `_InputApp` use the same theme rather than default
-      Textual visuals. All three apps now have Matrix CSS + `get_css_variables()`.
+  `_ConfirmApp`, and `_InputApp` use the same theme rather than default
+  Textual visuals. All three apps now have Matrix CSS + `get_css_variables()`.
 - [x] Remove mojibake-corrupted banner/help/decorator text from the TUI layer.
-      No active mojibake found in code — banner and help text already use clean
-      box-drawing Unicode. Colour drift (`#a0ffc0`, `#2a4a2a`, `#2a4a3a`)
-      normalised to canonical theme tokens across all Python markup strings.
+  No active mojibake found in code — banner and help text already use clean
+  box-drawing Unicode. Colour drift (`#a0ffc0`, `#2a4a2a`, `#2a4a3a`)
+  normalised to canonical theme tokens across all Python markup strings.
 - [x] Review panel copy, badges, labels, and footer bindings so the UI feels
-      intentional and domain-specific instead of decorative. Footer non-gate
-      state updated to `>> live <<`; summary bar fields labelled with Matrix
-      markup; jobs panel and sys-bar use CSS variables throughout.
+  intentional and domain-specific instead of decorative. Footer non-gate
+  state updated to `>> live <<`; summary bar fields labelled with Matrix
+  markup; jobs panel and sys-bar use CSS variables throughout.
 - [x] Add or update focused Textual tests only where styling or compose
-      structure changes require it. `test_tui_app.py`: updated footer
-      non-gate assertion to use `assertIn("live", ...)` to accommodate new
-      text; no test content was removed. 837 tests pass.
+  structure changes require it. `test_tui_app.py`: updated footer
+  non-gate assertion to use `assertIn("live", ...)` to accommodate new
+  text; no test content was removed. 837 tests pass.
 - [x] Document the final operator-UI theme approach in the relevant
-      orchestrator docs. Theme approach: `_MTX_VARS` + `get_css_variables()`
-      override is the canonical extension point for future theme changes.
+  orchestrator docs. Theme approach: `_MTX_VARS` + `get_css_variables()`
+  override is the canonical extension point for future theme changes.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
@@ -507,31 +509,31 @@ reviews or edits that proposal, and only then launches worker execution.
 
 **Tasks:**
 - [x] Define planner-first stage sequence: goal intake → clarification loop →
-      staged plan summary → approve/revise/stop checkpoint → execution handoff.
+  staged plan summary → approve/revise/stop checkpoint → execution handoff.
 - [x] Add `_clarification_output_schema_json()`, `_clarification_prompt()`,
-      `clarify_goal_with_claude()`, and `_run_clarification_loop()` to
-      `wizard.py`; planner agent (haiku, effort=low) asks up to 3 focused
-      questions when goal is underspecified; operator answers fed back into
-      `_goal_active` for intent resolution.
+  `clarify_goal_with_claude()`, and `_run_clarification_loop()` to
+  `wizard.py`; planner agent (haiku, effort=low) asks up to 3 focused
+  questions when goal is underspecified; operator answers fed back into
+  `_goal_active` for intent resolution.
 - [x] Add `_format_staged_plan_summary()` to render plan name, task count, and
-      first 10 task IDs with agent labels after `validate_handler` runs.
+  first 10 task IDs with agent labels after `validate_handler` runs.
 - [x] Add `_CHECKPOINT_PROCEED / _REVISE / _STOP` constants and
-      `_plan_approval_checkpoint()` which calls `prompter.choose()` (not
-      `confirm()`) so existing tests are unaffected.
+  `_plan_approval_checkpoint()` which calls `prompter.choose()` (not
+  `confirm()`) so existing tests are unaffected.
 - [x] Refactor `wizard_command` plan mode into a 3-round revision loop:
-      clarification (pre-loop), then per-round: intent resolution → plan
-      selection → validate → staged summary → checkpoint. Revise resets
-      `_explicit_plan = ""` and re-enters clarification for the new goal.
-      Stop returns early before `run_handler`. Proceed breaks to execution.
+  clarification (pre-loop), then per-round: intent resolution → plan
+  selection → validate → staged summary → checkpoint. Revise resets
+  `_explicit_plan = ""` and re-enters clarification for the new goal.
+  Stop returns early before `run_handler`. Proceed breaks to execution.
 - [x] Update wizard CLI help text in `cli_parser.py` to describe the
-      planner-first flow.
+  planner-first flow.
 - [x] Add 4 focused regression tests to `test_wizard.py`:
-      `test_plan_approval_checkpoint_noninteractive_returns_proceed`,
-      `test_format_staged_plan_summary_includes_plan_name_and_tasks`,
-      `test_plan_approval_checkpoint_stop_exits_before_run`,
-      `test_plan_approval_checkpoint_revise_reruns_validation`.
+  `test_plan_approval_checkpoint_noninteractive_returns_proceed`,
+  `test_format_staged_plan_summary_includes_plan_name_and_tasks`,
+  `test_plan_approval_checkpoint_stop_exits_before_run`,
+  `test_plan_approval_checkpoint_revise_reruns_validation`.
 - [x] All existing wizard tests pass unchanged (approve uses `choose()` default
-      → "proceed", no `confirms` consumed).
+  → "proceed", no `confirms` consumed).
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
@@ -588,7 +590,7 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 
 **Tasks:**
 - [x] Execute this WP after WP67 so partial streaming lands on the consolidated
-      interactive output path.
+  interactive output path.
 - [x] Add an optional `on_partial_text: Callable[[str], None] | None` param to `sdk_provider.run_sdk_provider`.
 - [x] When streaming and `on_partial_text` is provided, call it for each delta text token; `stream_to_stderr` backward compat preserved (TTY-gated stderr writes if no callback).
 - [x] Wire `on_partial_text` in `task_execution.execute_task` via `deps["partial_text_writer_factory"]`; factory called once per task returning a per-task callback.
@@ -831,6 +833,47 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 
 ---
 
+## WP74: Operator TUI Full Wiring
+
+**Priority:** Medium → **Complete** (`2026-05-03`)
+
+**Goal:** Build and fully wire the Matrix/cyberpunk multi-screen operator TUI console (`tui_operator.py`) for the Claude orchestration system.
+
+**Tasks:**
+- [x] `tui_operator.py` — new Textual multi-screen app with `OperatorApp`
+- [x] HomeScreen with full keyboard nav + `_MENU_ITEMS`; [A] Agents, [K] Skills, [D] Dry Run now functional
+- [x] Wizard screens: GoalInputScreen → EffortSelectScreen → WorkspaceModeScreen → GovernanceScreen → PlanRunScreen
+- [x] SavedPlansScreen with search/filter Input + `_visible_previews` index
+- [x] PlanDetailsScreen, ValidationResultScreen, ValidatePlanScreen, ValidateRunScreen
+- [x] RunLedgerScreen, RunDetailsScreen, ResumeRetryScreen
+- [x] DiffReviewScreen — file-list DataTable + diff RichLog; promote → DiffReviewScreen from ledger
+- [x] AgentsScreen — agents.json browser; prompt size warnings; base tool collision detection
+- [x] SkillsScreen — skills/registry.json browser; 6KB warn / 8KB error thresholds
+- [x] EstimateScreen + EstimateResultScreen — estimate / dry-run mode selector
+- [x] MemoryToolsScreen, SettingsScreen
+- [x] `operator` subcommand added to `cli_parser.py` and `orchestrator_app.py`
+- [x] `"operator"` added to `KNOWN_COMMANDS` in `wizard.py`
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"` — 1074 pass
+
+---
+
+## WP75: HITL TUI Live Gate Integration
+
+**Priority:** Low → **Planned**
+
+**Goal:** Wire a live HITL gate screen into the operator TUI so users can approve or abort pending gates without leaving the console.
+
+**Tasks:**
+- [ ] Poll retained run manifest for pending HITL sentinel during live run
+- [ ] `HitlGateScreen` — show gate id, completed batch summary, cost-so-far, pending tasks, failures
+- [ ] [A] Approve / [X] Abort bindings calling orchestrator approve/abort handlers
+- [ ] Stale sentinel warning if gate was armed too long
+- [ ] Wire into LiveRunDashboard auto-push when gate detected
+
+---
+
 ## WP40: End-To-End Coding Run Reliability
 
 **Priority:** High
@@ -872,7 +915,7 @@ the final release guardrails are rerun.
 **Tasks:**
 - [ ] Run final release guardrails from `RELEASE.md`.
 - [ ] Update `ai/state/current-state.md` and `ai/state/handoff.md` after
-      release.
+  release.
 
 **Validate:**
 - `mvn -B -ntp test`
