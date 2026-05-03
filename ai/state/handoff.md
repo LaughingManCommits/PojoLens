@@ -3,17 +3,16 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP62 -> WP70 -> WP63 -> WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
+3. Follow `TODO.md`: WP70 -> WP63 -> WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-03`: WP62 complete; `budget-exceeded` event, `budgetExceeded` flag, `budget_exceeded` lifecycleState, `EXIT_BUDGET_EXCEEDED=8`, `estimateBudgetWarning`; 925 tests pass.
 - `2026-05-03`: WP56 complete + after-care; dry-run/estimate suppression, `notify_on=[]` fix; 895 tests pass.
-- `2026-05-03`: WP69 complete; planner-first wizard flow with clarification loop, staged plan summary, approve/revise/stop checkpoint, revision loop (3 rounds max); 841 tests pass.
-- `2026-05-03`: WP68 + follow-ups complete; shared Matrix theme, `Header` in OrchestratorApp, DataTable column widths/right-align, wizard card containers; 837 tests pass.
-- `2026-05-03`: WP60 complete; shared partial streaming reaches watch and TUI surfaces; 836 tests passed.
-- `2026-05-03`: Queue is WP62 -> WP70 -> WP63 -> WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
+- `2026-05-03`: Queue is WP70 -> WP63 -> WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
 
 ## Facts
+- `2026-05-03`: WP62: `budget_exceeded_stop` flag in `run_loaded_plan`; fires `budget-exceeded` event when `kind=="budget"` blocking alert fires; `budgetExceeded` in payload; `derive_run_lifecycle_state` checks `summary_base["budgetExceeded"]` before `hasBlocked`; `EXIT_BUDGET_EXCEEDED=8` in contracts; `_worker_run_exit_code(status_counts, budget_exceeded=False)`.
 - `2026-05-03`: `notify.py` owns notification channels; `dispatch_notifications` injects `_desktop_fn/_webhook_fn/_slack_fn`; `_fire_notifications_async` daemon thread (join 15s) wired to run_plan/resume_run/retry_run; skips on `dryRun`/`estimatedOnly` payloads.
 - `2026-05-03`: `config_loader.py` has `load_notifications_config` ([notifications] TOML, ALLOWED_NOTIFICATIONS, VALID_NOTIFY_ON); `_find_config_path` shared by both load functions.
 - `2026-05-03`: `console.py` owns session state and shared routing (`DispatchRoute`/`route_line`).

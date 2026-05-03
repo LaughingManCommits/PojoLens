@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from pojo_lens_agents.orchestrator_contracts import (
     EXIT_BLOCKED,
+    EXIT_BUDGET_EXCEEDED,
     EXIT_CRASH,
     EXIT_ERROR,
     EXIT_SUCCESS,
@@ -29,9 +30,11 @@ def print_payload(payload: dict[str, Any], *, as_json: bool) -> None:
         print(json.dumps(public_payload, indent=2))
 
 
-def _worker_run_exit_code(status_counts: dict[str, int]) -> int:
+def _worker_run_exit_code(status_counts: dict[str, int], *, budget_exceeded: bool = False) -> int:
     if status_counts.get("failed", 0) > 0:
         return EXIT_WORKER_FAILURE
+    if budget_exceeded:
+        return EXIT_BUDGET_EXCEEDED
     if status_counts.get("blocked", 0) > 0:
         return EXIT_BLOCKED
     return EXIT_SUCCESS
@@ -45,7 +48,10 @@ def dispatch_main(args: Any, handlers: dict[str, Callable[[Any], dict[str, Any]]
         payload = handler(args)
         print_payload(payload, as_json=bool(getattr(args, "json", False)))
         if args.command in {"run", "resume", "retry", "wizard"}:
-            return _worker_run_exit_code(payload.get("statusCounts", {}))
+            return _worker_run_exit_code(
+                payload.get("statusCounts", {}),
+                budget_exceeded=bool(payload.get("budgetExceeded", False)),
+            )
         return EXIT_SUCCESS
     except PromotionBlockedError as exc:
         print(f"[claude-orchestrator] {exc}", file=sys.stderr)

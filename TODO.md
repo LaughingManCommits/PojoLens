@@ -72,7 +72,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP69| Planner-First Wizard Flow           | Complete | Make planner the first-class stage inside `wizard`: clarification loop, staged workspace/setup proposal, explicit approve/edit checkpoint, then execution handoff |
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
 | WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; tool-loop `[tool: name]` markers; `[task-id]` line-prefixed stderr; subprocess-provider gated; `_PARTIAL_FACTORY_CTX` contextvar injection; TUI `LogPane` streaming; 38 tests; 836 pass |
-| WP62| Hard Budget Cap Enforcement          | Planned | Harden `budgetBehavior=stop` to cancel remaining batches when `runBudgetUsd` is exceeded mid-run with proper events, manifest state, and regression coverage |
+| WP62| Hard Budget Cap Enforcement          | Complete | `budget-exceeded` event + `budgetExceeded` payload flag; `budget_exceeded` lifecycleState + flag; `EXIT_BUDGET_EXCEEDED=8`; `--estimate` warns via `estimateBudgetWarning`; 30 regression tests; 925 pass |
 | WP70| HITL Gate Correctness                | Planned | Fix `always` mode to fire before every batch (not just batch 1); fix stale HITL sentinel reuse on resume; regression tests for multi-batch HITL behavior |
 | WP63| Worker Tool Registry                 | Planned | Replace 4 hardcoded SDK tools with a plan/agent-declared extensible registry; allow `extraTools` JSON in agent definitions for project-specific tools like `run_tests` or `lint_file` |
 | WP64| Conditional Task Routing             | Planned | Allow a task's output field value to gate follow-up task injection; extends WP49 injection with `conditionField`/`conditionValue` predicates so reviewer block can auto-route to an implementer-fix task |
@@ -631,11 +631,11 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - The fix: after each batch completion, check cumulative `totalCostUsd` from completed records against `runBudgetUsd`; if exceeded, emit a `budget-exceeded` event, block all pending tasks as `blocked`, write manifest, and exit with a distinct exit code.
 
 **Tasks:**
-- [ ] In `run_ops.run_loaded_plan`, after each batch, sum `usage.totalCostUsd` from all completed records; if sum > `runBudgetUsd` and `budgetBehavior == "stop"`, block remaining pending tasks and exit run loop with status `budget_exceeded`.
-- [ ] Emit `budget-exceeded` run event with `{actualCostUsd, limitCostUsd, remainingTaskIds}` so the event trace records where the cap fired.
-- [ ] Set `lifecycleState = "budget_exceeded"` in retained manifest summary; surface it in `status` and `inventory` output.
-- [ ] Add distinct exit code for budget-exceeded runs (alongside existing `failed`/`blocked` codes) in `command_dispatch.py`.
-- [ ] Add regression coverage for: budget not exceeded (no effect), budget exceeded mid-run (remaining blocked), `warn` mode still runs to completion, `--estimate` pre-flight warns when estimate > budget.
+- [x] In `run_ops.run_loaded_plan`, after each batch, sum `usage.totalCostUsd` from all completed records; if sum > `runBudgetUsd` and `budgetBehavior == "stop"`, block remaining pending tasks and exit run loop with status `budget_exceeded`.
+- [x] Emit `budget-exceeded` run event with `{actualCostUsd, limitCostUsd, remainingTaskIds}` so the event trace records where the cap fired.
+- [x] Set `lifecycleState = "budget_exceeded"` in retained manifest summary; surface it in `status` and `inventory` output.
+- [x] Add distinct exit code for budget-exceeded runs (alongside existing `failed`/`blocked` codes) in `command_dispatch.py`.
+- [x] Add regression coverage for: budget not exceeded (no effect), budget exceeded mid-run (remaining blocked), `warn` mode still runs to completion, `--estimate` pre-flight warns when estimate > budget.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

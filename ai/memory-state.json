@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-03T15:33:49.558630+02:00",
-  "generation": "20260503T133349-43248-1777815229562044000",
+  "generatedAt": "2026-05-03T16:00:45.037871+02:00",
+  "generation": "20260503T140045-22136-1777816845040839900",
   "git": {
-    "headCommit": "39719c0c1402c9fe8b32b6b0f05c72b6976b1a02",
+    "headCommit": "ebec837a49e06cca3670be70e319d7b1cd183ede",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "87aed3f6c68f986e95be91a0b0d6633f9fd1d43d2c62ec55103b999dba13d7c5",
+  "inputsHash": "af1847210f823f68f4eec9b509a2afda4df8b4de3999342f6d977991be9d5315",
   "hotContext": {
     "files": [
       {
@@ -22,8 +22,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 29,
-        "bytes": 1679,
+        "lines": 31,
+        "bytes": 1952,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -65,8 +65,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 35,
-        "bytes": 2701,
+        "lines": 34,
+        "bytes": 2774,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -103,8 +103,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 94,
-    "totalBytes": 7021,
+    "totalLines": 95,
+    "totalBytes": 7367,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -142,13 +142,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "d39c1d41b29015feb77724cb2cc1167d8a3e271579dd5f6a8e204a9c2104fe65",
+        "inputHash": "b0300f35b0c03dc61ffc060fe4fa703682426630cd322088ae691affe7eadc39",
         "inputFiles": 69
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "9591e16551543d7c1c2e707983b5350a5c66ca2e4d48f21de47bc4c7ac9f1d86",
+        "inputHash": "3feeade465d06555c2ded5f5dd2a5ed3e2e85ddf352918f91bcfc6e950fb9435",
         "inputFiles": 560
       },
       {

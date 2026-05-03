@@ -182,6 +182,8 @@ def derive_run_lifecycle_state(
 ) -> tuple[str, str]:
     if summary_base["hasFailures"]:
         return "failed", "At least one retained task failed."
+    if summary_base.get("budgetExceeded") and summary_base["hasBlocked"]:
+        return "budget_exceeded", "Run halted: cumulative cost exceeded runBudgetUsd; remaining tasks were blocked."
     if summary_base["hasBlocked"]:
         return "blocked", "At least one retained task is blocked."
     if summary_base["isResumable"]:
@@ -322,12 +324,17 @@ def summarize_run_manifest(
     has_blocked = status_counts.get("blocked", 0) > 0
     is_resumable = len(resume_candidate_task_ids) > 0
     is_costly = float(usage_totals.get("totalCostUsd", 0.0) or 0.0) > 0.0
+    is_budget_exceeded = any(
+        alert.get("kind") == "budget"
+        for alert in run_governance.get("blockingAlerts", [])
+    )
     lifecycle_state, lifecycle_state_reason = derive_run_lifecycle_state(
         records=records,
         summary_base={
             "hasFailures": has_failures,
             "hasBlocked": has_blocked,
             "isResumable": is_resumable,
+            "budgetExceeded": is_budget_exceeded,
         },
         promotion_readiness=promotion_readiness,
         approval_summary=approval_summary,
@@ -349,6 +356,8 @@ def summarize_run_manifest(
         flags.append("costly")
     if unexpectedly_verbose_task_ids:
         flags.append("verbose")
+    if is_budget_exceeded:
+        flags.append("budget-exceeded")
     if int(run_governance.get("blockingAlertCount", 0) or 0) > 0:
         flags.append("governance-blocked")
     flags.append(f"state:{lifecycle_state}")

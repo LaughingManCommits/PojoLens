@@ -149,6 +149,7 @@ EXIT_WORKER_FAILURE = 4  # one or more tasks returned "failed"
 EXIT_BLOCKED = 5         # tasks blocked, no failures
 EXIT_UNSAFE_PROMOTION = 6  # promotion refused (scope violations, protected paths)
 EXIT_CRASH = 7           # unexpected Python exception
+EXIT_BUDGET_EXCEEDED = 8  # run halted because runBudgetUsd was exceeded
 WORKER_RESULT_SCHEMA = {
     "type": "object",
     "properties": {

@@ -233,6 +233,7 @@ async def run_loaded_plan(
     pending = {task.id: task for task in plan.tasks if task.id not in records}
     fail_fast_triggered = False
     stop_scheduling_reason: str | None = None
+    budget_exceeded_stop = False
     batch_index = 0
     _token_budget_by_task: dict[str, int] = {}
     if rate_limit_bucket is not None and rate_limit_bucket.enabled and estimate_plan_cost is not None and load_model_pricing is not None:
@@ -261,6 +262,17 @@ async def run_loaded_plan(
         if run_governance["shouldStopScheduling"] and stop_scheduling_reason is None:
             first_alert = run_governance["blockingAlerts"][0]
             stop_scheduling_reason = f"Run policy stop triggered: {first_alert['message']}"
+            if first_alert.get("kind") == "budget":
+                budget_exceeded_stop = True
+                append_run_event(
+                    run_events,
+                    phase="budget-exceeded",
+                    details={
+                        "actualCostUsd": first_alert.get("actualUsd"),
+                        "limitCostUsd": first_alert.get("limitUsd"),
+                        "remainingTaskIds": sorted(pending),
+                    },
+                )
         newly_blocked = False
         for task_id, task in list(pending.items()):
             if not task.depends_on:
@@ -659,6 +671,7 @@ async def run_loaded_plan(
             "source": "override" if hitl_override or hitl_mode_override else "runPolicy",
         },
         "runGovernance": run_governance,
+        "budgetExceeded": budget_exceeded_stop,
         "statusCounts": status_counts,
         "usageTotals": usage_totals,
         "costEstimate": cost_estimate,
@@ -769,6 +782,14 @@ def run_plan(
         topology_warnings.extend(cost_estimate.get("warnings", []))
         topology["warnings"] = topology_warnings
         topology["warningCount"] = len(topology_warnings)
+        estimate_budget_warning: str | None = None
+        if plan.run_policy.run_budget_usd is not None:
+            _total_max = cost_estimate.get("totalMaxUsd")
+            if _total_max is not None and float(_total_max) > plan.run_policy.run_budget_usd:
+                estimate_budget_warning = (
+                    f"Estimated maximum cost ${float(_total_max):.4f} exceeds "
+                    f"runBudgetUsd ${plan.run_policy.run_budget_usd:.4f}."
+                )
         return {
             "estimatedOnly": True,
             "dryRun": True,
@@ -789,6 +810,7 @@ def run_plan(
             "complexModelTaskCount": len(complex_model_tasks),
             "topology": topology,
             "costEstimate": cost_estimate,
+            "estimateBudgetWarning": estimate_budget_warning,
             "tasks": [
                 {
                     "id": task.id,
