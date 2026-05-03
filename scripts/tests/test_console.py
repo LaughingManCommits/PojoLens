@@ -383,8 +383,8 @@ class DispatchLineBackgroundJobTest(unittest.TestCase):
         self.assertIn("retry", LONG_RUNNING_COMMANDS)
         self.assertIn("run", LONG_RUNNING_COMMANDS)
 
-    def test_wizard_is_not_a_background_command(self):
-        self.assertNotIn("wizard", LONG_RUNNING_COMMANDS)
+    def test_wizard_is_a_background_command(self):
+        self.assertIn("wizard", LONG_RUNNING_COMMANDS)
 
     def test_status_is_not_a_background_command(self):
         self.assertNotIn("status", LONG_RUNNING_COMMANDS)

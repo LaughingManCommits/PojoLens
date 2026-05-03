@@ -17,7 +17,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-LONG_RUNNING_COMMANDS: frozenset[str] = frozenset({"run", "resume", "retry"})
+LONG_RUNNING_COMMANDS: frozenset[str] = frozenset({"run", "resume", "retry", "wizard"})
 CONSOLE_BANNER = "pojolens-agents console  (/help for commands, /exit to quit)"
 CONSOLE_PROMPT = "pojolens> "
 

@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -157,94 +157,6 @@ def planned_record(
 
 def artifact_file_size(path: Path | None) -> int:
     return workspace_review_layer.artifact_file_size(path)
-
-
-def _make_execute_record(
-    task: TaskDefinition,
-    workspace_mode: str,
-    prepared_workspace: Path,
-    started_at: str,
-    model_name: str | None,
-    model_profile: str | None,
-    prompt_chars: int,
-    prompt_estimated_tokens: int,
-    prompt_render: PromptRenderResult,
-    prompt_budget: PromptBudgetResult,
-    prompt_path: Path,
-    command_path: Path,
-    dependency_materialization_mode: str,
-    prepared_dependency_layers: list[DependencyLayerRecord],
-    dependency_records: dict[str, TaskRunRecord],
-    effort: str | None,
-    effort_source: str,
-    effective_validation_mode: str,
-    validation_resolution: WorkerValidationModeResolution,
-    *,
-    status: str,
-    summary: str,
-    files_touched: list[str] = (),
-    validation_intents: list[ValidationIntent] = (),
-    validation_commands: list[str] = (),
-    follow_ups: list[str] = (),
-    follow_up_tasks: list[dict[str, Any]] = (),
-    notes: list[str] = (),
-    usage: dict[str, Any] | None = None,
-    return_code: int | None = None,
-    stdout_path: str | None = None,
-    stderr_path: str | None = None,
-    result_path: str | None = None,
-    stdout_bytes: int = 0,
-    stderr_bytes: int = 0,
-    result_bytes: int = 0,
-    unknown_fields: list[str] = (),
-) -> TaskRunRecord:
-    return TaskRunRecord(
-        id=task.id,
-        title=task.title,
-        agent=task.agent,
-        resolved_skills=effective_task_skills(task, agents[task.agent]) if "agents" in locals() else [],
-        branch_context_id=task_branch_context_id(task, dependency_records),
-        branch_parent_context_ids=task_branch_parent_context_ids(task, dependency_records),
-        status=status,
-        summary=summary,
-        workspace_mode=workspace_mode,
-        workspace_path=str(prepared_workspace),
-        started_at=started_at,
-        finished_at=iso_now(),
-        files_touched=list(files_touched),
-        actual_files_touched=[],
-        protected_path_violations=[],
-        write_scope_violations=[],
-        validation_intents=list(validation_intents),
-        validation_commands=list(validation_commands),
-        follow_ups=list(follow_ups),
-        follow_up_tasks=[dict(item) for item in follow_up_tasks],
-        notes=list(notes),
-        model=model_name,
-        model_profile=model_profile,
-        prompt_chars=prompt_chars,
-        prompt_estimated_tokens=prompt_estimated_tokens,
-        prompt_sections=prompt_render.sections,
-        prompt_budget=prompt_budget,
-        usage=usage,
-        return_code=return_code,
-        prompt_path=str(prompt_path),
-        command_path=str(command_path),
-        stdout_path=stdout_path,
-        stderr_path=stderr_path,
-        result_path=result_path,
-        stdout_bytes=stdout_bytes,
-        stderr_bytes=stderr_bytes,
-        result_bytes=result_bytes,
-        unknown_fields=list(unknown_fields),
-        dependency_materialization_mode=dependency_materialization_mode,
-        dependency_layers_applied=prepared_dependency_layers,
-        worker_validation_mode=effective_validation_mode,
-        worker_validation_mode_source=validation_resolution.source,
-        effort=effort,
-        effort_source=effort_source,
-        injected_from=task.injected_from,
-    )
 
 
 async def execute_task(

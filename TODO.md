@@ -427,7 +427,11 @@ Decision: Complete. Established clear ownership across all four interactive modu
 `wizard.py` is pure logic with no Textual class definitions and imports `textual_is_available`
 from tui_app. Dispatch duplication eliminated: `tui_console.ConsoleApp._dispatch` delegates
 routing to shared `route_line` instead of mirroring `dispatch_line`. Module docstrings
-document ownership for all four files. 697 tests pass.
+document ownership for all four files. Post-WP67 review fixes applied: dead
+`_make_execute_record` removed from `orchestrator_app.py`; `wizard` added to
+`LONG_RUNNING_COMMANDS` so it runs as a background job (prevents frozen TUI when
+wizard runs inline from ConsoleApp); unused `shlex` import removed from `tui_console.py`.
+697 tests pass.
 
 ---
 

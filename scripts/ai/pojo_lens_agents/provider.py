@@ -35,6 +35,7 @@ def run_process(
         command,
         cwd=cwd,
         shell=shell,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

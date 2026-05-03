@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import platform
 import sys
 import tempfile
 import unittest
@@ -20,6 +21,35 @@ if TEXTUAL_AVAILABLE:
 
 @unittest.skipUnless(TEXTUAL_AVAILABLE, "textual is not installed")
 class TuiAppTest(unittest.TestCase):
+    # Textual's headless run_test() on Windows does not restore OS-level
+    # stdin/stdout/stderr handles after the fake terminal tears down.
+    # This causes WinError 6 (invalid handle) in any subsequent test that
+    # spawns a subprocess via subprocess.Popen, because Popen inherits the
+    # now-invalid Win32 STD_*_HANDLE values.
+    # Fix: snapshot both the Python stream objects AND the Win32 STD handles
+    # before each test, then restore both after.
+    def setUp(self) -> None:
+        self._saved_stdin = sys.stdin
+        self._saved_stdout = sys.stdout
+        self._saved_stderr = sys.stderr
+        if platform.system() == "Windows":
+            import ctypes
+            k32 = ctypes.windll.kernel32
+            self._win_stdin = k32.GetStdHandle(-10)
+            self._win_stdout = k32.GetStdHandle(-11)
+            self._win_stderr = k32.GetStdHandle(-12)
+
+    def tearDown(self) -> None:
+        sys.stdin = self._saved_stdin
+        sys.stdout = self._saved_stdout
+        sys.stderr = self._saved_stderr
+        if platform.system() == "Windows":
+            import ctypes
+            k32 = ctypes.windll.kernel32
+            k32.SetStdHandle(-10, self._win_stdin)
+            k32.SetStdHandle(-11, self._win_stdout)
+            k32.SetStdHandle(-12, self._win_stderr)
+
     def test_dashboard_updates_grid_summary_and_log_tail(self):
         async def scenario() -> None:
             with tempfile.TemporaryDirectory() as tempdir:
