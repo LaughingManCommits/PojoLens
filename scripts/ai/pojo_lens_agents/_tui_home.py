@@ -213,4 +213,4 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         self.app.exit(0)  # type: ignore[attr-defined]
 
     def action_activate_item(self) -> None:
-        self.run_worker(self.app.action_new_plan, thread=False)  # type: ignore[attr-defined]
+        self.app.run_worker(self.app.action_new_plan())  # type: ignore[attr-defined]

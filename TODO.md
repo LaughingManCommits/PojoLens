@@ -86,6 +86,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP76| Operator TUI Feature Completion     | Planned  | ClarificationScreen (wizard AI clarification loop); LiveRunDashboard push from operator TUI; PlanEditorScreen (not stub); SettingsScreen TPM/RPM/notifications; Extra Tools inspector; Follow-Up Task UI; Validation Intents UI; Output Profiles UI; Prompt Accounting section breakdown |
 | WP77| Multi-Workspace Codebase Targeting  | Planned  | Per-plan `codebasePath` + `workspaceStrategy` (repo/copy/scratch); global `workspace.root` config; `--codebase-path`/`--workspace-dir` CLI flags; auto-created isolated run dirs; TUI workspace picker + settings; prune integration; manifest recording |
 | WP78| LLM Provider Plugin System          | Planned  | `LLMProvider` Protocol contract; plugin discovery via `pojolens-agents.toml`; per-agent/task `provider` field; OpenAI-compatible reference impl; cost/token/rate-limit adapter; TUI provider selector; backward-compat Anthropic SDK + subprocess built-ins |
+| WP79| TUI Cross-Platform & UX Polish      | Planned  | `HomeScreen` [Enter] cursor-aware dispatch; `MemoryToolsScreen` POSIX script fallback; `PlanEditorScreen` cross-platform editor detection; `GovernanceScreen` inline validation feedback |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
 
@@ -1039,6 +1040,38 @@ Tests:
 - [ ] Per-task provider override resolves correctly in dispatch
 - [ ] Separate rate-limit buckets per provider id
 - [ ] Pre-flight estimator uses plugin pricing
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+
+---
+
+## WP79: TUI Cross-Platform & UX Polish
+
+**Priority:** Low → **Planned**
+
+**Goal:** Fix three operator TUI gaps surfaced during the `tui_operator.py` modular split: keyboard dispatch in `HomeScreen` is cursor-blind, the memory query and plan editor hardcode Windows-only tools, and `GovernanceScreen` gives no inline feedback when budget/parallel inputs are invalid.
+
+**Tasks:**
+
+`HomeScreen` cursor-aware [Enter] dispatch (`_tui_home.py`):
+- [ ] Track focused menu row index as a `reactive` int on `HomeScreen`
+- [ ] Up/Down arrow bindings increment/decrement the index; render selected row highlighted
+- [ ] `action_activate_item` maps index → the corresponding action method instead of always calling `action_new_plan`
+- [ ] Fallback: if index resolves to a divider row, do nothing
+
+`MemoryToolsScreen` cross-platform query (`_tui_tools.py`):
+- [ ] Detect platform at call time: `sys.platform == "win32"` → `["powershell", "-File", "...query-ai-memory.ps1", ...]`; otherwise → `["bash", "scripts/ai/query-ai-memory.sh", ...]` (or equivalent Python fallback)
+- [ ] Create `scripts/ai/query-ai-memory.sh` POSIX wrapper that mirrors the PS1 behaviour, or route through the Python `pojo_lens_agents` API directly instead of shelling out
+
+`PlanEditorScreen` cross-platform editor (`_tui_plans.py`):
+- [ ] Editor resolution order: `$VISUAL` → `$EDITOR` → `code` (VS Code) → platform default (`notepad` on win32, `nano` on POSIX)
+- [ ] Wrap `subprocess.run` in try/except `FileNotFoundError`; show `notify("Editor not found: ...")` if all candidates fail
+
+`GovernanceScreen` inline validation (`_tui_wizard.py`):
+- [ ] On `Input.Changed` for `#budget-input`: parse float; show `#budget-err` `Static` in red if non-empty and not a positive number; clear on valid input
+- [ ] On `Input.Changed` for `#parallel-input`: parse int ≥ 1; show `#parallel-err` `Static` in red if invalid
+- [ ] Disable the Submit button while any validation error is visible
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
