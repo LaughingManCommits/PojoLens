@@ -18,6 +18,43 @@ from pojo_lens_agents.orchestrator_contracts import (
     WORKER_STATUSES,
     WORKER_VALIDATION_MODES,
 )
+def _add_workspace_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--codebase-path",
+        dest="codebase_path",
+        default="",
+        metavar="PATH",
+        help=(
+            "Path to the source code the agents read and modify. "
+            "Overrides the plan's codebasePath field. "
+            "Required for --workspace-strategy=copy."
+        ),
+    )
+    parser.add_argument(
+        "--workspace-dir",
+        dest="workspace_dir",
+        default="",
+        metavar="DIR",
+        help=(
+            "Explicit workspace directory for this run. "
+            "When set, skips auto-creation under workspace.root."
+        ),
+    )
+    parser.add_argument(
+        "--workspace-strategy",
+        dest="workspace_strategy",
+        choices=["repo", "copy", "scratch"],
+        default="",
+        metavar="STRATEGY",
+        help=(
+            "Workspace isolation strategy: "
+            "repo=work directly in codebasePath (default), "
+            "copy=copy codebasePath into an isolated dir, "
+            "scratch=start with an empty dir."
+        ),
+    )
+
+
 def _add_provider_bin_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--provider-bin",
@@ -343,6 +380,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="",
         help="AI planner reasoning effort: low (haiku), medium (sonnet), high (opus). Skips interactive effort prompt when set.",
     )
+    _add_workspace_args(wizard_parser)
     _add_verbose_arg(wizard_parser)
 
     validate_parser = subparsers.add_parser(
@@ -527,6 +565,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Emit the run summary as JSON.",
     )
+    _add_workspace_args(run_parser)
     _add_watch_arg(run_parser)
     _add_tui_arg(run_parser)
     _add_rate_limit_args(run_parser)
@@ -595,6 +634,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Emit the resume summary as JSON.",
     )
+    _add_workspace_args(resume_parser)
     _add_watch_arg(resume_parser)
     _add_tui_arg(resume_parser)
     _add_rate_limit_args(resume_parser)

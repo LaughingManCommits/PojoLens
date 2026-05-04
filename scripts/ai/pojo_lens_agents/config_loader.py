@@ -13,6 +13,13 @@ except ImportError:  # Python < 3.11
     except ImportError:
         tomllib = None  # type: ignore[assignment]
 
+ALLOWED_WORKSPACE: dict[str, type] = {
+    "root": str,
+    "strategy": str,
+}
+
+VALID_WORKSPACE_STRATEGIES = frozenset({"repo", "copy", "scratch"})
+
 ALLOWED_DEFAULTS: dict[str, type] = {
     "runtime_root": str,
     "claude_bin": str,
@@ -160,6 +167,62 @@ def load_notifications_config(
                 )
         result[key] = value
 
+    return result
+
+
+def load_workspace_config(
+    config_path: str | Path | None = None,
+    *,
+    env: dict[str, str] | None = None,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    if env is None:
+        env = dict(os.environ)
+    if root is None:
+        root = Path(__file__).resolve().parents[3]
+
+    resolved_path = _find_config_path(config_path, env, root)
+    if resolved_path is None:
+        return {}
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Config file not found: {resolved_path}")
+
+    if tomllib is None:
+        raise ImportError(
+            "TOML support requires Python 3.11+ (tomllib) or the 'tomli' package. "
+            "Install tomli: pip install tomli"
+        )
+
+    with open(resolved_path, "rb") as fh:
+        raw = tomllib.load(fh)
+
+    ws_section = raw.get("workspace", {})
+    if not isinstance(ws_section, dict):
+        raise ValueError(f"{resolved_path}: [workspace] section must be a TOML table")
+
+    unknown = set(ws_section) - set(ALLOWED_WORKSPACE)
+    if unknown:
+        raise ValueError(
+            f"{resolved_path}: [workspace] contains unknown keys: {sorted(unknown)}. "
+            f"Allowed keys: {sorted(ALLOWED_WORKSPACE)}"
+        )
+
+    result: dict[str, Any] = {}
+    for key, expected_type in ALLOWED_WORKSPACE.items():
+        if key not in ws_section:
+            continue
+        value = ws_section[key]
+        if not isinstance(value, expected_type):
+            raise ValueError(
+                f"{resolved_path}: [workspace].{key} must be {expected_type.__name__}, "
+                f"got {type(value).__name__}"
+            )
+        if key == "strategy" and value not in VALID_WORKSPACE_STRATEGIES:
+            raise ValueError(
+                f"{resolved_path}: [workspace].strategy must be one of "
+                f"{sorted(VALID_WORKSPACE_STRATEGIES)}, got {value!r}"
+            )
+        result[key] = value
     return result
 
 

@@ -309,6 +309,8 @@ class TaskPlanModel(ContractModel):
     shared_context: SharedContextModel = Field(alias="sharedContext")
     tasks: list[TaskDefinitionModel]
     run_policy: RunPolicyModel = Field(default_factory=RunPolicyModel, alias="runPolicy")
+    codebase_path: str | None = Field(default=None, alias="codebasePath")
+    workspace_strategy: str = Field(default="repo", alias="workspaceStrategy")
 
     @model_validator(mode="after")
     def validate_task_graph(self) -> "TaskPlanModel":
@@ -600,6 +602,8 @@ class RunManifestModel(ManifestModel):
     runtime_root: str = Field(alias="runtimeRoot")
     run_dir: str = Field(alias="runDir")
     workspaces_dir: str = Field(alias="workspacesDir")
+    codebase_path: str | None = Field(default=None, alias="codebasePath")
+    workspace_strategy: str = Field(default="repo", alias="workspaceStrategy")
     shared_context_path: str | None = Field(default=None, alias="sharedContextPath")
     run_policy: dict[str, Any] = Field(default_factory=dict, alias="runPolicy")
     run_governance: dict[str, Any] = Field(default_factory=dict, alias="runGovernance")

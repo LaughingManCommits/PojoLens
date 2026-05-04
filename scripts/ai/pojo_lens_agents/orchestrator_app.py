@@ -22,6 +22,9 @@ from uuid import uuid4
 _PARTIAL_FACTORY_CTX: contextvars.ContextVar[Any] = contextvars.ContextVar(
     "_pojo_partial_factory", default=None
 )
+_WORKSPACE_DIR_CTX: contextvars.ContextVar[Any] = contextvars.ContextVar(
+    "_pojo_workspace_dir", default=None
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
@@ -64,6 +67,7 @@ validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
 rate_limiter_layer = _LazyModuleProxy("pojo_lens_agents.rate_limiter")
 notify_layer = _LazyModuleProxy("pojo_lens_agents.notify")
+workspace_manager_layer = _LazyModuleProxy("pojo_lens_agents.workspace_manager")
 
 from pojo_lens_agents.cli_parser import parse_args
 from pojo_lens_agents.command_dispatch import _worker_run_exit_code, dispatch_main
@@ -207,7 +211,7 @@ async def execute_task(
         worker_validation_mode=worker_validation_mode,
         effort_override=effort_override,
         deps={
-            "root": ROOT,
+            "root": _WORKSPACE_DIR_CTX.get() or ROOT,
             "resolve_worker_validation_mode": resolve_worker_validation_mode,
             "resolve_output_profile": resolve_output_profile,
             "resolve_effort": resolve_effort,
@@ -553,6 +557,7 @@ def run_loaded_plan(
     tui: bool = False,
     tpm_limit: int | None = None,
     rpm_limit: int | None = None,
+    workspace_dir: Path | None = None,
 ) -> dict[str, Any]:
     import os as _os
     _tpm = tpm_limit if tpm_limit is not None else (int(_os.environ["ANTHROPIC_TPM_LIMIT"]) if _os.environ.get("ANTHROPIC_TPM_LIMIT", "").strip().isdigit() else None)
@@ -560,6 +565,7 @@ def run_loaded_plan(
     _rate_bucket = rate_limiter_layer.RateLimitBucket(tpm_limit=_tpm, rpm_limit=_rpm) if (_tpm is not None or _rpm is not None) else None
     _max_retries = max_task_retries
     _partial_factory: Any = None  # set based on watch/tui mode; read via _PARTIAL_FACTORY_CTX
+    _workspace_dir_for_run = workspace_dir
 
     async def _execute_task_with_retry(
         run_dir: Path,
@@ -602,6 +608,7 @@ def run_loaded_plan(
         _wait_for_hitl_decision: Any,
         _wait_for_hitl_decision_async: Any = None,
     ) -> dict[str, Any]:
+        _WORKSPACE_DIR_CTX.set(_workspace_dir_for_run)
         return await run_ops_layer.run_loaded_plan(
             plan_path,
             agents_path,
@@ -806,12 +813,30 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
     )
     if tui_warning:
         print(tui_warning, file=sys.stderr, flush=True)
+    _wsm = workspace_manager_layer
+    _ws_agents = load_agents(Path(args.agents).resolve())
+    _ws_plan = load_task_plan(Path(args.task_plan).resolve(), _ws_agents)
+    _ws_strategy = _wsm.effective_workspace_strategy(_ws_plan, args)
+    _ws_codebase_path = _wsm.effective_codebase_path(_ws_plan, args)
+    _ws_config = config_loader_layer.load_workspace_config()
+    _ws_root = _wsm.resolve_workspace_root(_ws_config.get("root"))
+    _ws_dir = _wsm.prepare_workspace(
+        _ws_codebase_path,
+        _ws_strategy,
+        _ws_root,
+        slugify(_ws_plan.name),
+        uuid4().hex[:8],
+    )
+
+    def _run_loaded_plan_ws(plan_path, agents_path, agents, plan, **kwargs):
+        return run_loaded_plan(plan_path, agents_path, agents, plan, workspace_dir=_ws_dir, **kwargs)
+
     payload = run_ops_layer.run_plan(
         args,
         load_agents=load_agents,
         load_task_plan=load_task_plan,
         selected_plan=selected_plan,
-        run_loaded_plan_fn=run_loaded_plan,
+        run_loaded_plan_fn=_run_loaded_plan_ws,
         effective_plan_output_profiles=effective_plan_output_profiles,
         effective_plan_output_profile_sources=effective_plan_output_profile_sources,
         effective_plan_efforts=effective_plan_efforts,
@@ -835,6 +860,9 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
             **kwargs,
         ),
     )
+    _wsm.cleanup_workspace(_ws_dir, _ws_strategy)
+    if _ws_strategy != "repo":
+        payload["workspaceDir"] = str(_ws_dir)
     _fire_notifications_async(args, payload)
     return payload
 

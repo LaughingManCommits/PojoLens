@@ -120,6 +120,8 @@ def manifest_payload(
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
+        "codebasePath": getattr(plan, "codebase_path", None),
+        "workspaceStrategy": str(getattr(plan, "workspace_strategy", None) or "repo"),
         "sharedContextPath": str(run_dir / SHARED_CONTEXT_FILENAME),
         "runPolicy": deps["serialize_run_policy"](plan.run_policy),
         "runGovernance": run_governance,

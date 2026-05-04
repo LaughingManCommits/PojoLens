@@ -481,6 +481,10 @@ class RunPolicy:
     hitl_mode: str = DEFAULT_HITL_MODE
 
 
+WORKSPACE_STRATEGIES = frozenset({"repo", "copy", "scratch"})
+DEFAULT_WORKSPACE_STRATEGY = "repo"
+
+
 @dataclass(frozen=True)
 class TaskPlan:
     version: int
@@ -489,6 +493,8 @@ class TaskPlan:
     shared_context: SharedContext
     tasks: list[TaskDefinition]
     run_policy: RunPolicy = field(default_factory=RunPolicy)
+    codebase_path: str | None = None
+    workspace_strategy: str = DEFAULT_WORKSPACE_STRATEGY
 
 
 @dataclass(frozen=True)

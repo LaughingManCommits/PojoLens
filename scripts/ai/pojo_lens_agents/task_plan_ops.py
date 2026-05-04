@@ -347,6 +347,10 @@ def load_task_plan(path: Path, agents: dict[str, Any], *, deps: dict[str, Any]) 
             raise deps["error_factory"](f"{path}:{task.id}: task cannot depend on itself")
     deps["topological_batches"](tasks)
 
+    raw_codebase_path = payload.get("codebasePath")
+    raw_workspace_strategy = str(payload.get("workspaceStrategy") or "repo").strip() or "repo"
+    codebase_path: str | None = str(raw_codebase_path).strip() or None if raw_codebase_path is not None else None
+
     plan = deps["task_plan_factory"](
         version=1,
         name=deps["require_string"](payload, "name", location=str(path)),
@@ -354,6 +358,8 @@ def load_task_plan(path: Path, agents: dict[str, Any], *, deps: dict[str, Any]) 
         shared_context=shared_context,
         tasks=tasks,
         run_policy=run_policy,
+        codebase_path=codebase_path,
+        workspace_strategy=raw_workspace_strategy,
     )
     try:
         TaskPlanModel.model_validate(dump_contract(plan))
