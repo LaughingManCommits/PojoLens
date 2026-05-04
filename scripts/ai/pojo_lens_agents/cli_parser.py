@@ -381,6 +381,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="AI planner reasoning effort: low (haiku), medium (sonnet), high (opus). Skips interactive effort prompt when set.",
     )
     _add_workspace_args(wizard_parser)
+    wizard_parser.add_argument(
+        "--default-provider",
+        dest="default_provider",
+        default="",
+        help="LLM provider ID to use for all worker agents in this run (overrides agent-level defaults).",
+    )
     _add_verbose_arg(wizard_parser)
 
     validate_parser = subparsers.add_parser(

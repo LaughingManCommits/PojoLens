@@ -25,6 +25,9 @@ _PARTIAL_FACTORY_CTX: contextvars.ContextVar[Any] = contextvars.ContextVar(
 _WORKSPACE_DIR_CTX: contextvars.ContextVar[Any] = contextvars.ContextVar(
     "_pojo_workspace_dir", default=None
 )
+_DEFAULT_PROVIDER_ID_CTX: contextvars.ContextVar[Any] = contextvars.ContextVar(
+    "_pojo_default_provider_id", default=None
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
@@ -252,6 +255,7 @@ async def execute_task(
             "reviewer_finding_factory": ReviewFinding,
             "prepare_workspace": prepare_workspace,
             "provider_registry": provider_registry_layer.get_registry(),
+            "default_provider_id": _DEFAULT_PROVIDER_ID_CTX.get(),
             "error_factory": OrchestratorError,
             "asdict": asdict,
             "task_run_record_factory": TaskRunRecord,
@@ -560,6 +564,7 @@ def run_loaded_plan(
     tpm_limit: int | None = None,
     rpm_limit: int | None = None,
     workspace_dir: Path | None = None,
+    default_provider_id: str | None = None,
 ) -> dict[str, Any]:
     import os as _os
     _tpm = tpm_limit if tpm_limit is not None else (int(_os.environ["ANTHROPIC_TPM_LIMIT"]) if _os.environ.get("ANTHROPIC_TPM_LIMIT", "").strip().isdigit() else None)
@@ -568,6 +573,7 @@ def run_loaded_plan(
     _max_retries = max_task_retries
     _partial_factory: Any = None  # set based on watch/tui mode; read via _PARTIAL_FACTORY_CTX
     _workspace_dir_for_run = workspace_dir
+    _default_provider_id = default_provider_id
 
     async def _execute_task_with_retry(
         run_dir: Path,
@@ -611,6 +617,7 @@ def run_loaded_plan(
         _wait_for_hitl_decision_async: Any = None,
     ) -> dict[str, Any]:
         _WORKSPACE_DIR_CTX.set(_workspace_dir_for_run)
+        _DEFAULT_PROVIDER_ID_CTX.set(_default_provider_id)
         return await run_ops_layer.run_loaded_plan(
             plan_path,
             agents_path,
@@ -830,8 +837,11 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         uuid4().hex[:8],
     )
 
+    _default_provider_id = getattr(args, "default_provider", "") or None
+
     def _run_loaded_plan_ws(plan_path, agents_path, agents, plan, **kwargs):
-        return run_loaded_plan(plan_path, agents_path, agents, plan, workspace_dir=_ws_dir, **kwargs)
+        return run_loaded_plan(plan_path, agents_path, agents, plan, workspace_dir=_ws_dir,
+                               default_provider_id=_default_provider_id, **kwargs)
 
     payload = run_ops_layer.run_plan(
         args,

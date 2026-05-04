@@ -314,4 +314,34 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
             self._log("  [dim](config handler not available)[/]")
 
         self._log("")
+        self._log("[bold #00e5ff]═══ Providers ═══[/]")
+        try:
+            from pojo_lens_agents.provider_registry import get_registry
+            from pojo_lens_agents.provider_plugin import RateLimitMeta, ModelPricing
+            _reg = get_registry()
+            _ids = _reg.list_ids()
+            if _ids:
+                for _pid in _ids:
+                    try:
+                        _prov = _reg.get(_pid)
+                        _rl: RateLimitMeta = _prov.rate_limit_meta()
+                        _mp: ModelPricing  = _prov.model_pricing()
+                        _tpm = f"{_rl.tpm_limit:,}" if _rl.tpm_limit is not None else "—"
+                        _rpm = f"{_rl.rpm_limit:,}" if _rl.rpm_limit is not None else "—"
+                        _in  = f"${_mp.input_per_1k_usd:.4f}" if _mp.input_per_1k_usd else "—"
+                        _out = f"${_mp.output_per_1k_usd:.4f}" if _mp.output_per_1k_usd else "—"
+                        _cls = type(_prov).__qualname__
+                        self._log(f"  [bold #00ff41]{_pid}[/]  [dim]({_cls})[/]")
+                        self._log(f"    [#00e5ff]pricing :[/] in {_in}/1k  out {_out}/1k")
+                        self._log(f"    [#00e5ff]limits  :[/] TPM {_tpm}  RPM {_rpm}")
+                    except Exception as _e:
+                        self._log(f"  [#ffaa00]{_pid}[/]  [dim](meta error: {_e})[/]")
+            else:
+                self._log("  [dim](no providers registered)[/]")
+        except ImportError:
+            self._log("  [dim](provider registry unavailable)[/]")
+        except Exception as exc:
+            self._log(f"  [dim](providers error: {exc})[/]")
+
+        self._log("")
         self._log("[dim #2a5a3a][ trace ] settings loaded[/]")

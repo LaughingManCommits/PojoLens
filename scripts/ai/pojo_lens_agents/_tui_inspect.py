@@ -166,6 +166,10 @@ class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
                 if len(skills) > 4:
                     detail.write(f"    [#ffaa00]⚠ {len(skills)} skills — check stack limit (5 max)[/]")
 
+            provider = str(ag.get("provider") or "-")
+            detail.write("")
+            detail.write(f"  [#00e5ff]Provider        :[/] {provider}")
+
             if tools:
                 detail.write("")
                 detail.write(f"  [#00e5ff]Extra Tools ({len(tools)}):[/]")

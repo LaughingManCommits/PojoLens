@@ -41,7 +41,7 @@ class GoalInputScreen(Screen):  # type: ignore[type-arg,misc]
         yield Header()
         with Container(id="card"):
             yield Static(
-                "[ STEP 1 / 5 ]  ENTER GOAL",
+                "[ STEP 1 / 6 ]  ENTER GOAL",
                 id="card-title",
             )
             yield Static(
@@ -123,7 +123,7 @@ class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
         yield Header()
         with Container(id="card"):
             yield Static(
-                "[ STEP 1b / 5 ]  GOAL CLARIFICATION",
+                "[ STEP 1b / 6 ]  GOAL CLARIFICATION",
                 id="cl-title",
             )
             yield Static(
@@ -267,7 +267,7 @@ class EffortSelectScreen(Screen):  # type: ignore[type-arg,misc]
         yield Header()
         with Container(id="card"):
             yield Static(
-                "[ STEP 2 / 5 ]  PLANNER EFFORT",
+                "[ STEP 2 / 6 ]  PLANNER EFFORT",
                 id="card-title",
             )
             yield Static(
@@ -325,7 +325,7 @@ class WorkspaceModeScreen(Screen):  # type: ignore[type-arg,misc]
         yield Header()
         with Container(id="card"):
             yield Static(
-                "[ STEP 3 / 5 ]  WORKSPACE MODE",
+                "[ STEP 3 / 6 ]  WORKSPACE MODE",
                 id="card-title",
             )
             yield Static(
@@ -369,6 +369,102 @@ class WorkspaceModeScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
 
+# ── ProviderSelectScreen ───────────────────────────────────────────────────────
+
+class ProviderSelectScreen(Screen):  # type: ignore[type-arg,misc]
+    """Wizard step 4: choose default LLM provider for this run (or keep default)."""
+
+    BINDINGS = [
+        Binding("escape", "cancel", "Back", show=True),
+        Binding("enter",  "submit", "Select", show=True),
+    ]
+
+    def __init__(self, goal: str, effort: str, workspace_mode: str) -> None:
+        super().__init__()
+        self._goal = goal
+        self._effort = effort
+        self._workspace_mode = workspace_mode
+        self._provider_ids: list[str] = []
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="card"):
+            yield Static(
+                "[ STEP 4 / 6 ]  LLM PROVIDER",
+                id="card-title",
+            )
+            yield Static(
+                "Choose the LLM provider for worker agents.\n"
+                "DEFAULT uses the built-in subprocess-claude dispatch.",
+                id="desc",
+            )
+            yield OptionList(id="provider-list")
+            yield Static("", id="prov-meta")
+            with Horizontal(id="btns"):
+                yield Button("CONTINUE  →", id="btn-continue", variant="primary")
+                yield Button("BACK", id="btn-back")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = "POJOLENS  //  PROVIDER"
+        pl = self.query_one("#provider-list", OptionList)
+        try:
+            from pojo_lens_agents.provider_registry import get_registry
+            reg = get_registry()
+            ids = reg.list_ids()
+        except Exception:
+            ids = []
+        self._provider_ids = ["(default)", *ids]
+        for pid in self._provider_ids:
+            if pid == "(default)":
+                pl.add_option("DEFAULT  —  subprocess-claude built-in dispatch")
+            else:
+                pl.add_option(pid)
+        pl.highlighted = 0
+        self._refresh_meta(0)
+
+    def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:
+        self._refresh_meta(int(event.option_index))
+
+    def _refresh_meta(self, idx: int) -> None:
+        meta_widget = self.query_one("#prov-meta", Static)
+        if idx <= 0 or idx >= len(self._provider_ids):
+            meta_widget.update("")
+            return
+        pid = self._provider_ids[idx]
+        try:
+            from pojo_lens_agents.provider_registry import get_registry
+            prov = get_registry().get(pid)
+            rl   = prov.rate_limit_meta()
+            mp   = prov.model_pricing()
+            tpm  = f"{rl.tpm_limit:,}" if rl.tpm_limit is not None else "—"
+            rpm  = f"{rl.rpm_limit:,}" if rl.rpm_limit is not None else "—"
+            inp  = f"${mp.input_per_1k_usd:.4f}" if mp.input_per_1k_usd else "—"
+            out  = f"${mp.output_per_1k_usd:.4f}" if mp.output_per_1k_usd else "—"
+            cls  = type(prov).__qualname__
+            meta_widget.update(
+                f"  [#00e5ff]class:[/] {cls}   "
+                f"[#00e5ff]pricing:[/] in {inp}/1k · out {out}/1k   "
+                f"[#00e5ff]limits:[/] TPM {tpm} · RPM {rpm}"
+            )
+        except Exception as exc:
+            meta_widget.update(f"  [dim](meta unavailable: {exc})[/]")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-continue":
+            self.action_submit()
+        elif event.button.id == "btn-back":
+            self.action_cancel()
+
+    def action_submit(self) -> None:
+        idx = int(self.query_one("#provider-list", OptionList).highlighted or 0)
+        provider = None if idx == 0 else self._provider_ids[idx]
+        self.dismiss(provider)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 # ── GovernanceScreen ───────────────────────────────────────────────────────────
 
 class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
@@ -388,7 +484,7 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
         yield Header()
         with Container(id="card"):
             yield Static(
-                "[ STEP 4 / 5 ]  GOVERNANCE  (press CONTINUE to accept defaults)",
+                "[ STEP 5 / 6 ]  GOVERNANCE  (press CONTINUE to accept defaults)",
                 id="card-title",
             )
             yield Rule(id="gov-rule")

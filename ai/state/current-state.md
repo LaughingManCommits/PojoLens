@@ -5,6 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
+- `2026-05-04`: TUI Provider Selector complete; `ProviderSelectScreen` (wizard step 4/6); `AgentsScreen` shows `provider` field; `SettingsScreen` Providers section (id, class, pricing, rate-limit); `--default-provider` CLI flag; `_DEFAULT_PROVIDER_ID_CTX` ContextVar + `run_loaded_plan(default_provider_id=)` + task_execution fallback; 26 tests; 1247 pass.
 - `2026-05-04`: WP78 is complete; `provider_plugin.py` (LLMProvider Protocol, ProviderResult, RateLimitMeta, ModelPricing, exception hierarchy); `provider_registry.py` (singleton, auto-registers builtins, load_from_config); `providers/anthropic_sdk.py`, `providers/subprocess_claude.py`, `providers/openai_compat.py`; `provider` field on AgentDefinition/TaskDefinition/models; `load_providers_config()` in config_loader.py; plugin dispatch in task_execution.py; `_init_provider_registry()` in orchestrator_app.py; 30 tests; 1221 pass.
 - `2026-05-04`: WP77 is complete; `workspace_manager.py` (new); `codebase_path`/`workspace_strategy` in `TaskPlan`, `TaskPlanModel`, `RunManifestModel`; `load_workspace_config()` in `config_loader.py`; `_add_workspace_args()` in `cli_parser.py` (run/resume/wizard parsers); `_WORKSPACE_DIR_CTX` context var + `run_loaded_plan(workspace_dir=)` + `run_plan()` workspace prep+cleanup; manifest fields `codebasePath`/`workspaceStrategy`; 28 WP77 tests; 1191 pass.
 - `2026-05-04`: WP76 is complete; `ClarificationScreen` AI wiring (`clarify_fn` param + `_make_clarify_fn` closure); `SettingsScreen` TPM/RPM + notification display; 5 inspector screens (`ExtraToolsScreen`, `ValidationIntentsScreen`, `OutputProfilesScreen`, `FollowUpTaskScreen`, `PromptAccountingScreen`); wired into `PlanDetailsScreen` [T]/[I]/[O]/[P]; 34 tests; 1167 pass.
@@ -18,6 +19,7 @@
 - `2026-05-03`: WP60, WP50, WP59, WP67, WP58, WP57, WP55 complete.
 
 ## Verified
+- `2026-05-04`: Full Python suite at `1247` tests after TUI Provider Selector.
 - `2026-05-04`: Full Python suite at `1221` tests after WP78.
 - `2026-05-04`: Full Python suite at `1191` tests after WP77.
 - `2026-05-04`: Full Python suite at `1167` tests after WP76.
@@ -35,4 +37,4 @@
 - No active orchestrator risks beyond the remaining roadmap queue.
 
 ## Next
-- `2026-05-04`: Roadmap order is WP79 -> WP40 -> Release Gate.
+- `2026-05-04`: Roadmap order is WP79 -> WP40 -> Release Gate. TUI Provider Selector done (pre-WP79 insert).

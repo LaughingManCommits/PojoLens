@@ -42,6 +42,7 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         max_parallel: int,
         budget: float | None,
         *,
+        provider: str | None = None,
         budget_behavior: str = "warn",
         follow_up: str = "ignore",
         handlers: dict[str, Any],
@@ -57,6 +58,7 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         self._hitl            = hitl
         self._max_parallel    = max_parallel
         self._budget          = budget
+        self._provider        = provider
         self._budget_behavior = budget_behavior
         self._follow_up       = follow_up
         self._handlers        = handlers
@@ -70,13 +72,14 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         yield Header()
         with Container(id="header-strip"):
             yield Static(
-                "[ STEP 5 / 5 ]  GENERATING  +  EXECUTING PLAN",
+                "[ STEP 6 / 6 ]  GENERATING  +  EXECUTING PLAN",
                 id="run-title",
             )
             yield Static(
-                f"goal: {self._goal[:80]}  "
+                f"goal: {self._goal[:60]}  "
                 f"effort: {self._effort}  "
                 f"workspace: {self._workspace_mode}  "
+                f"provider: {self._provider or 'default'}  "
                 f"hitl: {self._hitl}  "
                 f"parallel: {self._max_parallel}",
                 id="run-params",
@@ -135,6 +138,8 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
             arg_list += ["--budget-behavior", self._budget_behavior]
         if self._follow_up and self._follow_up != "ignore":
             arg_list += ["--follow-up-behavior", self._follow_up]
+        if self._provider:
+            arg_list += ["--default-provider", self._provider]
         if self._agents:
             arg_list += ["--agents", self._agents]
         if self._runtime_root:

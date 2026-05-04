@@ -403,6 +403,7 @@ async def execute_task(
     _effective_provider_id = (
         getattr(task, "provider", None)
         or getattr(agent, "provider", None)
+        or deps.get("default_provider_id")
     )
     _plugin_registry = deps.get("provider_registry")
     _use_plugin = bool(

@@ -8,8 +8,9 @@ GoalInputScreen       — wizard step 1: enter goal
 ClarificationScreen   — wizard step 1b: goal clarification (WP76: AI pending, manual context now)
 EffortSelectScreen    — wizard step 2: effort / model profile
 WorkspaceModeScreen   — wizard step 3: workspace isolation strategy
-GovernanceScreen      — wizard step 4: governance / budget / HITL / follow-up
-PlanRunScreen         — wizard step 5: run generation + execution, show output
+ProviderSelectScreen  — wizard step 4: LLM provider selection
+GovernanceScreen      — wizard step 5: governance / budget / HITL / follow-up
+PlanRunScreen         — wizard step 6: run generation + execution, show output
 SavedPlansScreen      — browse tracked ai/orchestrator/tasks/ + runtime saved-plans/
 PlanDetailsScreen     — inspect a plan file: task graph, agents, policy, actions
 PlanEditorScreen      — view plan JSON + open in $EDITOR
@@ -118,6 +119,7 @@ from pojo_lens_agents._tui_wizard import (  # noqa: F401
     ClarificationScreen,
     EffortSelectScreen,
     WorkspaceModeScreen,
+    ProviderSelectScreen,
     GovernanceScreen,
 )
 from pojo_lens_agents._tui_wizard_run import PlanRunScreen  # noqa: F401
@@ -292,6 +294,7 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
             ClarificationScreen,
             EffortSelectScreen,
             WorkspaceModeScreen,
+            ProviderSelectScreen,
             GovernanceScreen,
         )
         from pojo_lens_agents._tui_wizard_run import PlanRunScreen
@@ -310,6 +313,7 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         ws_mode = await self.push_screen_wait(WorkspaceModeScreen(goal, effort))
         if ws_mode is None:
             return
+        provider = await self.push_screen_wait(ProviderSelectScreen(goal, effort, ws_mode))
         gov = await self.push_screen_wait(GovernanceScreen(goal, effort, ws_mode))
         if gov is None:
             return
@@ -325,6 +329,7 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
             hitl=hitl,
             max_parallel=max_parallel,
             budget=budget,
+            provider=provider,
             budget_behavior=budget_behavior,
             follow_up=follow_up,
             handlers=self._handlers,
