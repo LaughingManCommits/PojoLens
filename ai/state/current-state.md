@@ -5,6 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
+- `2026-05-04`: WP75 is complete; `_read_gate_manifest` + `HitlGateScreen` live manifest data; `OrchestratorApp` auto-pushes gate screen via `push_screen`+Future; approve/abort/back+sentinel all wired; 17 regression tests; 1129 pass.
 - `2026-05-04`: WP65 is complete; `schedule.py` with cron/file-watch/--once modes; `schedule start/stop/status` subcommands; `schedule` in KNOWN_COMMANDS; 38 regression tests; 1112 pass.
 - `2026-05-03`: WP74 is complete; `tui_operator.py` multi-screen Textual operator console fully wired -- 17 screens, AgentsScreen, SkillsScreen, DiffReviewScreen, EstimateScreen, search filter, `operator` subcommand.
 - `2026-05-03`: WP73 is complete; wizard now supports saved plans browser, effort selection (low/medium/high → haiku/sonnet/opus), expanded checkpoint options, and `--planner-effort` CLI flag.
@@ -14,6 +15,7 @@
 - `2026-05-03`: WP60, WP50, WP59, WP67, WP58, WP57, WP55 complete.
 
 ## Verified
+- `2026-05-04`: Full Python suite at `1129` tests after WP75.
 - `2026-05-04`: Full Python suite at `1112` tests after WP65.
 - `2026-05-03`: Full Python suite at `1074` tests after WP74.
 - `2026-05-03`: Full Python suite at `1070` tests after WP73.
@@ -27,4 +29,4 @@
 - No active orchestrator risks beyond the remaining roadmap queue.
 
 ## Next
-- `2026-05-04`: Roadmap order is WP75 -> WP76 -> WP77 -> WP78 -> WP79 -> WP40 -> Release Gate.
+- `2026-05-04`: Roadmap order is WP76 -> WP77 -> WP78 -> WP79 -> WP40 -> Release Gate.

@@ -11,6 +11,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **HITL TUI live gate integration** (WP75) - `_read_gate_manifest` pure function
+  reads retained run manifest to extract completed/failed/pending batch task IDs,
+  task costs, and stale-sentinel age (> 30 min raises ⚠ warning);
+  `HitlGateScreen` now populates batch-log, pending-table, and cost bar from the
+  live manifest instead of placeholder stubs; `OrchestratorApp.wait_for_hitl_decision`
+  auto-pushes `HitlGateScreen` via `push_screen` + callback Future when a gate fires,
+  so the operator sees full gate detail without any extra navigation; approve/abort
+  dismiss the screen and resolve the decision immediately; Back/Escape dismisses
+  without deciding and falls back to sentinel-file polling; 17 regression tests
+  (12 pure unit tests for manifest parsing, 5 Textual integration tests); 1129
+  tests pass.
+
 - **Scheduled and event-triggered runs** (WP65) - added `pojo_lens_agents.schedule`
   with `start_schedule` (cron via `apscheduler>=3`, file-watch via `watchdog>=3`,
   or `--once` one-shot), `stop_schedule` (SIGTERM via PID file), and

@@ -82,7 +82,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP72| Orchestrator Core Coverage          | Complete | `_assert_otel_endpoint` in `orchestrator_app.py` validates http/https before run start; `test_orchestrator_app.py` 21 tests (OTEL validation, wizard deps keys, json-flag interactive suppression, dispatch error propagation); Rate limiting section in README; advisory invariant in SYSTEM-SPEC; 1054 pass |
 | WP73| Wizard Saved Plans & Effort UI      | Complete | `discover_saved_plans`/`save_plan_to`/`_saved_plans_flow`; effort selection (low/medium/high → haiku/sonnet/opus); expanded checkpoint (save_only, save_and_start, edit); `--planner-effort` CLI flag; 16 regression tests; 1070 pass |
 | WP74| Operator TUI Full Wiring            | Complete | `tui_operator.py` multi-screen Textual console; HomeScreen + 17 screens; DiffReviewScreen, AgentsScreen, SkillsScreen, EstimateScreen/EstimateResultScreen; search filter in SavedPlansScreen; Agents+Skills bindings; EstimateScreen from [D]; DiffReviewScreen from promote; `operator` subcommand wired; 1074 pass |
-| WP75| HITL TUI Live Gate Integration      | Planned  | Wire HitlGateScreen to live run event stream; poll retained run for pending HITL sentinels; approve/abort from TUI; gate id display; cost-so-far; completed batch summary |
+| WP75| HITL TUI Live Gate Integration      | Complete | `_read_gate_manifest` parses manifest events + task costs + stale-sentinel check; `HitlGateScreen` populates batch-log + pending-table + cost bar from manifest; `OrchestratorApp.wait_for_hitl_decision` auto-pushes gate screen via `push_screen` + callback Future; approve/abort/back+sentinel all wired; 17 regression tests; 1129 pass |
 | WP76| Operator TUI Feature Completion     | Planned  | ClarificationScreen (wizard AI clarification loop); LiveRunDashboard push from operator TUI; PlanEditorScreen (not stub); SettingsScreen TPM/RPM/notifications; Extra Tools inspector; Follow-Up Task UI; Validation Intents UI; Output Profiles UI; Prompt Accounting section breakdown |
 | WP77| Multi-Workspace Codebase Targeting  | Planned  | Per-plan `codebasePath` + `workspaceStrategy` (repo/copy/scratch); global `workspace.root` config; `--codebase-path`/`--workspace-dir` CLI flags; auto-created isolated run dirs; TUI workspace picker + settings; prune integration; manifest recording |
 | WP78| LLM Provider Plugin System          | Planned  | `LLMProvider` Protocol contract; plugin discovery via `pojolens-agents.toml`; per-agent/task `provider` field; OpenAI-compatible reference impl; cost/token/rate-limit adapter; TUI provider selector; backward-compat Anthropic SDK + subprocess built-ins |
@@ -865,18 +865,20 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 
 ---
 
-## WP75: HITL TUI Live Gate Integration
+## WP75: HITL TUI Live Gate Integration ✅ 2026-05-04
 
-**Priority:** Low → **Planned**
+**Priority:** Low
 
 **Goal:** Wire a live HITL gate screen into the operator TUI so users can approve or abort pending gates without leaving the console.
 
+**Decision:** Complete. `_read_gate_manifest(run_dir, gate_id)` pure function reads `manifest.json`, finds the matching `hitl-gate` event, extracts `completedBatchTaskIds`/`failedTaskIds`/`pendingTaskIds`, sums task costs, checks `hitl-gate.lock` mtime for staleness (> 30 min = ⚠ warning); `HitlGateScreen._load_gate_data()` calls it from a thread worker and updates batch-log, pending-table, cost bar; `OrchestratorApp.wait_for_hitl_decision()` auto-pushes `HitlGateScreen` via `push_screen` + callback Future (not `push_screen_wait` which requires worker context); approve/abort dismiss the screen and resolve the decision; Back/Escape falls through to existing sentinel-file polling loop; 12 pure unit tests for `_read_gate_manifest` + 5 Textual integration tests in `test_tui_gate.py`; existing `test_tui_app.py` updated for new push flow; 1129 pass.
+
 **Tasks:**
-- [ ] Poll retained run manifest for pending HITL sentinel during live run
-- [ ] `HitlGateScreen` — show gate id, completed batch summary, cost-so-far, pending tasks, failures
-- [ ] [A] Approve / [X] Abort bindings calling orchestrator approve/abort handlers
-- [ ] Stale sentinel warning if gate was armed too long
-- [ ] Wire into LiveRunDashboard auto-push when gate detected
+- [x] Poll retained run manifest for pending HITL sentinel during live run
+- [x] `HitlGateScreen` — show gate id, completed batch summary, cost-so-far, pending tasks, failures
+- [x] [A] Approve / [X] Abort bindings calling orchestrator approve/abort handlers
+- [x] Stale sentinel warning if gate was armed too long
+- [x] Wire into LiveRunDashboard auto-push when gate detected
 
 ---
 

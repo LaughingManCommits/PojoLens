@@ -348,6 +348,41 @@ if textual_is_available():
                 hitl_gate_id=context.gate_id,
                 sentinel_path=sentinel,
             )
+
+            # Auto-push full gate detail screen; operator can approve/abort there.
+            # push_screen_wait requires a worker context; use callback + Future instead.
+            from pojo_lens_agents._tui_gate import HitlGateScreen
+            screen_future: asyncio.Future[Any] = loop.create_future()
+
+            def _on_screen_dismiss(result: Any) -> None:
+                if not screen_future.done():
+                    screen_future.set_result(result)
+
+            self.push_screen(
+                HitlGateScreen(run_ref=str(context.run_dir), gate_id=context.gate_id),
+                callback=_on_screen_dismiss,
+            )
+            screen_result = await screen_future
+            if isinstance(screen_result, dict) and screen_result.get("decision") in ("approve", "abort"):
+                action = str(screen_result["decision"])
+                approved = action == "approve"
+                self._pending_hitl_future = None
+                self._pending_hitl_gate_id = None
+                self._pending_hitl_sentinel_path = None
+                self.query_one(FooterBar).set_state()
+                return HitlDecision(
+                    approved=approved,
+                    action=action,
+                    reason=(
+                        "Operator approved continuation via HITL gate screen."
+                        if approved
+                        else "Operator aborted continuation via HITL gate screen."
+                    ),
+                    source="tui",
+                    sentinel_path=sentinel,
+                )
+
+            # Operator dismissed without deciding — fall back to footer + sentinel polling
             try:
                 while True:
                     if self._pending_hitl_future.done():

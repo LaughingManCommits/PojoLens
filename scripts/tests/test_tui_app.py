@@ -108,7 +108,8 @@ class TuiAppTest(unittest.TestCase):
 
         asyncio.run(scenario())
 
-    def test_hitl_wait_uses_footer_and_tui_actions(self):
+    def test_hitl_wait_auto_pushes_gate_screen_and_approve(self):
+        # wait_for_hitl_decision now auto-pushes HitlGateScreen; press [a] on it
         async def scenario() -> None:
             with tempfile.TemporaryDirectory() as tempdir:
                 queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
@@ -133,13 +134,13 @@ class TuiAppTest(unittest.TestCase):
                         )
                     )
                     await pilot.pause(0.3)
-                    footer = app.query_one(FooterBar)
-                    self.assertIn("[a] approve", str(footer.renderable))
-                    app.action_approve_gate()
+                    # Gate screen is now active — press [a] to approve
+                    await pilot.press("a")
                     decision = await wait_task
                     self.assertTrue(decision.approved)
                     self.assertEqual("tui", decision.source)
                     await pilot.pause(0.2)
-                    self.assertIn("live", str(footer.renderable).lower())
+                    # After gate dismissed, footer resets to idle
+                    self.assertIn("live", str(app.query_one(FooterBar).renderable).lower())
 
         asyncio.run(scenario())
