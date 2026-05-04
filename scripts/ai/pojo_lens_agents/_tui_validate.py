@@ -267,9 +267,9 @@ class RunPlanScreen(Screen):  # type: ignore[type-arg,misc]
         self._log("[bold #00ff41]═══ EXECUTION COMPLETE — press [H] for dashboard ═══[/]")
 
 
-# ── ValidatePlanScreen / ValidateRunScreen ─────────────────────────────────────
+# ── ValidatePlanDialog / ValidateRunScreen ────────────────────────────────────
 
-class ValidatePlanScreen(ModalScreen):  # type: ignore[type-arg,misc]
+class ValidatePlanDialog(ModalScreen):  # type: ignore[type-arg,misc]
     """Modal: enter a plan path, dismiss with path string or None."""
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
@@ -433,3 +433,6 @@ class ValidateRunScreen(Screen):  # type: ignore[type-arg,misc]
                     "[bold #ff2244][ VALIDATE ]  ✗ ERRORS FOUND[/]"
                 )
             )
+
+
+ValidatePlanScreen = ValidatePlanDialog  # backward-compat alias

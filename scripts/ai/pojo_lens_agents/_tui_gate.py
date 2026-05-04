@@ -142,8 +142,8 @@ class HitlGateScreen(Screen):  # type: ignore[type-arg,misc]
         with Container(id="cost-bar"):
             yield Static("", id="cost-display")
         with Horizontal(id="gate-actions"):
-            yield Button("[A]  APPROVE",    id="btn-approve", variant="primary")
-            yield Button("[X]  ABORT",      id="btn-abort",   variant="error")
+            yield Button("APPROVE",    id="btn-approve", variant="primary")
+            yield Button("ABORT",      id="btn-abort",   variant="error")
             yield Button("BACK",            id="btn-back")
         yield Footer()
 

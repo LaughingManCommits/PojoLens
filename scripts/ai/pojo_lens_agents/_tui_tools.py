@@ -8,9 +8,9 @@ TEXTUAL_IMPORT_ERROR: Exception | None = None
 try:
     from textual.app import ComposeResult
     from textual.binding import Binding
-    from textual.containers import Container, Horizontal
+    from textual.containers import Container, Horizontal, VerticalScroll
     from textual.screen import Screen
-    from textual.widgets import Button, Footer, Header, Input, RichLog, Static
+    from textual.widgets import Button, Footer, Header, Input, RichLog, Select, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
     App = object  # type: ignore[assignment,misc]
@@ -208,186 +208,278 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
 
 # ── SettingsScreen ─────────────────────────────────────────────────────────────
 
+_BOOL_OPTIONS: list[tuple[str, str]] = [("(unset)", ""), ("true", "true"), ("false", "false")]
+_NOTIFY_ON_OPTIONS: list[tuple[str, str]] = [
+    ("(unset)", ""), ("always", "always"), ("failure", "failure"), ("success", "success"),
+]
+_WORKSPACE_STRATEGY_OPTIONS: list[tuple[str, str]] = [
+    ("(unset)", ""), ("repo", "repo"), ("copy", "copy"), ("scratch", "scratch"),
+]
+_WORKER_VAL_OPTIONS: list[tuple[str, str]] = [
+    ("(unset)", ""), ("intents-only", "intents-only"), ("strict", "strict"), ("off", "off"),
+]
+
+
 class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
-    """Display current configuration defaults."""
+    """Edit pojolens-agents.toml configuration."""
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._config_path: Any = None   # Path | None
+        self._env_path:    Any = None   # Path | None
+        self._api_key_set: bool = False  # whether ANTHROPIC_API_KEY is already in env
 
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="top-bar"):
-            yield Static("[ SETTINGS ]  Current configuration defaults", id="set-title")
-            yield Static(
-                "Edit ai/orchestrator/README.md or pojolens config for persistent changes.",
-                id="set-hint",
+            yield Static("[ SETTINGS ]", id="set-title")
+            yield Static("", id="set-path")
+        with VerticalScroll(id="set-form"):
+            yield Static("TOKENS / API KEYS", classes="set-section")
+            yield Static("ANTHROPIC_API_KEY  (stored in .env, never in TOML)", classes="set-label")
+            yield Input(id="f-api-key", password=True, placeholder="sk-ant-api03-...")
+            yield Static("", id="f-api-key-status")
+            yield Static("POJO_LENS_PROVIDER  (auto = sdk if key set, else subprocess)", classes="set-label")
+            yield Select(
+                [("auto", ""), ("sdk", "sdk"), ("subprocess", "subprocess")],
+                id="f-provider", allow_blank=False,
             )
-        yield RichLog(id="set-log", markup=True, auto_scroll=False, wrap=True, highlight=False)
+
+            yield Static("DEFAULTS", classes="set-section")
+            yield Static("runtime_root", classes="set-label")
+            yield Input(id="f-runtime-root", placeholder=".claude-orchestrator")
+            yield Static("claude_bin", classes="set-label")
+            yield Input(id="f-claude-bin", placeholder="claude")
+            yield Static("max_parallel", classes="set-label")
+            yield Input(id="f-max-parallel", placeholder="4")
+            yield Static("continue_on_error", classes="set-label")
+            yield Select(_BOOL_OPTIONS, id="f-continue-on-error", allow_blank=False)
+            yield Static("worker_validation_mode", classes="set-label")
+            yield Select(_WORKER_VAL_OPTIONS, id="f-worker-val-mode", allow_blank=False)
+
+            yield Static("NOTIFICATIONS", classes="set-section")
+            yield Static("desktop (OS notification)", classes="set-label")
+            yield Select(_BOOL_OPTIONS, id="f-desktop", allow_blank=False)
+            yield Static("notify_on", classes="set-label")
+            yield Select(_NOTIFY_ON_OPTIONS, id="f-notify-on", allow_blank=False)
+            yield Static("webhook_url", classes="set-label")
+            yield Input(id="f-webhook-url", placeholder="https://...")
+            yield Static("slack_webhook_url", classes="set-label")
+            yield Input(id="f-slack-webhook", placeholder="https://hooks.slack.com/...")
+
+            yield Static("WORKSPACE", classes="set-section")
+            yield Static("strategy", classes="set-label")
+            yield Select(_WORKSPACE_STRATEGY_OPTIONS, id="f-ws-strategy", allow_blank=False)
+            yield Static("root (workspace dir)", classes="set-label")
+            yield Input(id="f-ws-root", placeholder=".workspaces")
         with Horizontal(id="action-bar"):
-            yield Button("REFRESH", id="btn-refresh")
-            yield Button("BACK",    id="btn-back")
+            yield Button("SAVE", id="btn-save", variant="primary")
+            yield Button("BACK", id="btn-back")
         yield Footer()
 
     def on_mount(self) -> None:
         self.app.title = "POJOLENS  //  SETTINGS"
-        self.run_worker(self._load_config, thread=True, name="load-config")
+        self.run_worker(self._load, thread=True, name="load-config")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-refresh":
-            self.query_one("#set-log", RichLog).clear()
-            self.run_worker(self._load_config, thread=True, name="load-config-2")
+        if event.button.id == "btn-save":
+            self._save()
         elif event.button.id == "btn-back":
             self.action_go_back()
 
     def action_go_back(self) -> None:
         self.dismiss(None)
 
-    def _log(self, text: str) -> None:
-        self.app.call_from_thread(lambda: self.query_one("#set-log", RichLog).write(text))
+    # ── helpers ────────────────────────────────────────────────────────────────
 
-    def _load_config(self) -> None:
-        handlers      = getattr(self.app, "_handlers", {})
-        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
-
-        self._log("[bold #00e5ff]═══ Operator Defaults ═══[/]")
-
-        for key, attr in [
-            ("Runtime Root",  "_runtime_root"),
-            ("Agents File",   "_agents"),
-            ("Claude Binary", "_claude_bin"),
-            ("Tasks Dir",     "_tasks_dir"),
-        ]:
-            val = str(getattr(self.app, attr, "-"))
-            self._log(f"  [#00e5ff]{key}:[/] {val}")
-
-        self._log("")
-        self._log("[bold #00e5ff]═══ Effort → Model Mapping ═══[/]")
+    def _set_input(self, wid: str, value: str) -> None:
         try:
-            for effort, (model, effort_val) in _EFFORT_MODEL_MAP.items():
-                self._log(f"  [#00e5ff]{effort:<8}[/] → {model}")
+            self.query_one(f"#{wid}", Input).value = value
         except Exception:
-            self._log("  [dim](mapping unavailable)[/]")
+            pass
 
-        self._log("")
-        self._log("[bold #00e5ff]═══ Rate Limits ═══[/]")
-        tpm = str(getattr(self.app, "_tpm_limit", None) or "-")
-        rpm = str(getattr(self.app, "_rpm_limit", None) or "-")
-        self._log(f"  [#00e5ff]TPM limit:[/] {tpm}  [dim](tokens per minute; - = unlimited)[/]")
-        self._log(f"  [#00e5ff]RPM limit:[/] {rpm}  [dim](requests per minute; - = unlimited)[/]")
-        if parse_args_fn is not None and "config" in handlers:
+    def _set_select(self, wid: str, value: str) -> None:
+        try:
+            self.query_one(f"#{wid}", Select).value = value
+        except Exception:
+            pass
+
+    def _get_input(self, wid: str) -> str:
+        try:
+            return self.query_one(f"#{wid}", Input).value.strip()
+        except Exception:
+            return ""
+
+    def _get_select(self, wid: str) -> str:
+        try:
+            v = self.query_one(f"#{wid}", Select).value
+            return "" if v is Select.BLANK else str(v)
+        except Exception:
+            return ""
+
+    # ── load ───────────────────────────────────────────────────────────────────
+
+    def _load(self) -> None:
+        import os
+        from pathlib import Path as _Path
+        try:
+            from pojo_lens_agents.config_loader import _find_config_path
+        except ImportError:
+            return
+
+        root = _Path(__file__).resolve().parents[3]
+        cfg  = _find_config_path(None, dict(os.environ), root)
+        if cfg is None:
+            cfg = root / "pojolens-agents.toml"
+        self._config_path = cfg
+        self._env_path    = root / ".env"
+
+        # Read .env
+        env_vars: dict[str, str] = {}
+        if self._env_path.exists():
+            for line in self._env_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, _, v = line.partition("=")
+                    env_vars[k.strip()] = v.strip()
+
+        existing_key    = env_vars.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+        existing_prov   = env_vars.get("POJO_LENS_PROVIDER") or os.environ.get("POJO_LENS_PROVIDER", "")
+        self._api_key_set = bool(existing_key)
+
+        # Read TOML
+        raw: dict = {}
+        if cfg.exists():
             try:
-                import io as _cio
-                _a = parse_args_fn(["config", "show", "--json"])
-                _buf = _cio.StringIO()
-                _old = sys.stdout
-                sys.stdout = _buf  # type: ignore[assignment]
                 try:
-                    _cfg = handlers["config"](_a) or {}
-                except Exception:
-                    _cfg = {}
-                finally:
-                    sys.stdout = _old
-                _defaults = _cfg.get("defaults") or {}
-                if isinstance(_defaults, dict):
-                    _tpm_cfg = _defaults.get("tpm_limit") or _defaults.get("tpmLimit")
-                    _rpm_cfg = _defaults.get("rpm_limit") or _defaults.get("rpmLimit")
-                    if _tpm_cfg:
-                        self._log(f"  [dim #00e5ff]Config TPM:[/] {_tpm_cfg}")
-                    if _rpm_cfg:
-                        self._log(f"  [dim #00e5ff]Config RPM:[/] {_rpm_cfg}")
+                    import tomllib as _tl
+                except ImportError:
+                    import tomli as _tl  # type: ignore[no-redef]
+                with open(cfg, "rb") as fh:
+                    raw = _tl.load(fh)
             except Exception:
                 pass
 
-        self._log("")
-        self._log("[bold #00e5ff]═══ Notification Defaults ═══[/]")
-        if parse_args_fn is not None and "config" in handlers:
+        defs  = raw.get("defaults",      {}) or {}
+        notif = raw.get("notifications", {}) or {}
+        ws    = raw.get("workspace",     {}) or {}
+        notify_on_val = (notif.get("notify_on") or [""])[0] if notif.get("notify_on") else ""
+
+        exists_tag = "" if cfg.exists() else "  [#ffaa00](will be created)[/]"
+        key_status = "[#00ff41]● SET[/]" if existing_key else "[#ff2244]● NOT SET[/]"
+
+        def _fill() -> None:
             try:
-                import io as _nio
-                _a2 = parse_args_fn(["config", "show", "--json"])
-                _buf2 = _nio.StringIO()
-                _old2 = sys.stdout
-                sys.stdout = _buf2  # type: ignore[assignment]
-                try:
-                    _cfg2 = handlers["config"](_a2) or {}
-                except Exception:
-                    _cfg2 = {}
-                finally:
-                    sys.stdout = _old2
-                _def2 = (_cfg2.get("defaults") or {}) if isinstance(_cfg2, dict) else {}
-                _notify_on  = _def2.get("notify_on")  or _def2.get("notifyOn")  or "-"
-                _webhook    = _def2.get("webhook")     or _def2.get("notifyWebhook") or "-"
-                _slack_ch   = _def2.get("slack_channel") or _def2.get("slackChannel") or "-"
-                self._log(f"  [#00e5ff]notify_on:[/] {_notify_on}  [dim](never/failure/success/always)[/]")
-                self._log(f"  [#00e5ff]webhook  :[/] {_webhook}")
-                self._log(f"  [#00e5ff]slack    :[/] {_slack_ch}")
+                self.query_one("#set-path", Static).update(f"[dim]{cfg}[/]{exists_tag}")
+                # tokens
+                if existing_key:
+                    self.query_one("#f-api-key", Input).placeholder = "(already set — leave blank to keep)"
+                self.query_one("#f-api-key-status", Static).update(
+                    f"  Current status: {key_status}  [dim]env/.env[/]"
+                )
+                self._set_select("f-provider", existing_prov)
+                # defaults
+                self._set_input("f-runtime-root", str(defs.get("runtime_root") or ""))
+                self._set_input("f-claude-bin",   str(defs.get("claude_bin")   or ""))
+                self._set_input("f-max-parallel", str(defs.get("max_parallel") or ""))
+                self._set_select("f-continue-on-error", str(defs.get("continue_on_error", "")).lower() if "continue_on_error" in defs else "")
+                self._set_select("f-worker-val-mode",   str(defs.get("worker_validation_mode") or ""))
+                # notifications
+                self._set_select("f-desktop",   str(notif.get("desktop", "")).lower() if "desktop" in notif else "")
+                self._set_select("f-notify-on", notify_on_val)
+                self._set_input("f-webhook-url",   str(notif.get("webhook_url")       or ""))
+                self._set_input("f-slack-webhook", str(notif.get("slack_webhook_url") or ""))
+                # workspace
+                self._set_select("f-ws-strategy", str(ws.get("strategy") or ""))
+                self._set_input("f-ws-root",      str(ws.get("root")     or ""))
             except Exception:
-                self._log("  [dim](notification config unavailable)[/]")
-        else:
-            self._log("  [dim](config handler not available)[/]")
+                pass
 
-        self._log("")
-        self._log("[bold #00e5ff]═══ Config File ═══[/]")
-        if parse_args_fn is not None and "config" in handlers:
+        self.app.call_from_thread(_fill)
+
+    # ── save ───────────────────────────────────────────────────────────────────
+
+    def _save(self) -> None:
+        import os
+        from pathlib import Path as _Path
+
+        api_key       = self._get_input("f-api-key")
+        provider      = self._get_select("f-provider")
+        runtime_root  = self._get_input("f-runtime-root")
+        claude_bin    = self._get_input("f-claude-bin")
+        max_parallel_s= self._get_input("f-max-parallel")
+        cont_err      = self._get_select("f-continue-on-error")
+        worker_val    = self._get_select("f-worker-val-mode")
+        desktop       = self._get_select("f-desktop")
+        notify_on     = self._get_select("f-notify-on")
+        webhook_url   = self._get_input("f-webhook-url")
+        slack_webhook = self._get_input("f-slack-webhook")
+        ws_strategy   = self._get_select("f-ws-strategy")
+        ws_root       = self._get_input("f-ws-root")
+
+        # validate max_parallel
+        max_parallel: int | None = None
+        if max_parallel_s:
             try:
-                import io as _io
-                args = parse_args_fn(["config", "show", "--json"])
-                buf  = _io.StringIO()
-                old_stdout = sys.stdout
-                sys.stdout = buf  # type: ignore[assignment]
-                try:
-                    payload = handlers["config"](args)
-                except Exception:
-                    payload = {}
-                finally:
-                    sys.stdout = old_stdout
-                    captured = buf.getvalue().strip()
-                if captured:
-                    for line in captured.splitlines():
-                        self._log(f"  {line}")
-                elif payload:
-                    for k, v in sorted(payload.items()):
-                        if not k.startswith("_"):
-                            self._log(f"  [#00e5ff]{k}:[/] {v}")
-            except Exception as exc:
-                self._log(f"  [dim](config load error: {exc})[/]")
-        else:
-            self._log("  [dim](config handler not available)[/]")
+                max_parallel = int(max_parallel_s)
+                if max_parallel < 1:
+                    raise ValueError
+            except ValueError:
+                self.app.notify("max_parallel must be a positive integer.", title="Validation", severity="error")  # type: ignore[attr-defined]
+                return
 
-        self._log("")
-        self._log("[bold #00e5ff]═══ Providers ═══[/]")
+        if self._config_path is None or self._env_path is None:
+            self.app.notify("Config path unknown.", title="Error", severity="error")  # type: ignore[attr-defined]
+            return
+
+        # ── write .env ────────────────────────────────────────────────────────
+        env_lines: list[str] = []
+        # Preserve existing key if user left field blank
+        effective_key = api_key or (os.environ.get("ANTHROPIC_API_KEY", "") if self._api_key_set else "")
+        if effective_key:
+            env_lines.append(f"ANTHROPIC_API_KEY={effective_key}")
+        if provider:
+            env_lines.append(f"POJO_LENS_PROVIDER={provider}")
         try:
-            from pojo_lens_agents.provider_registry import get_registry
-            from pojo_lens_agents.provider_plugin import RateLimitMeta, ModelPricing
-            from pojo_lens_agents.config_loader import load_default_provider_id
-            _cfg_default = load_default_provider_id()
-            if _cfg_default:
-                self._log(f"  [#00e5ff]configured default:[/] [bold #00ff41]{_cfg_default}[/]")
-            else:
-                self._log("  [#00e5ff]configured default:[/] [dim](none — set [providers] default in pojolens-agents.toml)[/]")
-            _reg = get_registry()
-            _ids = _reg.list_ids()
-            if _ids:
-                for _pid in _ids:
-                    try:
-                        _prov = _reg.get(_pid)
-                        _rl: RateLimitMeta = _prov.rate_limit_meta()
-                        _mp: ModelPricing  = _prov.model_pricing()
-                        _tpm = f"{_rl.tpm_limit:,}" if _rl.tpm_limit is not None else "—"
-                        _rpm = f"{_rl.rpm_limit:,}" if _rl.rpm_limit is not None else "—"
-                        _in  = f"${_mp.input_per_1k_usd:.4f}" if _mp.input_per_1k_usd else "—"
-                        _out = f"${_mp.output_per_1k_usd:.4f}" if _mp.output_per_1k_usd else "—"
-                        _cls = type(_prov).__qualname__
-                        _tag = "  [bold #ffaa00][config default][/]" if _pid == _cfg_default else ""
-                        self._log(f"  [bold #00ff41]{_pid}[/]  [dim]({_cls})[/]{_tag}")
-                        self._log(f"    [#00e5ff]pricing :[/] in {_in}/1k  out {_out}/1k")
-                        self._log(f"    [#00e5ff]limits  :[/] TPM {_tpm}  RPM {_rpm}")
-                    except Exception as _e:
-                        self._log(f"  [#ffaa00]{_pid}[/]  [dim](meta error: {_e})[/]")
-            else:
-                self._log("  [dim](no providers registered)[/]")
-        except ImportError:
-            self._log("  [dim](provider registry unavailable)[/]")
+            env_path = _Path(self._env_path)
+            env_path.write_text("\n".join(env_lines) + ("\n" if env_lines else ""), encoding="utf-8")
         except Exception as exc:
-            self._log(f"  [dim](providers error: {exc})[/]")
+            self.app.notify(f".env write failed: {exc}", title="Error", severity="error")  # type: ignore[attr-defined]
+            return
 
-        self._log("")
-        self._log("[dim #2a5a3a][ trace ] settings loaded[/]")
+        # ── write pojolens-agents.toml ────────────────────────────────────────
+        lines: list[str] = []
+
+        def _s(k: str, v: str) -> str:  return f'{k} = "{v}"'
+        def _b(k: str, v: str) -> str:  return f"{k} = {v}"
+
+        d: list[str] = []
+        if runtime_root:  d.append(_s("runtime_root", runtime_root))
+        if claude_bin:    d.append(_s("claude_bin", claude_bin))
+        if max_parallel:  d.append(f"max_parallel = {max_parallel}")
+        if cont_err in ("true", "false"):  d.append(_b("continue_on_error", cont_err))
+        if worker_val:    d.append(_s("worker_validation_mode", worker_val))
+        if d:
+            lines += ["[defaults]"] + d + [""]
+
+        n: list[str] = []
+        if desktop in ("true", "false"):  n.append(_b("desktop", desktop))
+        if notify_on:     n.append(f'notify_on = ["{notify_on}"]')
+        if webhook_url:   n.append(_s("webhook_url", webhook_url))
+        if slack_webhook: n.append(_s("slack_webhook_url", slack_webhook))
+        if n:
+            lines += ["[notifications]"] + n + [""]
+
+        w: list[str] = []
+        if ws_strategy:  w.append(_s("strategy", ws_strategy))
+        if ws_root:      w.append(_s("root", ws_root))
+        if w:
+            lines += ["[workspace]"] + w + [""]
+
+        try:
+            _Path(self._config_path).write_text("\n".join(lines), encoding="utf-8")
+            self.app.notify("Settings saved (TOML + .env)", title="Saved")  # type: ignore[attr-defined]
+        except Exception as exc:
+            self.app.notify(f"TOML write failed: {exc}", title="Error", severity="error")  # type: ignore[attr-defined]

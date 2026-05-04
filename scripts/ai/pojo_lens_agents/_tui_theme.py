@@ -60,8 +60,9 @@ _CLARIF_QUESTIONS = [
 ]
 
 _WORKSPACE_WARN = {
-    "repo": "⚠  REPO mode uses the live repo root — no isolation. Proceed only for safe read-only plans.",
-    "worktree": "Worktree mode requires a clean git repo. Ensure no uncommitted changes.",
+    "repo":     "⚠  REPO mode — no isolation, diff review unavailable. Read-only plans only.",
+    "worktree": "Requires clean git repo (no uncommitted changes). Diff review ✓ enabled.",
+    "copy":     "Safe isolated copy — no git required. Diff review ✓ enabled.",
 }
 
 

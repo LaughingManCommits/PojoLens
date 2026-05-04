@@ -11,10 +11,10 @@ try:
     from rich.text import Text
     from textual.app import ComposeResult
     from textual.binding import Binding
-    from textual.containers import Container, Horizontal
+    from textual.containers import Container, Horizontal, Vertical
     from textual.reactive import reactive
     from textual.screen import Screen
-    from textual.widgets import Button, DataTable, Footer, Header, RichLog, Static
+    from textual.widgets import Button, DataTable, Footer, Header, RichLog, Rule, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
     App = object  # type: ignore[assignment,misc]
@@ -63,6 +63,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("y",      "retry_run",  "Retry",   show=True),
         Binding("p",      "promote_run","Promote", show=True),
         Binding("g",      "gate_run",   "Gate",    show=True),
+        Binding("l",      "tab_ledger", "Ledger",  show=True),
     ]
 
     def __init__(self, *, mode: str = "runs") -> None:
@@ -86,12 +87,13 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         yield DataTable(id="runs-table")
         yield Static("", id="empty-notice")
         with Horizontal(id="action-bar"):
-            yield Button("INSPECT",  id="btn-inspect")
-            yield Button("RESUME",   id="btn-resume")
-            yield Button("RETRY",    id="btn-retry")
-            yield Button("PROMOTE",  id="btn-promote")
-            yield Button("GATE [G]", id="btn-gate")
-            yield Button("BACK",     id="btn-back")
+            yield Button("OPEN",    id="btn-open",    disabled=True)
+            yield Button("RESUME",  id="btn-resume",  disabled=True)
+            yield Button("RETRY",   id="btn-retry",   disabled=True)
+            yield Button("PROMOTE", id="btn-promote", disabled=True)
+            yield Button("GATE",    id="btn-gate",    disabled=True)
+            yield Button("LEDGER",  id="btn-ledger")
+            yield Button("BACK",    id="btn-back")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -218,6 +220,9 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                 date,
                 key=run_id,
             )
+        # Reflect first row's status in buttons immediately
+        if self._entries:
+            self._set_action_buttons(self._entries[0])
 
     def _selected_run_id(self) -> str | None:
         table = self.query_one("#runs-table", DataTable)
@@ -238,9 +243,41 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         e = self._entries[row]
         return str(e.get("runDir") or e.get("run_dir") or e.get("manifestPath") or "")
 
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        row = event.cursor_row
+        if row < 0 or row >= len(self._entries):
+            self._set_action_buttons(None)
+        else:
+            self._set_action_buttons(self._entries[row])
+
+    def _set_action_buttons(self, entry: dict | None) -> None:
+        if entry is None:
+            for btn_id in ("btn-open", "btn-resume", "btn-retry", "btn-promote", "btn-gate"):
+                try:
+                    self.query_one(f"#{btn_id}", Button).disabled = True
+                except Exception:
+                    pass
+            return
+        status = str(entry.get("status") or entry.get("lifecycleState") or "").lower()
+        running   = status == "running"
+        completed = status == "completed"
+        failed    = status in {"failed", "error"}
+        paused    = status in {"paused", "interrupted", "partial"}
+        blocked   = status in {"blocked", "hitl-pending", "pending-approval"}
+        unknown   = status in {"unknown", ""}
+        resumable = paused or (unknown and not running)
+        try:
+            self.query_one("#btn-open", Button).disabled = False
+            self.query_one("#btn-resume",  Button).disabled = not resumable
+            self.query_one("#btn-retry",   Button).disabled = not (failed or completed)
+            self.query_one("#btn-promote", Button).disabled = not completed
+            self.query_one("#btn-gate",    Button).disabled = not blocked
+        except Exception:
+            pass
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-inspect":
-            self.action_inspect_run()
+        if event.button.id == "btn-open":
+            self.action_open_run()
         elif event.button.id == "btn-resume":
             self.action_resume_run()
         elif event.button.id == "btn-retry":
@@ -249,13 +286,22 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
             self.action_promote_run()
         elif event.button.id == "btn-gate":
             self.action_gate_run()
+        elif event.button.id == "btn-ledger":
+            self.action_tab_ledger()
         elif event.button.id == "btn-back":
             self.action_go_back()
 
     def action_go_back(self) -> None:
         self.dismiss(None)
 
-    def action_inspect_run(self) -> None:
+    def action_tab_ledger(self) -> None:
+        self._mode = "ledger"
+        try:
+            self.query_one("#screen-title", Static).update("[ LEDGER ]  Run ledger summary")
+        except Exception:
+            pass
+
+    def action_open_run(self) -> None:
         run_dir = self._selected_run_dir()
         if run_dir:
             self.app.push_screen(RunDetailsScreen(run_dir))  # type: ignore[attr-defined]
@@ -296,106 +342,429 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
 # ── RunDetailsScreen ───────────────────────────────────────────────────────────
 
 class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
-    """Single retained run summary — tasks, cost, events."""
+    """Rich run detail view — tasks, events, inline code diff, and actions."""
 
-    BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
+    BINDINGS = [
+        Binding("escape", "go_back",       "Back",     show=True),
+        Binding("r",      "resume_run",    "Resume",   show=True),
+        Binding("y",      "retry_run",     "Retry",    show=True),
+        Binding("p",      "promote_run",   "Promote",  show=True),
+        Binding("a",      "show_all_diff", "All Diff", show=True),
+    ]
 
     def __init__(self, run_ref: str) -> None:
         super().__init__()
         self._run_ref = run_ref
+        self._file_diffs: dict[str, list[str]] = {}
+        self._tasks_data: dict[str, Any] = {}
 
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="top-bar"):
             yield Static("[ RUN DETAILS ]", id="run-title")
             yield Static(self._run_ref, id="run-ref")
-        yield RichLog(id="detail-log", markup=True, auto_scroll=False, wrap=True, highlight=False)
+            yield Static("", id="run-status-line")
+        with Horizontal(id="detail-split"):
+            with Vertical(id="detail-left"):
+                yield Static("[ TASKS ]", id="tasks-title")
+                yield DataTable(id="tasks-table")
+                yield Rule()
+                yield Static("[ RESULTS ]", id="events-title")
+                yield RichLog(id="events-log", markup=True, auto_scroll=False,
+                              wrap=True, highlight=False, max_lines=60)
+            with Vertical(id="detail-right"):
+                yield Static("[ DIFF ]", id="diff-header")
+                yield DataTable(id="diff-file-list")
+                yield RichLog(id="diff-log", markup=True, auto_scroll=False,
+                              wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
-            yield Button("BACK", id="btn-back")
+            yield Button("RESUME",  id="btn-resume",  variant="primary", disabled=True)
+            yield Button("RETRY",   id="btn-retry",                       disabled=True)
+            yield Button("PROMOTE", id="btn-promote", variant="warning",  disabled=True)
+            yield Button("BACK",    id="btn-back")
         yield Footer()
 
     def on_mount(self) -> None:
         self.app.title = "POJOLENS  //  RUN DETAILS"
-        self.run_worker(self._load_details, thread=True, name="run-details")
+        t = self.query_one("#tasks-table", DataTable)
+        t.cursor_type = "row"
+        t.zebra_stripes = True
+        t.add_column("Task",   key="tid",    width=20)
+        t.add_column("Title",  key="title",  width=24)
+        t.add_column("Status", key="status", width=11)
+        t.add_column("Cost",   key="cost",   width=9)
+        t.add_column("Tokens", key="tokens", width=14)
+        d = self.query_one("#diff-file-list", DataTable)
+        d.cursor_type = "row"
+        d.add_column("File", key="file", width=28)
+        d.add_column("+ins", key="ins",  width=5)
+        d.add_column("-del", key="dels", width=5)
+        self.run_worker(self._load_all, thread=True, name="run-details")
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        if event.data_table.id == "diff-file-list":
+            fname = str(event.row_key.value) if event.row_key else None
+            if fname and fname in self._file_diffs:
+                self._render_file_diff(fname)
+        elif event.data_table.id == "tasks-table":
+            tid = str(event.row_key.value) if event.row_key else None
+            if tid and tid in self._tasks_data:
+                self._show_task_result(tid, self._tasks_data[tid])
+
+    def _show_task_result(self, tid: str, t: dict) -> None:
+        log = self.query_one("#events-log", RichLog)
+        log.clear()
+        try:
+            self.query_one("#events-title", Static).update(
+                f"[bold #00e5ff][ RESULT: {tid[:24]} ][/]"
+            )
+        except Exception:
+            pass
+
+        status = str(t.get("status") or "—")
+        sc = _status_color(status)
+        log.write(f"[{sc}]{status.upper()}[/]  [dim]{tid}[/]")
+
+        summary = str(t.get("summary") or "").strip()
+        if summary:
+            log.write("")
+            log.write("[bold #00e5ff]Summary[/]")
+            for line in summary.splitlines():
+                log.write(f"  {line}")
+
+        files = list(t.get("actual_files_touched") or t.get("files_touched") or [])
+        if files:
+            log.write("")
+            log.write("[bold #00e5ff]Files changed[/]")
+            for f in files:
+                log.write(f"  [#a0ffa0]{f}[/]")
+
+        notes = list(t.get("notes") or [])
+        if notes:
+            log.write("")
+            log.write("[bold #00e5ff]Notes[/]")
+            for n in notes:
+                log.write(f"  [#ffaa00]·[/] {n}")
+
+        follow_ups = list(t.get("follow_ups") or t.get("followUps") or [])
+        if follow_ups:
+            log.write("")
+            log.write("[bold #00e5ff]Follow-ups[/]")
+            for fu in follow_ups:
+                log.write(f"  [#00e5ff]→[/] {fu}")
+
+        val_cmds = list(t.get("validation_commands") or t.get("validationCommands") or [])
+        if val_cmds:
+            log.write("")
+            log.write("[bold #00e5ff]Validation commands[/]")
+            for cmd in val_cmds:
+                log.write(f"  [dim]$[/] [#a0ffa0]{cmd}[/]")
+
+        rc = t.get("return_code")
+        if rc is not None:
+            log.write("")
+            log.write(f"[dim]exit code: {rc}[/]")
+
+    def _log_ev(self, text: str) -> None:
+        self.app.call_from_thread(
+            lambda: self.query_one("#events-log", RichLog).write(text)
+        )
+
+    def _log_diff(self, text: str) -> None:
+        self.app.call_from_thread(
+            lambda: self.query_one("#diff-log", RichLog).write(text)
+        )
+
+    def _render_file_diff(self, fname: str) -> None:
+        from pojo_lens_agents._tui_diff import _render_diff_lines
+        lines = self._file_diffs.get(fname, [])
+        log = self.query_one("#diff-log", RichLog)
+        log.clear()
+        if not lines:
+            log.write(f"[dim]No diff data for {fname}[/]")
+            return
+        for line in _render_diff_lines(lines):
+            log.write(line)
+
+    def action_show_all_diff(self) -> None:
+        from pojo_lens_agents._tui_diff import _render_diff_lines
+        log = self.query_one("#diff-log", RichLog)
+        log.clear()
+        if not self._file_diffs:
+            log.write("[dim]No diff data loaded.[/]")
+            return
+        for fname, raw_lines in self._file_diffs.items():
+            for line in _render_diff_lines(raw_lines):
+                log.write(line)
+            log.write("")
+
+    def _load_all(self) -> None:
+        self._load_from_manifest()
+        self._load_diff()
+
+    def _load_from_manifest(self) -> None:
+        import datetime as _dt
+        run_path = Path(self._run_ref)
+        mp = (run_path if run_path.is_dir() else run_path.parent) / "manifest.json"
+        if not mp.exists():
+            self._load_from_handler()
+            return
+        try:
+            data = json.loads(mp.read_text(encoding="utf-8"))
+        except Exception as exc:
+            self._log_ev(f"[#ff2244]manifest read: {exc}[/]")
+            return
+
+        run_id        = str(data.get("runId") or run_path.name)
+        plan_path     = str(data.get("planPath") or "—")
+        workspace_dir = str(data.get("workspacesDir") or data.get("workspaceDir") or data.get("workspace_dir") or "")
+        ws_mode       = str(data.get("workspaceMode") or data.get("workspace_mode") or data.get("runConfig", {}).get("workspaceMode") or "")
+        events        = list(data.get("events") or [])
+        tasks_dict = data.get("tasks") or {}
+        ut         = data.get("usageTotals") or {}
+        inp        = int(ut.get("inputTokens",  0) or 0)
+        out        = int(ut.get("outputTokens", 0) or 0)
+        cost       = float(ut.get("totalCostUsd", 0.0) or 0.0)
+
+        phases = [e.get("phase", "") for e in events]
+        if "run-finished" in phases:
+            task_statuses = {str(t.get("status") or "") for t in tasks_dict.values() if t}
+            if "failed" in task_statuses:
+                state = "failed"
+            elif "blocked" in task_statuses:
+                state = "blocked"
+            else:
+                state = "completed"
+        elif "run-start" in phases:
+            state = "running"
+        else:
+            state = "unknown"
+
+        elapsed_str = ""
+        if events:
+            try:
+                t0 = _dt.datetime.fromisoformat(str(events[0].get("ts", "")))
+                fin = next((e for e in reversed(events) if e.get("phase") == "run-finished"), None)
+                t1 = _dt.datetime.fromisoformat(str(fin["ts"])) if fin else _dt.datetime.now(t0.tzinfo)
+                secs = int((t1 - t0).total_seconds())
+                elapsed_str = f"{secs//3600:02d}:{(secs%3600)//60:02d}:{secs%60:02d}"
+            except Exception:
+                pass
+
+        sc     = _status_color(state)
+        cost_s = f"${cost:.4f}" if cost else "—"
+        tok_s  = f"↓{_fmt_tok(inp)} ↑{_fmt_tok(out)}" if (inp or out) else "—"
+
+        running   = state == "running"
+        completed = state == "completed"
+        failed    = state == "failed"
+        paused    = state in {"paused", "suspended"}
+        blocked   = state in {"blocked", "hitl-pending", "pending-approval"}
+        unknown   = state in {"unknown", ""}
+        resumable = paused or (unknown and not running)
+
+        def _fill_header() -> None:
+            try:
+                self.query_one("#run-ref", Static).update(
+                    f"[dim]{run_id}[/]  ·  [dim]{plan_path[-50:]}[/]"
+                )
+                ws_line = ""
+                if ws_mode:
+                    ws_line += f"  [dim]Mode:[/] [#00e5ff]{ws_mode}[/]"
+                if workspace_dir:
+                    ws_line += f"  [dim]Workspace:[/] [dim #a0ffa0]{workspace_dir[-60:]}[/]"
+                elif ws_mode == "repo":
+                    ws_line += "  [dim]Workspace:[/] [dim]live repo root[/]"
+                self.query_one("#run-status-line", Static).update(
+                    f"[{sc}]{state.upper()}[/]"
+                    f"  [dim]Cost:[/] [#ffaa00]{cost_s}[/]"
+                    f"  [dim]Tok:[/] [#00e5ff]{tok_s}[/]"
+                    + (f"  [dim]Time:[/] {elapsed_str}" if elapsed_str else "")
+                    + ws_line
+                )
+                self.query_one("#btn-resume",  Button).disabled = not resumable
+                self.query_one("#btn-retry",   Button).disabled = not (failed or completed)
+                self.query_one("#btn-promote", Button).disabled = not completed
+            except Exception:
+                pass
+
+        self.app.call_from_thread(_fill_header)
+
+        # Tasks table + store full data for result view
+        task_rows: list[tuple] = []
+        self._tasks_data = {}
+        for tid, t_data in tasks_dict.items():
+            t_data  = t_data or {}
+            self._tasks_data[tid[:20]] = t_data
+            title   = str(t_data.get("title") or tid)[:24]
+            status  = str(t_data.get("status") or "—")
+            t_ut    = t_data.get("usageTotals") or {}
+            t_cost  = float(t_data.get("costUsd") or t_ut.get("totalCostUsd") or 0.0)
+            t_inp   = int(t_ut.get("inputTokens",  0) or 0)
+            t_out   = int(t_ut.get("outputTokens", 0) or 0)
+            t_sc    = _status_color(status)
+            c_s     = f"${t_cost:.4f}" if t_cost else "—"
+            k_s     = f"↓{_fmt_tok(t_inp)}↑{_fmt_tok(t_out)}" if (t_inp or t_out) else "—"
+            task_rows.append((tid[:20], title, status, t_sc, c_s, k_s))
+
+        def _fill_tasks() -> None:
+            tbl = self.query_one("#tasks-table", DataTable)
+            tbl.clear()
+            for (tid, title, status, t_sc, c_s, k_s) in task_rows:
+                try:
+                    from rich.text import Text as _T
+                    status_cell: Any = _T(status, style=t_sc)
+                except Exception:
+                    status_cell = status
+                tbl.add_row(tid, title, status_cell, c_s, k_s, key=tid)
+
+        self.app.call_from_thread(_fill_tasks)
+
+        # Results overview — per-task summary + click hint
+        self._log_ev("[dim #2a5a3a]Click a task row to see full result details.[/]")
+        self._log_ev("")
+        for tid, t_data in tasks_dict.items():
+            t_data  = t_data or {}
+            status  = str(t_data.get("status") or "—")
+            sc      = _status_color(status)
+            title   = str(t_data.get("title") or tid)[:40]
+            summary = str(t_data.get("summary") or "").strip()
+            files   = list(t_data.get("actual_files_touched") or t_data.get("files_touched") or [])
+            icon    = "✓" if status == "completed" else ("✗" if status in {"failed", "error"} else "▸")
+            self._log_ev(f"[{sc}]{icon} {tid[:20]}[/]  [dim]{title}[/]")
+            if summary:
+                for line in summary.splitlines()[:3]:
+                    self._log_ev(f"   [dim]{line}[/]")
+            if files:
+                self._log_ev(f"   [#a0ffa0]{len(files)} file(s):[/] [dim]{', '.join(f.split('/')[-1] for f in files[:4])}{'…' if len(files) > 4 else ''}[/]")
+            self._log_ev("")
+        if not tasks_dict:
+            self._log_ev("[dim #2a5a3a]No task data in manifest.[/]")
+
+    def _load_from_handler(self) -> None:
+        handlers = getattr(self.app, "_handlers", {})
+        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        if parse_args_fn is None:
+            self._log_ev("[#ff2244]No parse_args_fn.[/]")
+            return
+        try:
+            args = parse_args_fn(["status", self._run_ref, "--json"])
+            payload = handlers.get("status", lambda a: {})(args) or {}
+        except Exception as exc:
+            self._log_ev(f"[#ff2244]Status error: {exc}[/]")
+            return
+        self._log_ev("[bold #00e5ff]═══ RUN STATUS ═══[/]")
+        for k in ("runId", "planName", "status", "lifecycleState", "startedAt", "finishedAt"):
+            v = payload.get(k)
+            if v is not None:
+                self._log_ev(f"  [#00e5ff]{k}:[/] {v}")
+
+    def _load_diff(self) -> None:
+        import io as _io, sys as _sys
+        from pojo_lens_agents._tui_diff import (
+            _parse_unified_diff, _render_diff_lines, _file_change_stats,
+            _D_ADDED_FG, _D_REMOVED_FG,
+        )
+        handlers      = getattr(self.app, "_handlers", {})
+        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        if "diff-run" not in handlers or parse_args_fn is None:
+            self.app.call_from_thread(
+                lambda: self.query_one("#diff-log", RichLog).write(
+                    "[dim #2a5a3a]diff-run handler not registered[/]"
+                )
+            )
+            return
+        try:
+            args    = parse_args_fn(["diff-run", self._run_ref, "--json"])
+            buf     = _io.StringIO()
+            old_out = _sys.stdout
+            _sys.stdout = buf  # type: ignore[assignment]
+            try:
+                diff_payload = handlers["diff-run"](args) or {}
+            except Exception as exc:
+                diff_payload = {}
+                self._log_diff(f"[#ff2244]diff-run: {exc}[/]")
+            finally:
+                _sys.stdout = old_out
+                captured = buf.getvalue().strip()
+
+            raw_diff = captured or str(
+                diff_payload.get("diff") or diff_payload.get("unifiedDiff") or ""
+            )
+            file_diffs: dict[str, list[str]] = {}
+            if raw_diff:
+                file_diffs = _parse_unified_diff(raw_diff)
+            for fe in (diff_payload.get("changedFiles") or diff_payload.get("files") or []):
+                fname = str(fe.get("path") or fe.get("file") or "")
+                fdiff = str(fe.get("diff") or fe.get("unifiedDiff") or "")
+                if fname and fdiff and fname not in file_diffs:
+                    file_diffs[fname] = fdiff.splitlines()
+
+            self._file_diffs = file_diffs
+            rows: list[tuple[str, int, int]] = [
+                (fname, *_file_change_stats(flines))  # type: ignore[misc]
+                for fname, flines in file_diffs.items()
+            ]
+
+            def _fill_diff(r: list = rows) -> None:
+                tbl = self.query_one("#diff-file-list", DataTable)
+                tbl.clear()
+                for fname, ins, dels in r:
+                    tbl.add_row(
+                        fname[-28:],
+                        f"[{_D_ADDED_FG}]+{ins}[/]",
+                        f"[{_D_REMOVED_FG}]-{dels}[/]",
+                        key=fname,
+                    )
+                try:
+                    self.query_one("#diff-header", Static).update(
+                        f"[bold #00e5ff][ DIFF ][/]  [dim]{len(r)} file(s) — click to view · [A] all[/]"
+                        if r else "[dim #2a5a3a][ DIFF ]  no workspace changes[/]"
+                    )
+                except Exception:
+                    pass
+                if r:
+                    self._render_file_diff(r[0][0])
+
+            self.app.call_from_thread(_fill_diff)
+
+            if not file_diffs and raw_diff:
+                self._log_diff("[bold #00e5ff]═══ WORKSPACE DIFF ═══[/]")
+                for line in _render_diff_lines(raw_diff.splitlines()):
+                    self._log_diff(line)
+
+            if not file_diffs and not raw_diff:
+                from pojo_lens_agents._tui_diff import _explain_empty_diff
+                self._log_diff(_explain_empty_diff(self._run_ref, diff_payload))
+
+        except Exception as exc:
+            self._log_diff(f"[#ff2244]diff load: {exc}[/]")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-back":
+        if event.button.id == "btn-resume":
+            self.action_resume_run()
+        elif event.button.id == "btn-retry":
+            self.action_retry_run()
+        elif event.button.id == "btn-promote":
+            self.action_promote_run()
+        elif event.button.id == "btn-back":
             self.action_go_back()
 
     def action_go_back(self) -> None:
         self.dismiss(None)
 
+    def action_resume_run(self) -> None:
+        self.app.push_screen(ResumeRetryScreen(self._run_ref, mode="resume"))  # type: ignore[attr-defined]
+
+    def action_retry_run(self) -> None:
+        self.app.push_screen(ResumeRetryScreen(self._run_ref, mode="retry"))  # type: ignore[attr-defined]
+
+    def action_promote_run(self) -> None:
+        from pojo_lens_agents._tui_diff import DiffReviewScreen
+        self.app.push_screen(DiffReviewScreen(self._run_ref))  # type: ignore[attr-defined]
+
     def _log(self, text: str) -> None:
-        self.app.call_from_thread(lambda: self.query_one("#detail-log", RichLog).write(text))
-
-    def _load_details(self) -> None:
-        handlers      = getattr(self.app, "_handlers", {})
-        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
-        if parse_args_fn is None:
-            self._log("[#ff2244]No parse_args_fn on app.[/]")
-            return
-
-        try:
-            args    = parse_args_fn(["status", self._run_ref, "--json"])
-            payload = handlers.get("status", lambda a: {})(args)
-        except Exception as exc:
-            self._log(f"[#ff2244]Status error: {exc}[/]")
-            return
-
-        if not payload:
-            self._log("[dim]No status payload returned.[/]")
-            return
-
-        self._log("[bold #00e5ff]═══ RUN STATUS ═══[/]")
-        for key in ("runId", "planName", "status", "lifecycleState", "startedAt", "finishedAt"):
-            val = payload.get(key)
-            if val is not None:
-                label = key.replace("_", " ")
-                self._log(f"  [#00e5ff]{label}:[/] {val}")
-
-        tasks = list(payload.get("tasks") or [])
-        if tasks:
-            self._log("")
-            self._log("[bold #00e5ff]═══ Tasks ═══[/]")
-            for t in tasks:
-                tid    = str(t.get("taskId") or t.get("id") or "?")
-                status = str(t.get("status") or "?")
-                cost   = t.get("costUsd") or t.get("cost_usd")
-                sc     = _status_color(status)
-                cost_s = f"  [#00e5ff]${cost:.5f}[/]" if isinstance(cost, float) else ""
-                self._log(f"  [{sc}]▸ {tid}: {status}[/{sc}]{cost_s}")
-
-        budget = payload.get("totalCostUsd") or payload.get("total_cost_usd")
-        if budget is not None:
-            self._log("")
-            self._log(f"[bold #00e5ff]Total cost:[/] [#ffaa00]${budget:.5f}[/]")
-
-        # Token breakdown — try payload first, then read manifest directly
-        inp = out = 0
-        ut = payload.get("usageTotals") or {}
-        inp = int(ut.get("inputTokens",  0) or 0)
-        out = int(ut.get("outputTokens", 0) or 0)
-        if not (inp or out):
-            try:
-                run_path = Path(self._run_ref)
-                mp = (run_path if run_path.is_dir() else run_path.parent) / "manifest.json"
-                if mp.exists():
-                    mdata = json.loads(mp.read_text(encoding="utf-8"))
-                    ut2 = mdata.get("usageTotals") or {}
-                    inp = int(ut2.get("inputTokens",  0) or 0)
-                    out = int(ut2.get("outputTokens", 0) or 0)
-            except Exception:
-                pass
-        if inp or out:
-            self._log("")
-            self._log(
-                f"[bold #00e5ff]Tokens :[/]"
-                f" [#00e5ff]↓{_fmt_tok(inp)}[/] in"
-                f"  [#a0ffa0]↑{_fmt_tok(out)}[/] out"
-            )
-
-        self._log("")
-        self._log("[dim #2a5a3a][ trace ] run detail complete[/]")
+        self._log_ev(text)
 
 
 # ── ResumeRetryScreen ──────────────────────────────────────────────────────────
@@ -468,14 +837,14 @@ class ResumeRetryScreen(Screen):  # type: ignore[type-arg,misc]
         elif self._mode == "retry":
             cmd = ["retry", self._run_ref, "--runtime-root", runtime_root,
                    "--agents", agents, "--provider-bin", claude_bin, "--json"]
-        else:
-            cmd = ["resume", self._run_ref, "--runtime-root", runtime_root,
+        else:  # resume — no --runtime-root flag on this subcommand
+            cmd = ["resume", self._run_ref,
                    "--agents", agents, "--provider-bin", claude_bin, "--json"]
 
         self._set_status("building args...")
         try:
             args = parse_args_fn(cmd)
-        except Exception as exc:
+        except (Exception, SystemExit) as exc:
             self._log(f"[#ff2244]Arg error: {exc}[/]")
             return
 

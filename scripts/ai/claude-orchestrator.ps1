@@ -28,6 +28,17 @@ if (-not $python) {
 }
 
 $scriptPath = Join-Path $PSScriptRoot "claude-orchestrator.py"
+
+# Load .env from repo root if present
+$envFile = Join-Path (Join-Path $PSScriptRoot "..\..") ".env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -and -not $line.StartsWith("#") -and $line -match "^([^=]+)=(.*)$") {
+            [System.Environment]::SetEnvironmentVariable($Matches[1].Trim(), $Matches[2].Trim(), "Process")
+        }
+    }
+}
 $pythonArgs = @()
 if ($python.Length -gt 1) {
     $pythonArgs = @($python[1..($python.Length - 1)])

@@ -42,38 +42,102 @@ Footer {
 .accent {
     color: $cyan;
 }
+/* ── Global button styles — neon when enabled, dark when disabled ─────── */
 Button {
     margin: 0 1;
     background: $bg_panel;
     color: $green;
-    border: solid $green 50%;
+    border: tall $green 50%;
     min-width: 12;
 }
-Button:hover {
-    background: $green_dim;
-    color: $green;
+Button:hover   { background: $green_dim; color: $green; }
+Button:disabled {
+    background: $bg_panel;
+    color: #0d200d;
+    border: tall #0d200d;
 }
+
 Button.-primary {
-    background: $green_dim;
+    background: #001a08;
     color: $green;
-    border: heavy $green 80%;
+    border: tall $green;
 }
-Button.-primary:hover {
-    background: #1a6a3a;
+Button.-primary:hover    { background: #002a10; }
+Button.-primary:disabled {
+    background: $bg_panel;
+    color: #0d200d;
+    border: tall #0d200d;
 }
+
 Button.-warning {
+    background: #2a1400;
     color: $amber;
-    border: solid $amber 60%;
+    border: tall $amber;
 }
-Button.-warning:hover {
-    background: #2a1a00;
+Button.-warning:hover    { background: #3a1e00; }
+Button.-warning:disabled {
+    background: $bg_panel;
+    color: #1a0d00;
+    border: tall #1a0d00;
 }
+
 Button.-error {
+    background: #280008;
     color: $red;
-    border: solid $red 60%;
+    border: tall $red;
 }
-Button.-error:hover {
-    background: #2a0010;
+Button.-error:hover    { background: #380010; }
+Button.-error:disabled {
+    background: $bg_panel;
+    color: #180005;
+    border: tall #180005;
+}
+
+/* ── Semantic button IDs — consistent color across all screens ────────── */
+#btn-resume, #btn-ledger {
+    background: #001530;
+    color: $cyan;
+    border: tall $cyan;
+}
+#btn-resume:disabled {
+    background: $bg_panel;
+    color: #000e20;
+    border: tall #000e20;
+}
+
+#btn-retry {
+    background: #2a1400;
+    color: $amber;
+    border: tall $amber;
+}
+#btn-retry:disabled {
+    background: $bg_panel;
+    color: #1a0d00;
+    border: tall #1a0d00;
+}
+
+#btn-gate, #btn-abort {
+    background: #280008;
+    color: $red;
+    border: tall $red;
+}
+#btn-gate:disabled {
+    background: $bg_panel;
+    color: #180005;
+    border: tall #180005;
+}
+
+#btn-run-prev, #btn-run-next, #btn-prev, #btn-next {
+    background: #001530;
+    color: $cyan;
+    border: tall $cyan;
+    min-width: 4;
+}
+#btn-run-prev:disabled, #btn-run-next:disabled,
+#btn-prev:disabled,     #btn-next:disabled {
+    background: $bg_panel;
+    color: #000e20;
+    border: tall #000e20;
 }
 Input {
     background: $bg_input;
@@ -335,6 +399,40 @@ Rule {
     margin-top: 2;
 }
 
+/* ── RunConfigScreen ─────────────────────────────────────────────────────── */
+RunConfigScreen {
+    align: center middle;
+}
+RunConfigScreen #card {
+    width: 88;
+    height: 1fr;
+    max-height: 54;
+    border: heavy $green 30%;
+    background: $bg_panel;
+    padding: 2 3;
+}
+#provider-list { height: 6; margin-bottom: 0; }
+#prov-config-note { color: $text_dim; height: auto; }
+#prov-meta { color: $text_dim; height: auto; }
+#gov-title { color: $cyan; text-style: bold; margin-top: 1; }
+
+/* ── PromoteConfirmDialog ────────────────────────────────────────────────── */
+PromoteConfirmDialog {
+    align: center middle;
+    background: $bg 60%;
+}
+PromoteConfirmDialog #confirm-dialog {
+    width: 72;
+    height: auto;
+    border: heavy $green 30%;
+    background: $bg_panel;
+    padding: 2 3;
+}
+PromoteConfirmDialog #confirm-title { color: $cyan; text-style: bold; margin-bottom: 1; }
+PromoteConfirmDialog #confirm-ref   { color: $text_dim; margin-bottom: 1; }
+PromoteConfirmDialog #confirm-msg   { color: $amber; margin-bottom: 1; }
+PromoteConfirmDialog #btns          { height: auto; align: right middle; margin-top: 1; }
+
 /* ── PlanRunScreen ───────────────────────────────────────────────────────── */
 PlanRunScreen {
     background: $bg;
@@ -515,20 +613,20 @@ RunPlanScreen {
     padding: 0 1;
 }
 
-/* ── ValidatePlanScreen ──────────────────────────────────────────────────── */
-ValidatePlanScreen {
+/* ── ValidatePlanDialog (modal) ──────────────────────────────────────────── */
+ValidatePlanDialog {
     align: center middle;
     background: $bg 60%;
 }
-ValidatePlanScreen #card {
+ValidatePlanDialog #card {
     width: 76;
     height: auto;
     border: heavy $green 30%;
     background: $bg_panel;
     padding: 2 3;
 }
-ValidatePlanScreen #card-title { color: $cyan; text-style: bold; margin-bottom: 1; }
-ValidatePlanScreen #btns { height: auto; align: right middle; margin-top: 1; }
+ValidatePlanDialog #card-title { color: $cyan; text-style: bold; margin-bottom: 1; }
+ValidatePlanDialog #btns { height: auto; align: right middle; margin-top: 1; }
 
 /* ── ValidateRunScreen ───────────────────────────────────────────────────── */
 ValidateRunScreen {
@@ -577,20 +675,60 @@ RunLedgerScreen #action-bar {
     padding: 0 1;
 }
 
+
 /* ── RunDetailsScreen ────────────────────────────────────────────────────── */
 RunDetailsScreen {
     background: $bg;
 }
-#top-bar {
+RunDetailsScreen #top-bar {
     height: auto;
     background: $bg_panel;
     border-bottom: heavy $green 25%;
     padding: 1 2;
 }
-#run-title { color: $cyan; text-style: bold; }
-#run-ref   { color: $text_dim; }
-#detail-log { height: 1fr; }
-#action-bar {
+RunDetailsScreen #run-title      { color: $cyan; text-style: bold; }
+RunDetailsScreen #run-ref        { color: $text_dim; }
+RunDetailsScreen #run-status-line { color: $green; margin-top: 1; }
+RunDetailsScreen #detail-split {
+    height: 1fr;
+}
+RunDetailsScreen #detail-left {
+    width: 2fr;
+    border-right: solid $green 20%;
+}
+RunDetailsScreen #detail-right {
+    width: 3fr;
+}
+RunDetailsScreen #tasks-title {
+    color: $cyan;
+    text-style: bold;
+    background: $bg_panel;
+    padding: 0 1;
+}
+RunDetailsScreen #tasks-table {
+    height: auto;
+    max-height: 12;
+}
+RunDetailsScreen #events-title {
+    color: $cyan;
+    text-style: bold;
+    background: $bg_panel;
+    padding: 0 1;
+}
+RunDetailsScreen #events-log { height: 1fr; }
+RunDetailsScreen #diff-header {
+    color: $cyan;
+    text-style: bold;
+    background: $bg_panel;
+    padding: 0 1;
+}
+RunDetailsScreen #diff-file-list {
+    height: auto;
+    max-height: 10;
+    border-bottom: solid $green 20%;
+}
+RunDetailsScreen #diff-log { height: 1fr; }
+RunDetailsScreen #action-bar {
     height: 5;
     background: $bg_input;
     border-top: solid $green 25%;
@@ -735,8 +873,45 @@ SettingsScreen {
     padding: 1 2;
 }
 #set-title { color: $cyan; text-style: bold; }
-#set-hint  { color: $text_dim; }
-#set-log   { height: 1fr; }
+#set-path  { color: $text_dim; margin-top: 1; }
+#set-form  {
+    height: 1fr;
+    padding: 1 3;
+}
+SettingsScreen .set-section {
+    color: $cyan;
+    text-style: bold;
+    margin-top: 2;
+    margin-bottom: 1;
+}
+SettingsScreen .set-label {
+    color: $text_dim;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+#f-api-key-status {
+    color: $text_dim;
+    margin-bottom: 1;
+    padding-left: 1;
+}
+SettingsScreen Input {
+    width: 60;
+    background: $bg_input;
+    border: tall $green_dim;
+    color: $text;
+}
+SettingsScreen Input:focus {
+    border: tall $cyan;
+}
+SettingsScreen Select {
+    width: 60;
+    background: $bg_input;
+    border: tall $green_dim;
+    color: $text;
+}
+SettingsScreen Select:focus {
+    border: tall $cyan;
+}
 #action-bar {
     height: 5;
     background: $bg_input;
@@ -776,7 +951,7 @@ DiffReviewScreen { background: $bg; }
 
 /* ── AgentsScreen ────────────────────────────────────────────────────────── */
 AgentsScreen { background: $bg; }
-#top-bar {
+AgentsScreen #top-bar {
     height: auto;
     background: $bg_panel;
     border-bottom: heavy $green 25%;
@@ -784,20 +959,49 @@ AgentsScreen { background: $bg; }
 }
 #ag-title { color: $cyan; text-style: bold; }
 #ag-path  { color: $text_dim; }
-#split    { height: 1fr; layout: horizontal; }
-#ag-table { width: 42; border-right: heavy $green 20%; }
-#ag-detail { width: 1fr; }
-#action-bar {
+#ag-split {
+    height: 1fr;
+    layout: vertical;
+}
+#ag-table {
+    height: auto;
+    max-height: 14;
+    border-bottom: solid $green 20%;
+}
+#ag-pages {
+    height: 3;
+    background: $bg_input;
+    border-bottom: solid $green_dim;
+    align: left middle;
+    padding: 0 1;
+}
+#ag-page-label {
+    color: $cyan;
+    width: 1fr;
+    text-align: center;
+}
+#btn-ag-prev, #btn-ag-next {
+    min-width: 10;
+    background: $bg_panel;
+    color: $cyan;
+    border: solid $cyan 40%;
+}
+#btn-ag-prev:disabled, #btn-ag-next:disabled {
+    color: $text_dim;
+    border: solid $text_dim 20%;
+}
+#ag-detail { height: 1fr; }
+AgentsScreen #action-bar {
     height: 5;
     background: $bg_input;
     border-top: solid $green 25%;
-    align: right middle;
-    padding: 0 2;
+    align: left middle;
+    padding: 0 1;
 }
 
 /* ── SkillsScreen ────────────────────────────────────────────────────────── */
 SkillsScreen { background: $bg; }
-#top-bar {
+SkillsScreen #top-bar {
     height: auto;
     background: $bg_panel;
     border-bottom: heavy $green 25%;
@@ -805,15 +1009,79 @@ SkillsScreen { background: $bg; }
 }
 #sk-title { color: $cyan; text-style: bold; }
 #sk-path  { color: $text_dim; }
-#split    { height: 1fr; layout: horizontal; }
-#sk-table  { width: 36; border-right: heavy $green 20%; }
-#sk-detail { width: 1fr; }
-#action-bar {
+#sk-split {
+    height: 1fr;
+    layout: vertical;
+}
+#sk-table {
+    height: auto;
+    max-height: 14;
+    border-bottom: solid $green 20%;
+}
+#sk-pages {
+    height: 3;
+    background: $bg_input;
+    border-bottom: solid $green_dim;
+    align: left middle;
+    padding: 0 1;
+}
+#sk-page-label {
+    color: $cyan;
+    width: 1fr;
+    text-align: center;
+}
+#btn-sk-prev, #btn-sk-next {
+    min-width: 10;
+    background: $bg_panel;
+    color: $cyan;
+    border: solid $cyan 40%;
+}
+#btn-sk-prev:disabled, #btn-sk-next:disabled {
+    color: $text_dim;
+    border: solid $text_dim 20%;
+}
+#sk-detail { height: 1fr; }
+SkillsScreen #action-bar {
     height: 5;
     background: $bg_input;
     border-top: solid $green 25%;
-    align: right middle;
-    padding: 0 2;
+    align: left middle;
+    padding: 0 1;
+}
+
+/* ── AgentEditScreen / SkillEditScreen ───────────────────────────────────── */
+AgentEditScreen { background: $bg; }
+SkillEditScreen { background: $bg; }
+#ag-edit-title  { color: $cyan; text-style: bold; }
+#ag-edit-path   { color: $text_dim; }
+#sk-edit-title  { color: $cyan; text-style: bold; }
+#sk-edit-path   { color: $text_dim; }
+AgentEditScreen TextArea,
+SkillEditScreen TextArea {
+    height: 10;
+    border: tall $green_dim;
+    background: $bg_input;
+}
+AgentEditScreen TextArea:focus,
+SkillEditScreen TextArea:focus {
+    border: tall $cyan;
+}
+AgentEditScreen SelectionList,
+SkillEditScreen SelectionList {
+    height: 10;
+    border: tall $green_dim;
+    background: $bg_input;
+    color: $green_body;
+}
+AgentEditScreen SelectionList:focus,
+SkillEditScreen SelectionList:focus {
+    border: tall $cyan;
+}
+AgentEditScreen .set-label,
+SkillEditScreen .set-label {
+    color: $text_dim;
+    margin-top: 1;
+    margin-bottom: 0;
 }
 
 /* ── PlanInspectScreen ───────────────────────────────────────────────────── */
@@ -1033,26 +1301,50 @@ DashboardWidget {
     margin-top: 0;
 }
 
-#btn-dash-stop {
-    background: $bg_panel;
-    color: $red;
-    border: solid $red 60%;
+#btn-dash-open {
+    background: #001a08;
+    color: $green;
+    border: tall $green;
     min-width: 10;
 }
-#btn-dash-stop:disabled { color: $text_dim; border: solid $text_dim 30%; }
+#btn-dash-open:disabled {
+    background: $bg_panel;
+    color: #0d200d;
+    border: tall #0d200d;
+}
+
+#btn-dash-stop {
+    background: #2a1400;
+    color: $amber;
+    border: tall $amber;
+    min-width: 10;
+}
+#btn-dash-stop:disabled {
+    background: $bg_panel;
+    color: #1a0d00;
+    border: tall #1a0d00;
+}
 
 #btn-dash-pause {
-    background: $bg_panel;
-    color: $amber;
-    border: solid $amber 60%;
+    background: #001530;
+    color: $cyan;
+    border: tall $cyan;
     min-width: 10;
 }
-#btn-dash-pause:disabled { color: $text_dim; border: solid $text_dim 30%; }
+#btn-dash-pause:disabled {
+    background: $bg_panel;
+    color: #000e20;
+    border: tall #000e20;
+}
 
 #btn-dash-delete {
-    background: $bg_panel;
-    color: $text_dim;
-    border: solid $text_dim 40%;
+    background: #280008;
+    color: $red;
+    border: tall $red;
     min-width: 10;
 }
-#btn-dash-delete:disabled { color: $text_dim; border: solid $text_dim 20%; }
+#btn-dash-delete:disabled {
+    background: $bg_panel;
+    color: #180005;
+    border: tall #180005;
+}

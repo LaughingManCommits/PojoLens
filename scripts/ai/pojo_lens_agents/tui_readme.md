@@ -7,37 +7,37 @@ Built on Textual.  All screens share the Matrix cyberpunk theme (`_MTX_VARS`).
 
 ## Screen Inventory
 
-| # | Screen class          | File              | Type        | Entry point        |
-|---|-----------------------|-------------------|-------------|--------------------|
-| 1 | `HomeScreen`          | _tui_home         | Full        | App root           |
-| 2 | `GoalInputScreen`     | _tui_wizard       | Full        | Wizard step 1      |
-| 3 | `ClarificationScreen` | _tui_wizard       | Full        | Wizard step 1b     |
-| 4 | `EffortSelectScreen`  | _tui_wizard       | Full        | Wizard step 2      |
-| 5 | `WorkspaceModeScreen` | _tui_wizard       | Full        | Wizard step 3      |
-| 6 | `ProviderSelectScreen`| _tui_wizard       | Full        | Wizard step 4      |
-| 7 | `GovernanceScreen`    | _tui_wizard       | Full        | Wizard step 5      |
-| 8 | `PlanRunScreen`       | _tui_wizard_run   | Full        | Wizard step 6      |
-| 9 | `SavedPlansScreen`    | _tui_plans        | Full        | Home [S]           |
-|10 | `PlanDetailsScreen`   | _tui_plans        | Full        | SavedPlans / Runs  |
-|11 | `PlanEditorScreen`    | _tui_plans        | Full        | PlanDetails [E]    |
-|12 | `RunPlanScreen`       | _tui_validate     | Full        | PlanDetails [A]    |
-|13 | `ValidatePlanScreen`  | _tui_validate     | **Modal**   | Home [V]           |
-|14 | `ValidateRunScreen`   | _tui_validate     | Full        | ValidatePlan / PlanDetails [V] |
-|15 | `RunLedgerScreen`     | _tui_ledger       | Full        | Home [R/L/P]       |
-|16 | `RunDetailsScreen`    | _tui_ledger       | Full        | RunLedger [I]      |
-|17 | `ResumeRetryScreen`   | _tui_ledger       | Full        | RunLedger [R/Y]    |
-|18 | `HitlGateScreen`      | _tui_gate         | Full        | RunLedger [G] / auto-push |
-|19 | `DiffReviewScreen`    | _tui_diff         | Full        | RunLedger [P]      |
-|20 | `AgentsScreen`        | _tui_inspect      | Full        | Home [A]           |
-|21 | `SkillsScreen`        | _tui_inspect      | Full        | Home [K]           |
-|22 | `PlanInspectScreen`   | _tui_inspect      | Full        | PlanDetails [T/I/O/P/F] |
-|23 | `MemoryToolsScreen`   | _tui_tools        | Full        | Home [M]           |
-|24 | `SettingsScreen`      | _tui_tools        | Full        | Home [T]           |
-|25 | `EstimateScreen`      | _tui_estimate     | Full        | Home [D]           |
-|26 | `EstimateResultScreen`| _tui_estimate     | Full        | EstimateScreen     |
+| # | Screen class            | File              | Type        | Entry point        |
+|---|-------------------------|-------------------|-------------|--------------------|
+| 1 | `HomeScreen`            | _tui_home         | Full        | App root           |
+| 2 | `GoalInputScreen`       | _tui_wizard       | Full        | Wizard step 1      |
+| 3 | `ClarificationScreen`   | _tui_wizard       | Full        | Wizard step 1b     |
+| 4 | `EffortSelectScreen`    | _tui_wizard       | Full        | Wizard step 2      |
+| 5 | `WorkspaceModeScreen`   | _tui_wizard       | Full        | Wizard step 3      |
+| 6 | `RunConfigScreen`       | _tui_wizard       | Full        | Wizard step 4      |
+| 7 | `PlanRunScreen`         | _tui_wizard_run   | Full        | Wizard step 5      |
+| 8 | `SavedPlansScreen`      | _tui_plans        | Full        | Home [S]           |
+| 9 | `PlanDetailsScreen`     | _tui_plans        | Full        | SavedPlans / Runs  |
+|10 | `PlanEditorScreen`      | _tui_plans        | Full        | PlanDetails [E]    |
+|11 | `RunPlanScreen`         | _tui_validate     | Full        | PlanDetails [A]    |
+|12 | `ValidatePlanDialog`    | _tui_validate     | **Modal**   | Home [V]           |
+|13 | `ValidateRunScreen`     | _tui_validate     | Full        | ValidatePlan / PlanDetails [V] |
+|14 | `RunLedgerScreen`       | _tui_ledger       | Full        | Home [R/P]         |
+|15 | `RunDetailsScreen`      | _tui_ledger       | Full        | RunLedger [I]      |
+|16 | `ResumeRetryScreen`     | _tui_ledger       | Full        | RunLedger [R/Y]    |
+|17 | `HitlGateScreen`        | _tui_gate         | Full        | RunLedger [G] / auto-push |
+|18 | `DiffReviewScreen`      | _tui_diff         | Full        | RunLedger [P]      |
+|19 | `PromoteConfirmDialog`  | _tui_diff         | **Modal**   | DiffReview [P]     |
+|20 | `AgentsScreen`          | _tui_inspect      | Full        | Home [A]           |
+|21 | `SkillsScreen`          | _tui_inspect      | Full        | Home [K]           |
+|22 | `PlanInspectScreen`     | _tui_inspect      | Full        | PlanDetails [T/I/O/P/F] |
+|23 | `MemoryToolsScreen`     | _tui_tools        | Full        | Home [M]           |
+|24 | `SettingsScreen`        | _tui_tools        | Full        | Home [T]           |
+|25 | `EstimateScreen`        | _tui_estimate     | Full        | Home [D]           |
+|26 | `EstimateResultScreen`  | _tui_estimate     | Full        | EstimateScreen     |
 
-> **26 screens total** — 1 modal, 25 full-screen.  
-> Backward-compat aliases (`ExtraToolsScreen`, `ValidationIntentsScreen`, etc.) all resolve to `PlanInspectScreen`.
+> **26 screens total** — 2 modals, 24 full-screen.  
+> Backward-compat aliases: `ProviderSelectScreen`, `GovernanceScreen` (both → `RunConfigScreen`); `ValidatePlanScreen` (→ `ValidatePlanDialog`); `ExtraToolsScreen`, `ValidationIntentsScreen`, etc. (→ `PlanInspectScreen`).
 
 ---
 
@@ -50,8 +50,8 @@ Built on Textual.  All screens share the Matrix cyberpunk theme (`_MTX_VARS`).
                          │                                                  │
                          │  [N] New Plan       [S] Saved Plans              │
                          │  ─────────────────────────────────               │
-                         │  [R] Runs           [L] Ledger                   │
-                         │  [V] Validate       [D] Dry Run / Estimate       │
+                         │  [R] Runs           [V] Validate                 │
+                         │  [D] Dry Run / Estimate                          │
                          │  [P] Promote                                      │
                          │  ─────────────────────────────────               │
                          │  [A] Agents         [K] Skills                   │
@@ -62,17 +62,17 @@ Built on Textual.  All screens share the Matrix cyberpunk theme (`_MTX_VARS`).
                                             │
           ┌─────────────────────────────────┼──────────────────────────────┐
           │                                 │                              │
-          ▼         ▼         ▼         ▼   ▼   ▼        ▼        ▼       ▼
-       Wizard    Saved     Runs/      Valid  Est   Agents  Skills  Memory  Settings
-        Flow     Plans    Ledger     Flow  Flow   Screen  Screen   Tools
-       [N]       [S]      [R/L/P]    [V]   [D]    [A]     [K]      [M]     [T]
+          ▼         ▼         ▼      ▼     ▼      ▼        ▼        ▼       ▼
+       Wizard    Saved    Runs/   Valid   Est   Agents  Skills  Memory  Settings
+        Flow     Plans   Ledger   Flow  Flow   Screen  Screen   Tools
+       [N]       [S]     [R/P]    [V]   [D]    [A]     [K]      [M]     [T]
 ```
 
 ---
 
 ## Flow 1 — Wizard (New Plan)
 
-Longest path in the TUI.  6 sequential steps, each can abort back to Home.
+5 sequential steps, each can abort back to Home.
 
 ```
 Home [N]
@@ -103,20 +103,19 @@ Home [N]
 └──────────────┬───────────┘
                │ ws_mode
                ▼
-┌────────────────────────────┐
-│  ProviderSelectScreen      │  anthropic-sdk / subprocess / custom
-│  (step 4)                  │  Lists registered providers from registry
-└────────────────┬───────────┘
-                 │ provider
-                 ▼
-┌────────────────────────────┐
-│  GovernanceScreen          │  HITL mode, max_parallel, budget,
-│  (step 5)                  │  budget_behavior, follow_up policy
-└────────────────┬───────────┘
-                 │ governance dict
-                 ▼
+┌────────────────────────────────────────────────────┐
+│  RunConfigScreen (step 4)                          │
+│  ── Provider ──────────────────────────────────    │
+│  anthropic-sdk / subprocess / custom               │
+│  Lists registered providers; CONFIG DEFAULT = skip  │
+│  ── Governance ────────────────────────────────    │
+│  HITL mode, max_parallel, budget,                  │
+│  budget_behavior, follow_up policy                 │
+└──────────────────────────┬─────────────────────────┘
+                           │ {provider, hitl, budget, ...}
+                           ▼
 ┌────────────────────────────────────────────────┐
-│  PlanRunScreen (step 6)                        │
+│  PlanRunScreen (step 5)                        │
 │  • Calls wizard handler (generates plan)       │
 │  • Runs plan execution inline                  │
 │  • Streams progress to RichLog                 │
@@ -125,7 +124,7 @@ Home [N]
 ```
 
 **Abort points:** every screen returns `None` or empty to cancel the wizard.  
-**Depth:** 7 screens pushed, 7 pops on Home.
+**Depth:** 6 screens pushed, 6 pops on Home.
 
 ---
 
@@ -233,7 +232,7 @@ Home [V]
   │
   ▼  (modal overlay)
 ┌──────────────────────────────────────┐
-│  ValidatePlanScreen  ← ModalScreen   │
+│  ValidatePlanDialog  ← ModalScreen   │
 │                                      │
 │  [ VALIDATE ]  Enter plan file path  │
 │  [ai/orchestrator/tasks/my-plan.json]│
@@ -260,15 +259,15 @@ Also reachable from `PlanDetailsScreen [V]` (skips the modal, path already known
 
 ## Flow 6 — Run Ledger
 
-`RunLedgerScreen` reused across 3 Home entry points with different labels.
+`RunLedgerScreen` has two Home entry points.  `[L]` is now an internal tab
+that switches the screen title between "RUNS" and "LEDGER" views.
 
 ```
 Home [R] ──► RunLedgerScreen(mode="runs")
-Home [L] ──► RunLedgerScreen(mode="ledger")
 Home [P] ──► RunLedgerScreen(mode="promote")
 
   ┌──────────────────────────────────────────────────────────────────────┐
-  │  [ LEDGER ]  Run ledger summary                                      │
+  │  [ RUNS ]  Retained run history                                      │
   │                                                                      │
   │  Run ID          Plan        Status      Tasks  Cost   Tokens         │
   │  ──────────────────────────────────────────────────────────────────  │
@@ -276,7 +275,7 @@ Home [P] ──► RunLedgerScreen(mode="promote")
   │  20260504T11...  docs-proof  completed   2/2    $0.012 ↓48K ↑3.2K   │
   │  ...                                                                  │
   │                                                                      │
-  │  [INSPECT] [RESUME] [RETRY] [PROMOTE] [GATE [G]] [BACK]             │
+  │  [INSPECT] [RESUME] [RETRY] [PROMOTE] [GATE [G]] [LEDGER [L]] [BACK]│
   └────────┬──────────┬──────────┬──────────┬──────────┬────────────────┘
            │          │          │          │          │
          [I]        [R]        [Y]        [P]        [G]
@@ -284,6 +283,8 @@ Home [P] ──► RunLedgerScreen(mode="promote")
            ▼          ▼          ▼          ▼          ▼
       RunDetails  ResumeRetry  ResumeRetry  DiffReview  HitlGate
       Screen      mode=resume  mode=retry   Screen      Screen
+
+  [L] — switches title to "[ LEDGER ]  Run ledger summary" (same data, cosmetic tab)
 ```
 
 **Duration** and **Tokens** columns are populated from manifest scan when inventory handler unavailable (fallback path).
@@ -307,12 +308,13 @@ RunLedger [P] ──► DiffReviewScreen
   │
   │  [PROMOTE] [ALL FILES] [EXPORT PATCH] [COORD VALIDATE] [BACK]
   │
-  └─[PROMOTE] ──► ResumeRetryScreen(mode="promote")
+  └─[PROMOTE] ──► PromoteConfirmDialog  ← ModalScreen
                     │
-                    │  [ PROMOTE ]  confirm to proceed
-                    │  [CONFIRM PROMOTE]  [BACK]
+                    │  [ PROMOTE ]  Apply workspace changes to the repo?
+                    │  [Y] CONFIRM PROMOTE    [N] CANCEL
                     │
-                    └──► promote handler ──► result displayed
+                    └─[Y]──► _do_promote worker (inline, logs to diff-log)
+                             ──► promote handler ──► result in diff-log
 ```
 
 ---
@@ -442,15 +444,14 @@ Home [T] ──► SettingsScreen
 │  [S]  SAVED PLANS      Browse saved    │  │ ────────────────────────────── │ │
 │  ──────────────────────────────────── │  │ Run  : 20260504T11...          │ │
 │  [R]  RUNS             Run history     │  │ State: COMPLETED               │ │
-│  [L]  LEDGER           Cost summary    │  │ Tasks: ████████████░░░░░░░░    │ │
-│  [V]  VALIDATE         Validate plan   │  │        4/4                     │ │
-│  [D]  DRY RUN          Cost estimate   │  │ Cost : $0.023                  │ │
-│  [P]  PROMOTE          Review diffs    │  │ Tokens: ↓96K in  ↑6.5K out    │ │
-│  ──────────────────────────────────── │  │ Time : 00:02:41                │ │
-│  [A]  AGENTS           Agent defs      │  │ ────────────────────────────── │ │
-│  [K]  SKILLS           Skill registry  │  │ [ RECENT ACTIVITY ]            │ │
-│  [M]  MEMORY TOOLS     AI memory       │  │ 11:01:23  ✓ task-1 completed   │ │
-│  [T]  SETTINGS         Config          │  │ 11:02:41  ▸ BATCH              │ │
+│  [V]  VALIDATE         Validate plan   │  │ Tasks: ████████████░░░░░░░░    │ │
+│  [D]  DRY RUN          Cost estimate   │  │        4/4                     │ │
+│  [P]  PROMOTE          Review diffs    │  │ Cost : $0.023                  │ │
+│  ──────────────────────────────────── │  │ Tokens: ↓96K in  ↑6.5K out    │ │
+│  [A]  AGENTS           Agent defs      │  │ Time : 00:02:41                │ │
+│  [K]  SKILLS           Skill registry  │  │ ────────────────────────────── │ │
+│  [M]  MEMORY TOOLS     AI memory       │  │ [ RECENT ACTIVITY ]            │ │
+│  [T]  SETTINGS         Config          │  │ 11:01:23  ✓ task-1 completed   │ │
 │  ──────────────────────────────────── │  │ 11:03:12  RUN COMPLETED        │ │
 │  [Q]  QUIT             Exit            │  │ [STOP] [PAUSE] [DELETE]        │ │
 │                                        │  └────────────────────────────────┘ │
@@ -470,11 +471,11 @@ Home [T] ──► SettingsScreen
                                └────┬────┘
          ┌──────┬──────┬──────┬─────┼──────┬──────┬──────┬──────┐
          │      │      │      │     │      │      │      │      │
-        [N]    [S]  [R/L/P]  [V]   [D]   [A]   [K]   [M]   [T]
+        [N]    [S]   [R/P]  [V]   [D]   [A]   [K]   [M]   [T]
          │      │      │      │     │      │      │      │      │
          ▼      ▼      ▼      ▼     ▼      ▼      ▼      ▼      ▼
-       Goal  Saved  Ledger  Valid  Est.  Agents Skills Memory  Settings
-       Input Plans  Screen  Modal  Screen Screen Screen Tools  Screen
+       Goal  Saved  Runs/  Valid  Est.  Agents Skills Memory  Settings
+       Input Plans  Ledger Modal  Screen Screen Screen Tools  Screen
          │      │      │      │     │
          ▼      │      │      ▼     ▼
        Clarif  │      │   ValidRun  EstResult
@@ -482,17 +483,15 @@ Home [T] ──► SettingsScreen
          ▼      │      ├──[I]──► RunDetails
        Effort   │      ├──[R]──► ResumeRetry (resume)
          │      │      ├──[Y]──► ResumeRetry (retry)
-         ▼      │      ├──[P]──► DiffReview ──► ResumeRetry (promote)
-       WsMode   │      └──[G]──► HitlGate
-         │      │
+         ▼      │      ├──[P]──► DiffReview ──► PromoteConfirmDialog (modal)
+       WsMode   │      ├──[L]──► (tab: title → LEDGER view, same data)
+         │      │      └──[G]──► HitlGate
          ▼      │
-       Provider │
-         │      │
-         ▼      │         ┌──[A]──► RunPlanScreen
-       Govern   │         ├──[V]──► ValidateRunScreen
-         │      ▼         ├──[D]──► RunPlanScreen (dry)
-         ▼   PlanDetails ─┤──[E]──► PlanEditor
-       PlanRun (wizard)   ├──[S]──► (save copy, notify)
+      RunConfig │         ┌──[A]──► RunPlanScreen
+         │      ▼         ├──[V]──► ValidateRunScreen
+         ▼   PlanDetails ─┤──[D]──► RunPlanScreen (dry)
+       PlanRun (wizard)   ├──[E]──► PlanEditor
+                          ├──[S]──► (save copy, notify)
                           ├──[T]──► PlanInspect (tools)
                           ├──[I]──► PlanInspect (intents)
                           ├──[O]──► PlanInspect (profiles)
@@ -509,37 +508,36 @@ Home [T] ──► SettingsScreen
 ```
 COMPLEXITY                          SEVERITY   NOTES
 ───────────────────────────────────────────────────────────────────────────────
-Wizard is 6 steps deep              MEDIUM     Steps 4 (Provider) and 5
-                                               (Governance) could merge into
-                                               one "Run Config" screen for
-                                               shorter flows
+Wizard steps merged                 RESOLVED   ProviderSelectScreen +
+(was 6 steps, now 5)                           GovernanceScreen merged into
+                                               RunConfigScreen (step 4/5).
+                                               Wizard depth: 6 screens.
 
-RunLedgerScreen has 3 modes         LOW        Same screen, different label
-(runs / ledger / promote)                      and hint text.  Works but
-                                               HOME has separate [R], [L], [P]
-                                               entries for what renders the same
-                                               screen — confusing to operators.
-                                               Consider one "Runs" screen with
-                                               a mode tab inside.
+[L] Ledger moved inside             RESOLVED   [L] Ledger removed from Home
+RunLedgerScreen                                menu. RunLedgerScreen now has
+                                               a [L] tab button + binding that
+                                               switches the title in-place.
+                                               [L] keybinding freed at Home.
+
+DiffReview promote inlined          RESOLVED   DiffReview [P] now opens
+                                               PromoteConfirmDialog (modal)
+                                               inline.  ResumeRetryScreen is
+                                               no longer used for promote.
+
+ValidatePlanScreen renamed          RESOLVED   Class is now ValidatePlanDialog.
+                                               ValidatePlanScreen kept as a
+                                               backward-compat alias.  CSS
+                                               selector updated accordingly.
 
 PlanRunScreen vs RunPlanScreen      MEDIUM     PlanRunScreen = wizard execution
 (naming confusion)                             RunPlanScreen = saved plan run
                                                Nearly identical purpose, different
-                                               constructors.  Merge candidate.
-
-DiffReview → ResumeRetry (promote)  LOW        Two hops for promote.  DiffReview
-                                               could inline the confirm dialog
-                                               as a modal rather than pushing a
-                                               full screen.
+                                               constructors.  Merge candidate
+                                               for a future pass.
 
 SavedPlans → PlanDetails →          LOW        3 levels deep before execution.
 PlanInspect                                    Deep but each level adds value.
                                                Acceptable.
-
-ValidatePlanScreen is modal but     LOW        Named inconsistently with the
-ValidateRunScreen is full-screen               "Screen" suffix. Modal screens
-                                               conventionally use "Dialog" or
-                                               "Modal" suffix.
 
 HitlGateScreen reachable only       LOW        Auto-push works during live runs.
 from [G] in ledger or auto-push                Operator-triggered path added
@@ -549,44 +547,11 @@ PlanInspectScreen replaces 5        RESOLVED   Was 5 separate screens.  Now one
 individual inspect screens                     tabbed screen with backward-compat
                                                aliases.  Correct direction.
 
-ProviderSelectScreen never          INFO       Provider dropdown populated from
-dismisses None (always returns                 registry.  If registry empty the
-a value)                                       screen still returns something.
-                                               Not a bug, just worth noting.
+ProviderSelectScreen/               INFO       Both kept as backward-compat
+GovernanceScreen kept as aliases               aliases pointing to RunConfigScreen.
+                                               Not a bug; useful for any code
+                                               that already imports these names.
 ───────────────────────────────────────────────────────────────────────────────
-```
-
-### Suggested simplifications (non-urgent)
-
-```
-1. MERGE ProviderSelectScreen into GovernanceScreen
-   ─────────────────────────────────────────────────
-   Wizard step 4 (provider) feeds directly into step 5 (governance).
-   Both are config choices.  Combining them saves one push/pop cycle
-   and makes the wizard 5 steps instead of 6.
-
-   BEFORE:  ...WorkspaceMode → ProviderSelect → Governance → PlanRun
-   AFTER:   ...WorkspaceMode → RunConfigScreen → PlanRun
-
-2. MERGE [R] / [L] into one Runs screen with internal tabs
-   ──────────────────────────────────────────────────────────
-   Home currently has both [R] Runs and [L] Ledger pointing to the
-   same RunLedgerScreen with different mode labels.  Consolidate to
-   a single [R] entry with a tab bar inside the screen.
-
-   Frees up [L] keybinding for something else (e.g. live run log).
-
-3. INLINE promote confirm in DiffReviewScreen
-   ─────────────────────────────────────────────
-   DiffReview [PROMOTE] currently pushes ResumeRetryScreen(mode=promote)
-   which requires a second CONFIRM press.  A small ModalScreen confirm
-   dialog ("Promote this run? [Y/N]") achieves the same safety with
-   one fewer full-screen push.
-
-4. RENAME ValidatePlanScreen → ValidatePlanDialog (or ModalScreen suffix)
-   ────────────────────────────────────────────────────────────────────────
-   It is a ModalScreen.  Naming it "Screen" is misleading.  Low priority
-   but helps future developers understand the type immediately.
 ```
 
 ---
@@ -596,9 +561,9 @@ a value)                                       screen still returns something.
 ```
 HOME
   [N] New Plan        [S] Saved Plans     [R] Runs
-  [L] Ledger          [V] Validate        [D] Dry Run
-  [P] Promote         [A] Agents          [K] Skills
-  [M] Memory Tools    [T] Settings        [Q] Quit
+  [V] Validate        [D] Dry Run         [P] Promote
+  [A] Agents          [K] Skills          [M] Memory Tools
+  [T] Settings        [Q] Quit
   [↑↓] Navigate menu  [Enter] Activate
 
 WIZARD (each step)
@@ -620,10 +585,13 @@ PLAN INSPECT
 
 RUN LEDGER
   [I] Inspect   [R] Resume   [Y] Retry   [P] Promote
-  [G] HITL Gate              [Esc] Back
+  [G] HITL Gate [L] Ledger tab           [Esc] Back
 
 DIFF REVIEW
-  [P] Promote   [Esc] Back
+  [P] Promote (→ modal confirm)   [E] Export Patch   [C] Coord. Val.   [Esc] Back
+
+PROMOTE CONFIRM DIALOG
+  [Y] Confirm   [N] Cancel   [Esc] Cancel
 
 RUN PLAN / PLAN RUN
   [H] Home / Dashboard   [Esc] Back
@@ -643,13 +611,15 @@ MEMORY TOOLS
 _tui_home.py         HomeScreen
 _tui_wizard.py       GoalInputScreen, ClarificationScreen,
                      EffortSelectScreen, WorkspaceModeScreen,
-                     ProviderSelectScreen, GovernanceScreen
+                     RunConfigScreen
+                     (+ legacy aliases: ProviderSelectScreen, GovernanceScreen)
 _tui_wizard_run.py   PlanRunScreen
 _tui_plans.py        SavedPlansScreen, PlanDetailsScreen, PlanEditorScreen
-_tui_validate.py     ValidatePlanScreen (modal), ValidateRunScreen, RunPlanScreen
+_tui_validate.py     ValidatePlanDialog (modal), ValidateRunScreen, RunPlanScreen
+                     (+ alias: ValidatePlanScreen → ValidatePlanDialog)
 _tui_ledger.py       RunLedgerScreen, RunDetailsScreen, ResumeRetryScreen
 _tui_gate.py         HitlGateScreen
-_tui_diff.py         DiffReviewScreen
+_tui_diff.py         DiffReviewScreen, PromoteConfirmDialog (modal)
 _tui_inspect.py      AgentsScreen, SkillsScreen, PlanInspectScreen
                      (+ aliases: ExtraToolsScreen, ValidationIntentsScreen,
                       OutputProfilesScreen, PromptAccountingScreen,

@@ -341,8 +341,8 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Button("VALIDATE",      id="btn-validate")
             yield Button("DRY RUN",       id="btn-dryrun")
             yield Button("SAVE COPY",     id="btn-save")
-            yield Button("TOOLS [T]",     id="btn-tools")
-            yield Button("FOLLOW-UP [F]", id="btn-followup")
+            yield Button("TOOLS",     id="btn-tools")
+            yield Button("FOLLOW-UP", id="btn-followup")
             yield Button("BACK",          id="btn-back")
         yield Footer()
 

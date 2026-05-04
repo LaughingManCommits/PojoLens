@@ -11,7 +11,7 @@ try:
     from textual.binding import Binding
     from textual.containers import Container, Horizontal
     from textual.reactive import reactive
-    from textual.screen import Screen
+    from textual.screen import ModalScreen, Screen
     from textual.widgets import Button, DataTable, Footer, Header, RichLog, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
@@ -24,6 +24,47 @@ try:
 except ImportError:  # pragma: no cover
     def _rich_escape(s: str) -> str:  # type: ignore[misc]
         return s.replace("[", "\\[")
+
+from pojo_lens_agents._tui_helpers import _status_color
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _explain_empty_diff(run_ref: str, payload: dict) -> str:
+    """Return a Rich-markup explanation for why the diff is empty."""
+    import json as _json
+    from pathlib import Path as _Path
+
+    # Check payload for unsupported file summaries
+    files = payload.get("changedFiles") or payload.get("files") or []
+    if files and all(f.get("status") == "unsupported" for f in files if f.get("status")):
+        reason = (files[0].get("reason") or "").strip()
+        return (
+            f"[#ffaa00]⚠  diff unavailable[/]  [dim]{reason}[/]\n"
+            "[dim #2a5a3a]Use 'copy' or 'worktree' workspace mode to enable diff review.[/]"
+        )
+
+    # Check manifest for workspace mode
+    try:
+        run_path = _Path(run_ref)
+        mp = (run_path if run_path.is_dir() else run_path.parent) / "manifest.json"
+        if mp.exists():
+            data = _json.loads(mp.read_text(encoding="utf-8"))
+            ws_mode = str(
+                data.get("workspaceMode") or data.get("workspace_mode") or
+                data.get("runConfig", {}).get("workspaceMode") or ""
+            ).lower()
+            if ws_mode == "repo":
+                return (
+                    "[#ffaa00]⚠  repo mode — no isolated baseline.[/]\n"
+                    "[dim #2a5a3a]Diff review requires 'copy' or 'worktree' workspace mode.[/]"
+                )
+            if ws_mode in ("copy", "worktree"):
+                return "[dim #2a5a3a]No workspace changes detected for this run.[/]"
+    except Exception:
+        pass
+
+    return "[dim #2a5a3a]No diff data returned — run may not have workspace changes.[/]"
 
 
 # ── Theme-matched diff colors ──────────────────────────────────────────────────
@@ -197,6 +238,46 @@ def _render_diff_lines(lines: list[str]) -> list[str]:
     return result
 
 
+# ── PromoteConfirmDialog ───────────────────────────────────────────────────────
+
+class PromoteConfirmDialog(ModalScreen):  # type: ignore[type-arg,misc]
+    """Inline confirm dialog for promote — replaces the full-screen ResumeRetryScreen."""
+
+    BINDINGS = [
+        Binding("y",      "confirm", "Yes",  show=True),
+        Binding("n",      "cancel",  "No",   show=True),
+        Binding("escape", "cancel",  "Back", show=True),
+    ]
+
+    def __init__(self, run_ref: str) -> None:
+        super().__init__()
+        self._run_ref = run_ref
+
+    def compose(self) -> ComposeResult:
+        with Container(id="confirm-dialog"):
+            yield Static("[ PROMOTE ]  Confirm promotion", id="confirm-title")
+            yield Static(self._run_ref, id="confirm-ref")
+            yield Static(
+                "Apply workspace changes to the repo?",
+                id="confirm-msg",
+            )
+            with Horizontal(id="btns"):
+                yield Button("CONFIRM PROMOTE", id="btn-yes", variant="primary")
+                yield Button("CANCEL",         id="btn-no")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-yes":
+            self.dismiss(True)
+        elif event.button.id == "btn-no":
+            self.dismiss(False)
+
+    def action_confirm(self) -> None:
+        self.dismiss(True)
+
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
+
 # ── DiffReviewScreen ──────────────────────────────────────────────────────────
 
 class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
@@ -231,7 +312,7 @@ class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
                           wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
             yield Button("PROMOTE",       id="btn-promote", variant="primary")
-            yield Button("ALL [A]",       id="btn-all")
+            yield Button("ALL",            id="btn-all")
             yield Button("EXPORT PATCH",  id="btn-export")
             yield Button("COORD. VALID.", id="btn-coord")
             yield Button("BACK",          id="btn-back")
@@ -346,6 +427,7 @@ class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
         # ── diff output ────────────────────────────────────────────────────
         self._set_status("loading diff output...")
         if "diff-run" not in handlers:
+            self._log("[dim #2a5a3a]diff-run handler not registered — no diff available[/]")
             self._set_status("[P] Promote  [E] Export  [C] Coord. Val.  [Esc] Back")
             return
 
@@ -429,6 +511,10 @@ class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
                 for rendered_line in _render_diff_lines(raw_diff.splitlines()):
                     self._log(rendered_line)
 
+            # Explain empty diff
+            if not file_diffs and not raw_diff:
+                self._log(_explain_empty_diff(self._run_ref, diff_payload))
+
         except Exception as exc:
             self._log(f"[#ff2244]diff-run: {exc}[/]")
 
@@ -436,9 +522,60 @@ class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
 
     # ── promote / export / coord-validate ─────────────────────────────────────
 
-    def action_promote_run(self) -> None:
-        from pojo_lens_agents._tui_ledger import ResumeRetryScreen
-        self.app.push_screen(ResumeRetryScreen(self._run_ref, mode="promote"))  # type: ignore[attr-defined]
+    async def action_promote_run(self) -> None:
+        confirmed = await self.app.push_screen_wait(  # type: ignore[attr-defined]
+            PromoteConfirmDialog(self._run_ref)
+        )
+        if confirmed:
+            self._set_status("[ SIGNAL ] promote in progress...")
+            self.run_worker(self._do_promote, thread=True, name="promote-op")
+
+    def _do_promote(self) -> None:
+        import io as _io
+        handlers      = getattr(self.app, "_handlers", {})
+        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        if parse_args_fn is None:
+            self._log("[#ff2244]No parse_args_fn on app.[/]")
+            return
+        agents     = str(getattr(self.app, "_agents",     "ai/orchestrator/agents.json"))
+        claude_bin = str(getattr(self.app, "_claude_bin", "claude"))
+        cmd = ["promote", self._run_ref, "--agents", agents, "--provider-bin", claude_bin, "--json"]
+        try:
+            args = parse_args_fn(cmd)
+        except (Exception, SystemExit) as exc:
+            self._log(f"[#ff2244]Arg error: {exc}[/]")
+            return
+        handler = handlers.get("promote")
+        if handler is None:
+            self._log("[#ff2244]Handler 'promote' not available.[/]")
+            return
+        self._log("[#00e5ff][ TRACE ] promote dispatched[/]")
+        buf = _io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = buf  # type: ignore[assignment]
+        try:
+            payload = handler(args)
+        except Exception as exc:
+            payload = {}
+            self._log(f"[#ff2244]promote error: {exc}[/]")
+        finally:
+            sys.stdout = old_stdout
+            captured = buf.getvalue().strip()
+        if captured:
+            for line in captured.splitlines():
+                self._log(line)
+        if payload:
+            self._log("")
+            self._log("[bold #00e5ff]═══ PROMOTE RESULT ═══[/]")
+            status = str(payload.get("status") or "")
+            if status:
+                sc = _status_color(status)
+                self._log(f"[bold {sc}]status: {status}[/]")
+            for k, v in sorted(payload.items()):
+                if k not in {"status", "_consoleText"} and v is not None:
+                    self._log(f"  {k}: {str(v)[:80]}")
+        self._set_status("[ EXIT ] promote complete")
+        self._log("[bold #00ff41]═══ PROMOTE COMPLETE ═══[/]")
 
     def action_export_patch(self) -> None:
         self.run_worker(self._do_export_patch, thread=True, name="export-patch")

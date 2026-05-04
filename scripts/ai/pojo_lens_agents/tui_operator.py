@@ -8,14 +8,15 @@ GoalInputScreen       — wizard step 1: enter goal
 ClarificationScreen   — wizard step 1b: goal clarification (WP76: AI pending, manual context now)
 EffortSelectScreen    — wizard step 2: effort / model profile
 WorkspaceModeScreen   — wizard step 3: workspace isolation strategy
-ProviderSelectScreen  — wizard step 4: LLM provider selection
-GovernanceScreen      — wizard step 5: governance / budget / HITL / follow-up
+RunConfigScreen       — wizard step 4 (merged): LLM provider + governance
+ProviderSelectScreen  — wizard step 4 (legacy): LLM provider selection
+GovernanceScreen      — wizard step 5 (legacy): governance / budget / HITL / follow-up
 PlanRunScreen         — wizard step 6: run generation + execution, show output
 SavedPlansScreen      — browse tracked ai/orchestrator/tasks/ + runtime saved-plans/
 PlanDetailsScreen     — inspect a plan file: task graph, agents, policy, actions
 PlanEditorScreen      — view plan JSON + open in $EDITOR
 RunPlanScreen         — execute a saved plan, stream output
-ValidatePlanScreen    — enter plan path for validation
+ValidatePlanDialog    — enter plan path for validation (modal; ValidatePlanScreen is alias)
 ValidateRunScreen     — run validation, display grouped results
 RunLedgerScreen       — list retained runs, inspect / resume / retry / cleanup
 RunDetailsScreen      — single retained-run summary
@@ -121,6 +122,7 @@ from pojo_lens_agents._tui_wizard import (  # noqa: F401
     WorkspaceModeScreen,
     ProviderSelectScreen,
     GovernanceScreen,
+    RunConfigScreen,
 )
 from pojo_lens_agents._tui_wizard_run import PlanRunScreen  # noqa: F401
 from pojo_lens_agents._tui_plans import (  # noqa: F401
@@ -130,6 +132,7 @@ from pojo_lens_agents._tui_plans import (  # noqa: F401
 )
 from pojo_lens_agents._tui_validate import (  # noqa: F401
     RunPlanScreen,
+    ValidatePlanDialog,
     ValidatePlanScreen,
     ValidateRunScreen,
 )
@@ -300,8 +303,7 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
             ClarificationScreen,
             EffortSelectScreen,
             WorkspaceModeScreen,
-            ProviderSelectScreen,
-            GovernanceScreen,
+            RunConfigScreen,
         )
         from pojo_lens_agents._tui_wizard_run import PlanRunScreen
 
@@ -319,15 +321,15 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         ws_mode = await self.push_screen_wait(WorkspaceModeScreen(goal, effort))
         if ws_mode is None:
             return
-        provider = await self.push_screen_wait(ProviderSelectScreen(goal, effort, ws_mode))
-        gov = await self.push_screen_wait(GovernanceScreen(goal, effort, ws_mode))
-        if gov is None:
+        config = await self.push_screen_wait(RunConfigScreen(goal, effort, ws_mode))
+        if config is None:
             return
-        hitl            = gov.get("hitl",            "batch")
-        max_parallel    = int(gov.get("max_parallel", 2))
-        budget          = gov.get("budget")
-        budget_behavior = gov.get("budget_behavior",  "warn")
-        follow_up       = gov.get("follow_up",        "ignore")
+        provider        = config.get("provider")
+        hitl            = config.get("hitl",            "batch")
+        max_parallel    = int(config.get("max_parallel", 2))
+        budget          = config.get("budget")
+        budget_behavior = config.get("budget_behavior",  "warn")
+        follow_up       = config.get("follow_up",        "ignore")
         await self.push_screen_wait(PlanRunScreen(
             goal=goal,
             effort=effort,

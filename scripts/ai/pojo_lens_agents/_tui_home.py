@@ -28,16 +28,12 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
 
     BINDINGS = [
         Binding("n",     "new_plan",       "New Plan",    show=False),
-        Binding("s",     "saved_plans",    "Saved Plans", show=False),
+        Binding("p",     "saved_plans",    "Plans",       show=False),
         Binding("r",     "runs",           "Runs",        show=False),
-        Binding("l",     "ledger",         "Ledger",      show=False),
-        Binding("v",     "validate",       "Validate",    show=False),
-        Binding("d",     "dry_run",        "Dry Run",     show=False),
-        Binding("p",     "promote",        "Promote",     show=False),
         Binding("a",     "agents",         "Agents",      show=False),
-        Binding("k",     "skills",         "Skills",      show=False),
+        Binding("s",     "skills",         "Skills",      show=False),
         Binding("m",     "memory",         "Memory",      show=False),
-        Binding("t",     "settings",       "Settings",    show=False),
+        Binding("c",     "settings",       "Config",      show=False),
         Binding("q",     "quit_app",       "Quit",        show=False),
         Binding("up",    "cursor_up",      "Up",          show=False),
         Binding("down",  "cursor_down",    "Down",        show=False),
@@ -45,21 +41,17 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
     ]
 
     _MENU_ITEMS = [
-        ("n", "CREATE NEW PLAN",  "Generate an AI task plan"),
-        ("s", "SAVED PLANS",      "Browse & load saved plans"),
+        ("n", "NEW PLAN",     "Generate an AI task plan"),
+        ("p", "PLANS",        "Browse & load saved plans"),
         ("──", None, None),
-        ("r", "RUNS",             "Run / resume / retry runs"),
-        ("l", "LEDGER",           "Run history & cost summary"),
-        ("v", "VALIDATE",         "Validate a plan file"),
-        ("d", "DRY RUN",          "Cost estimate, no execution"),
-        ("p", "PROMOTE",          "Review diffs & promote"),
+        ("r", "RUNS",         "Run / resume / retry / promote"),
         ("──", None, None),
-        ("a", "AGENTS",           "Inspect agent definitions"),
-        ("k", "SKILLS",           "Inspect skill registry"),
-        ("m", "MEMORY TOOLS",     "Refresh / query AI memory"),
-        ("t", "SETTINGS",         "View config & providers"),
+        ("a", "AGENTS",       "Inspect & edit agent definitions"),
+        ("s", "SKILLS",       "Inspect & edit skill registry"),
+        ("m", "MEMORY TOOLS", "Refresh / query AI memory"),
+        ("c", "CONFIG",       "Config, tokens & providers"),
         ("──", None, None),
-        ("q", "QUIT",             "Exit operator console"),
+        ("q", "QUIT",         "Exit operator console"),
     ]
 
     # Navigable (non-divider) items: list of (action_key,)
@@ -143,14 +135,12 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
                     sb.update(
                         f"[bold #00e5ff]▶ {label}[/]  [dim]{desc}[/]\n"
                         "[dim #2a5a3a]↑↓ navigate · Enter/letter select · "
-                        "[N] new  [S] saved  [R] runs  [V] validate  "
-                        "[A] agents  [M] memory  [T] settings  [Q] quit[/]"
+                        "[N] new  [P] plans  [R] runs  [A] agents  [S] skills  [M] memory  [C] config  [Q] quit[/]"
                     )
                     return
             sb.update(
                 "[dim #2a5a3a]↑↓ navigate · Enter select · "
-                "[N] new  [S] saved  [R] runs  [V] validate  "
-                "[A] agents  [M] memory  [T] settings  [Q] quit[/]"
+                "[N] new  [P] plans  [R] runs  [A] agents  [S] skills  [M] memory  [C] config  [Q] quit[/]"
             )
         except Exception:
             pass
@@ -171,24 +161,6 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         from pojo_lens_agents._tui_ledger import RunLedgerScreen
         self.app.push_screen(RunLedgerScreen(mode="runs"))  # type: ignore[attr-defined]
 
-    def action_ledger(self) -> None:
-        from pojo_lens_agents._tui_ledger import RunLedgerScreen
-        self.app.push_screen(RunLedgerScreen(mode="ledger"))  # type: ignore[attr-defined]
-
-    async def action_validate(self) -> None:
-        from pojo_lens_agents._tui_validate import ValidatePlanScreen, ValidateRunScreen
-        path = await self.app.push_screen_wait(ValidatePlanScreen())  # type: ignore[attr-defined]
-        if path:
-            self.app.push_screen(ValidateRunScreen(path))  # type: ignore[attr-defined]
-
-    def action_dry_run(self) -> None:
-        from pojo_lens_agents._tui_estimate import EstimateScreen
-        self.app.push_screen(EstimateScreen())  # type: ignore[attr-defined]
-
-    def action_promote(self) -> None:
-        from pojo_lens_agents._tui_ledger import RunLedgerScreen
-        self.app.push_screen(RunLedgerScreen(mode="promote"))  # type: ignore[attr-defined]
-
     def action_agents(self) -> None:
         from pojo_lens_agents._tui_inspect import AgentsScreen
         self.app.push_screen(AgentsScreen())  # type: ignore[attr-defined]
@@ -205,22 +177,21 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         from pojo_lens_agents._tui_tools import SettingsScreen
         self.app.push_screen(SettingsScreen())  # type: ignore[attr-defined]
 
+    def action_new_plan(self) -> None:
+        self.app.run_worker(self.app.action_new_plan(), name="wizard")  # type: ignore[attr-defined]
+
     def action_quit_app(self) -> None:
         self.app.exit(0)  # type: ignore[attr-defined]
 
     def action_activate_item(self) -> None:
         _dispatch: dict[str, Any] = {
-            "n": lambda: self.app.run_worker(self.app.action_new_plan()),  # type: ignore[attr-defined]
-            "s": self.action_saved_plans,
+            "n": self.action_new_plan,
+            "p": self.action_saved_plans,
             "r": self.action_runs,
-            "l": self.action_ledger,
-            "v": lambda: self.app.run_worker(self.action_validate()),  # type: ignore[attr-defined]
-            "d": self.action_dry_run,
-            "p": self.action_promote,
             "a": self.action_agents,
-            "k": self.action_skills,
+            "s": self.action_skills,
             "m": self.action_memory,
-            "t": self.action_settings,
+            "c": self.action_settings,
             "q": self.action_quit_app,
         }
         cursor = int(self._cursor)  # type: ignore[arg-type]

@@ -143,7 +143,7 @@ class EstimateResultScreen(Screen):  # type: ignore[type-arg,misc]
         self._log(f"[#00e5ff][ SIGNAL ] {self._mode} starting...[/]")
         try:
             args = parse_args_fn(cmd)
-        except Exception as exc:
+        except (Exception, SystemExit) as exc:
             self._log(f"[#ff2244]Arg error: {exc}[/]")
             return
 

@@ -73,9 +73,10 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         yield Static("", id="dash-idle-msg")
         yield Rule(id="dash-rule-bot")
         with Horizontal(id="dash-actions"):
-            yield Button("STOP",   id="btn-dash-stop",   variant="error",   disabled=True)
-            yield Button("PAUSE",  id="btn-dash-pause",  variant="warning", disabled=True)
-            yield Button("DELETE", id="btn-dash-delete", variant="default", disabled=True)
+            yield Button("OPEN",   id="btn-dash-open",   disabled=True)
+            yield Button("STOP",   id="btn-dash-stop",   disabled=True)
+            yield Button("PAUSE",  id="btn-dash-pause",  disabled=True)
+            yield Button("DELETE", id="btn-dash-delete", disabled=True)
 
     def on_mount(self) -> None:
         self.set_interval(2.0, self._poll)
@@ -319,6 +320,7 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         running = state == "running"
         paused  = run_path is not None and (run_path / "pause.flag").exists()
         try:
+            self.query_one("#btn-dash-open",   Button).disabled = run_path is None
             self.query_one("#btn-dash-stop",   Button).disabled = not running
             pause_btn = self.query_one("#btn-dash-pause", Button)
             pause_btn.disabled = not running
@@ -333,12 +335,21 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             self._navigate_run(+1)      # older
         elif btn_id == "btn-run-next":
             self._navigate_run(-1)      # newer
+        elif btn_id == "btn-dash-open":
+            self._do_open()
         elif btn_id == "btn-dash-stop":
             self._do_stop()
         elif btn_id == "btn-dash-pause":
             self._do_pause_toggle()
         elif btn_id == "btn-dash-delete":
             self._do_delete()
+
+    def _do_open(self) -> None:
+        run_path = self._run_dir
+        if run_path is None:
+            return
+        from pojo_lens_agents._tui_ledger import RunDetailsScreen
+        self.app.push_screen(RunDetailsScreen(str(run_path)))  # type: ignore[attr-defined]
 
     def _do_stop(self) -> None:
         run_path = self._run_dir
