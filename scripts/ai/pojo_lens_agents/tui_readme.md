@@ -7,65 +7,68 @@ Built on Textual.  All screens share the Matrix cyberpunk theme (`_MTX_VARS`).
 
 ## Screen Inventory
 
-| # | Screen class            | File              | Type        | Entry point        |
-|---|-------------------------|-------------------|-------------|--------------------|
-| 1 | `HomeScreen`            | _tui_home         | Full        | App root           |
-| 2 | `GoalInputScreen`       | _tui_wizard       | Full        | Wizard step 1      |
-| 3 | `ClarificationScreen`   | _tui_wizard       | Full        | Wizard step 1b     |
-| 4 | `EffortSelectScreen`    | _tui_wizard       | Full        | Wizard step 2      |
-| 5 | `WorkspaceModeScreen`   | _tui_wizard       | Full        | Wizard step 3      |
-| 6 | `RunConfigScreen`       | _tui_wizard       | Full        | Wizard step 4      |
-| 7 | `PlanRunScreen`         | _tui_wizard_run   | Full        | Wizard step 5      |
-| 8 | `SavedPlansScreen`      | _tui_plans        | Full        | Home [S]           |
-| 9 | `PlanDetailsScreen`     | _tui_plans        | Full        | SavedPlans / Runs  |
-|10 | `PlanEditorScreen`      | _tui_plans        | Full        | PlanDetails [E]    |
-|11 | `RunPlanScreen`         | _tui_validate     | Full        | PlanDetails [A]    |
-|12 | `ValidatePlanDialog`    | _tui_validate     | **Modal**   | Home [V]           |
-|13 | `ValidateRunScreen`     | _tui_validate     | Full        | ValidatePlan / PlanDetails [V] |
-|14 | `RunLedgerScreen`       | _tui_ledger       | Full        | Home [R/P]         |
-|15 | `RunDetailsScreen`      | _tui_ledger       | Full        | RunLedger [I]      |
-|16 | `ResumeRetryScreen`     | _tui_ledger       | Full        | RunLedger [R/Y]    |
-|17 | `HitlGateScreen`        | _tui_gate         | Full        | RunLedger [G] / auto-push |
-|18 | `DiffReviewScreen`      | _tui_diff         | Full        | RunLedger [P]      |
-|19 | `PromoteConfirmDialog`  | _tui_diff         | **Modal**   | DiffReview [P]     |
-|20 | `AgentsScreen`          | _tui_inspect      | Full        | Home [A]           |
-|21 | `SkillsScreen`          | _tui_inspect      | Full        | Home [K]           |
-|22 | `PlanInspectScreen`     | _tui_inspect      | Full        | PlanDetails [T/I/O/P/F] |
-|23 | `MemoryToolsScreen`     | _tui_tools        | Full        | Home [M]           |
-|24 | `SettingsScreen`        | _tui_tools        | Full        | Home [T]           |
-|25 | `EstimateScreen`        | _tui_estimate     | Full        | Home [D]           |
-|26 | `EstimateResultScreen`  | _tui_estimate     | Full        | EstimateScreen     |
+| # | Screen class            | File              | Type        | Entry point                        |
+|---|-------------------------|-------------------|-------------|------------------------------------|
+| 1 | `HomeScreen`            | _tui_home         | Full        | App root                           |
+| 2 | `GoalInputScreen`       | _tui_wizard       | Full        | Wizard step 1                      |
+| 3 | `ClarificationScreen`   | _tui_wizard       | Full        | Wizard step 1b                     |
+| 4 | `EffortSelectScreen`    | _tui_wizard       | Full        | Wizard step 2                      |
+| 5 | `WorkspaceModeScreen`   | _tui_wizard       | Full        | Wizard step 3                      |
+| 6 | `RunConfigScreen`       | _tui_wizard       | Full        | Wizard step 4                      |
+| 7 | `PlanRunScreen`         | _tui_wizard_run   | Full        | Wizard step 5 / Plans [R/D]        |
+| 8 | `SavedPlansScreen`      | _tui_plans        | Full        | Home [P]                           |
+| 9 | `PlanDetailsScreen`     | _tui_plans        | Full        | SavedPlans / Runs                  |
+|10 | `PlanEditorScreen`      | _tui_plans        | Full        | PlanDetails [E]                    |
+|11 | `ValidatePlanDialog`    | _tui_validate     | **Modal**   | PlanDetails [V]                    |
+|13 | `ValidateRunScreen`     | _tui_validate     | Full        | ValidatePlanDialog / PlanDetails   |
+|14 | `RunLedgerScreen`       | _tui_ledger       | Full        | Home [R]                           |
+|15 | `RunDetailsScreen`      | _tui_ledger       | Full        | RunLedger [OPEN]                   |
+|16 | `ResumeRetryScreen`     | _tui_ledger       | Full        | RunLedger [R/Y]                    |
+|17 | `HitlGateScreen`        | _tui_gate         | Full        | RunLedger [G] / auto-push          |
+|18 | `DiffReviewScreen`      | _tui_diff         | Full        | RunLedger [P]                      |
+|19 | `PromoteConfirmDialog`  | _tui_diff         | **Modal**   | DiffReview [P]                     |
+|20 | `AgentsScreen`          | _tui_inspect      | Full        | Home [A]                           |
+|21 | `AgentEditScreen`       | _tui_inspect      | Full        | AgentsScreen [NEW] / [EDIT]        |
+|22 | `SkillsScreen`          | _tui_inspect      | Full        | Home [S]                           |
+|23 | `SkillEditScreen`       | _tui_inspect      | Full        | SkillsScreen [NEW] / [EDIT]        |
+|24 | `PlanInspectScreen`     | _tui_inspect      | Full        | PlanDetails [T/I/O/P/F]            |
+|25 | `MemoryToolsScreen`     | _tui_tools        | Full        | Home [M]                           |
+|26 | `SettingsScreen`        | _tui_tools        | Full        | Home [C]                           |
+|27 | `EstimateScreen`        | _tui_estimate     | Full        | PlanDetails [D]                    |
+|28 | `EstimateResultScreen`  | _tui_estimate     | Full        | EstimateScreen                     |
 
-> **26 screens total** — 2 modals, 24 full-screen.  
-> Backward-compat aliases: `ProviderSelectScreen`, `GovernanceScreen` (both → `RunConfigScreen`); `ValidatePlanScreen` (→ `ValidatePlanDialog`); `ExtraToolsScreen`, `ValidationIntentsScreen`, etc. (→ `PlanInspectScreen`).
+> **27 screens total** — 2 modals, 25 full-screen.  
+> Backward-compat aliases: `RunPlanScreen` (→ `PlanRunScreen`);
+> `ProviderSelectScreen`, `GovernanceScreen` (→ `RunConfigScreen`);
+> `ValidatePlanScreen` (→ `ValidatePlanDialog`);
+> `ExtraToolsScreen`, `ValidationIntentsScreen`, `OutputProfilesScreen`,
+> `PromptAccountingScreen`, `FollowUpTaskScreen` (→ `PlanInspectScreen`).
 
 ---
 
 ## Top-Level Navigation Map
 
 ```
-                         POJOLENS OPERATOR CONSOLE
-                         ┌─────────────────────────────────────────────────┐
-                         │                  HomeScreen                      │
-                         │                                                  │
-                         │  [N] New Plan       [S] Saved Plans              │
-                         │  ─────────────────────────────────               │
-                         │  [R] Runs           [V] Validate                 │
-                         │  [D] Dry Run / Estimate                          │
-                         │  [P] Promote                                      │
-                         │  ─────────────────────────────────               │
-                         │  [A] Agents         [K] Skills                   │
-                         │  [M] Memory Tools   [T] Settings                 │
-                         │  ─────────────────────────────────               │
-                         │  [Q] Quit                                        │
-                         └──────────────────┬──────────────────────────────┘
-                                            │
-          ┌─────────────────────────────────┼──────────────────────────────┐
-          │                                 │                              │
-          ▼         ▼         ▼      ▼     ▼      ▼        ▼        ▼       ▼
-       Wizard    Saved    Runs/   Valid   Est   Agents  Skills  Memory  Settings
-        Flow     Plans   Ledger   Flow  Flow   Screen  Screen   Tools
-       [N]       [S]     [R/P]    [V]   [D]    [A]     [K]      [M]     [T]
+                        POJOLENS OPERATOR CONSOLE
+                        ┌────────────────────────────────────────────────┐
+                        │                  HomeScreen                     │
+                        │                                                 │
+                        │  [N] New Plan       [P] Plans                  │
+                        │  ─────────────────────────────────              │
+                        │  [R] Runs                                       │
+                        │  ─────────────────────────────────              │
+                        │  [A] Agents         [S] Skills                 │
+                        │  [M] Memory Tools   [C] Config                 │
+                        │  ─────────────────────────────────              │
+                        │  [Q] Quit                                       │
+                        └──────────────────┬──────────────────────────────┘
+                                           │
+         ┌─────────────────────────────────┼──────────────────────────────┐
+         │                                 │                              │
+         ▼      ▼      ▼       ▼      ▼       ▼      ▼        ▼
+       Wizard  Plans  Runs   Agents  Skills  Memory Config
+       Flow           Ledger Screen  Screen  Tools  Screen
+       [N]     [P]    [R]    [A]     [S]     [M]    [C]
 ```
 
 ---
@@ -103,23 +106,23 @@ Home [N]
 └──────────────┬───────────┘
                │ ws_mode
                ▼
-┌────────────────────────────────────────────────────┐
-│  RunConfigScreen (step 4)                          │
-│  ── Provider ──────────────────────────────────    │
-│  anthropic-sdk / subprocess / custom               │
-│  Lists registered providers; CONFIG DEFAULT = skip  │
-│  ── Governance ────────────────────────────────    │
-│  HITL mode, max_parallel, budget,                  │
-│  budget_behavior, follow_up policy                 │
-└──────────────────────────┬─────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  RunConfigScreen (step 4)                            │
+│  ── Provider ──────────────────────────────────      │
+│  anthropic-sdk / subprocess / custom                 │
+│  Lists registered providers; CONFIG DEFAULT = skip   │
+│  ── Governance ────────────────────────────────      │
+│  HITL mode, max_parallel, budget,                    │
+│  budget_behavior, follow_up policy                   │
+└──────────────────────────┬───────────────────────────┘
                            │ {provider, hitl, budget, ...}
                            ▼
 ┌────────────────────────────────────────────────┐
-│  PlanRunScreen (step 5)                        │
+│  PlanRunScreen (step 5, wizard_params={...})   │
 │  • Calls wizard handler (generates plan)       │
-│  • Runs plan execution inline                  │
+│  • Live progress bar + manifest polling        │
 │  • Streams progress to RichLog                 │
-│  [H] → go_home   [Esc] → back                  │
+│  [H] → go_home   [Esc] → back                 │
 └────────────────────────────────────────────────┘
 ```
 
@@ -128,10 +131,10 @@ Home [N]
 
 ---
 
-## Flow 2 — Saved Plans
+## Flow 2 — Plans
 
 ```
-Home [S]
+Home [P]
   │
   ▼
 ┌──────────────────────────────────────────────────────────┐
@@ -150,35 +153,34 @@ Home [S]
        [R]Run    [D]Details  [V]Validate  [E]Edit
          │          │           │           │
          ▼          ▼           ▼           ▼
-    PlanDetails  PlanDetails  PlanDetails  PlanEditor
-    mode=run     mode=view    mode=validate Screen
-         │
-         └── (same as Details flow below)
+    RunPlanScreen PlanDetails ValidateRun  PlanEditor
+    (direct)      Screen      Screen       Screen
+                              (direct)
 ```
 
 ---
 
 ## Flow 3 — Plan Details
 
-Central hub for a single plan.  Reached from SavedPlans or RunLedger.
+Central hub for a single plan. Reached from SavedPlans or RunLedger.
 
 ```
 PlanDetailsScreen
 │
 │  [ PLAN REVIEW ]
 │  plan-path: ai/orchestrator/tasks/my-plan.json
-│  ┌─────────────────────────────────────────────┐
-│  │  Plan   : my-plan                           │
-│  │  Goal   : ...                               │
-│  │  Tasks  : 4                                 │
-│  │  ═══ Task Graph ═══                         │
-│  │  ▸ task-1: ...                              │
-│  └─────────────────────────────────────────────┘
+│  ┌──────────────────────────────────────────────┐
+│  │  Plan   : my-plan                            │
+│  │  Goal   : ...                                │
+│  │  Tasks  : 4                                  │
+│  │  ═══ Task Graph ═══                          │
+│  │  ▸ task-1: ...                               │
+│  └──────────────────────────────────────────────┘
 │  [APPROVE+RUN] [VALIDATE] [DRY RUN] [SAVE COPY] [TOOLS] [FOLLOW-UP] [BACK]
 │
 ├─[A] Approve + Run ──────────────────► RunPlanScreen
 │
-├─[V] Validate ───────────────────────► ValidateRunScreen
+├─[V] Validate ───────────────────────► ValidatePlanDialog (modal) → ValidateRunScreen
 │
 ├─[D] Dry Run ────────────────────────► RunPlanScreen (dry_run=True)
 │
@@ -225,73 +227,55 @@ PlanInspectScreen
 
 ---
 
-## Flow 5 — Validate
-
-```
-Home [V]
-  │
-  ▼  (modal overlay)
-┌──────────────────────────────────────┐
-│  ValidatePlanDialog  ← ModalScreen   │
-│                                      │
-│  [ VALIDATE ]  Enter plan file path  │
-│  [ai/orchestrator/tasks/my-plan.json]│
-│                                      │
-│     [VALIDATE →]   [CANCEL]          │
-└──────────────────────────────────────┘
-         │ path string (or None)
-         ▼
-┌──────────────────────────────────────────────────────────┐
-│  ValidateRunScreen                                       │
-│                                                          │
-│  [ VALIDATE ]  Scanning plan...                          │
-│  → on complete: title updates to ✓ VALID / ✗ ERRORS     │
-│                                                          │
-│  validates workspace boundaries                          │
-│  shows: errors, warnings, cost estimate, token sections  │
-│  [BACK]                                                  │
-└──────────────────────────────────────────────────────────┘
-```
-
-Also reachable from `PlanDetailsScreen [V]` (skips the modal, path already known).
-
----
-
-## Flow 6 — Run Ledger
-
-`RunLedgerScreen` has two Home entry points.  `[L]` is now an internal tab
-that switches the screen title between "RUNS" and "LEDGER" views.
+## Flow 5 — Run Ledger
 
 ```
 Home [R] ──► RunLedgerScreen(mode="runs")
-Home [P] ──► RunLedgerScreen(mode="promote")
 
   ┌──────────────────────────────────────────────────────────────────────┐
   │  [ RUNS ]  Retained run history                                      │
   │                                                                      │
-  │  Run ID          Plan        Status      Tasks  Cost   Tokens         │
+  │  Run ID          Plan        Status      Tasks  Cost   Tokens        │
   │  ──────────────────────────────────────────────────────────────────  │
   │  20260504T11...  my-plan     completed   4/4    $0.023 ↓96K ↑6.5K   │
-  │  20260504T11...  docs-proof  completed   2/2    $0.012 ↓48K ↑3.2K   │
-  │  ...                                                                  │
+  │  20260504T11...  docs-proof  failed      1/2    $0.012 ↓48K ↑3.2K   │
+  │  ...                                                                 │
   │                                                                      │
-  │  [INSPECT] [RESUME] [RETRY] [PROMOTE] [GATE [G]] [LEDGER [L]] [BACK]│
+  │  [OPEN] [RESUME] [RETRY] [PROMOTE] [GATE] [LEDGER] [BACK]           │
   └────────┬──────────┬──────────┬──────────┬──────────┬────────────────┘
            │          │          │          │          │
-         [I]        [R]        [Y]        [P]        [G]
+         [OPEN]     [R]        [Y]        [P]        [G]
            │          │          │          │          │
            ▼          ▼          ▼          ▼          ▼
       RunDetails  ResumeRetry  ResumeRetry  DiffReview  HitlGate
       Screen      mode=resume  mode=retry   Screen      Screen
 
-  [L] — switches title to "[ LEDGER ]  Run ledger summary" (same data, cosmetic tab)
+  [LEDGER] — switches title to "[ LEDGER ]  Run ledger summary" (same data, tab toggle)
 ```
 
-**Duration** and **Tokens** columns are populated from manifest scan when inventory handler unavailable (fallback path).
+### RunDetailsScreen — Button State Rules
+
+Buttons start **disabled** and are enabled based on the manifest-derived run state:
+
+| Button  | Enabled when        |
+|---------|---------------------|
+| RESUME  | `paused` or `unknown` |
+| RETRY   | `failed` or `completed` |
+| PROMOTE | `completed` only      |
+| OPEN    | always (plan inspect) |
+
+State is derived by scanning manifest events + task-level `status` fields:
+- `run-finished` present + all task statuses OK → `completed`
+- `run-finished` present + any task `failed` → `failed`
+- `run-finished` present + any task `blocked` → `blocked`
+- `run-start` present, no `run-finished` → `running`
+- otherwise → `unknown`
+
+**Duration** and **Tokens** columns populated from manifest scan (fallback path when inventory handler unavailable).
 
 ---
 
-## Flow 7 — Diff Review & Promote
+## Flow 6 — Diff Review & Promote
 
 ```
 RunLedger [P] ──► DiffReviewScreen
@@ -314,18 +298,17 @@ RunLedger [P] ──► DiffReviewScreen
                     │  [Y] CONFIRM PROMOTE    [N] CANCEL
                     │
                     └─[Y]──► _do_promote worker (inline, logs to diff-log)
-                             ──► promote handler ──► result in diff-log
 ```
 
 ---
 
-## Flow 8 — HITL Gate
+## Flow 7 — HITL Gate
 
 Two entry points: operator-triggered from Ledger, or auto-pushed during a live run.
 
 ```
 RunLedger [G] ──► HitlGateScreen(run_ref=run_dir)
-                        OR
+                      OR
 OperatorApp.wait_for_hitl_decision() ──► auto-push HitlGateScreen
 
   ┌───────────────────────────────────────────────────────────────────┐
@@ -341,7 +324,7 @@ OperatorApp.wait_for_hitl_decision() ──► auto-push HitlGateScreen
   │                                                                   │
   │  [A] APPROVE    [X] ABORT    [BACK]                               │
   └───────────────────────────────────────────────────────────────────┘
-  
+
   [A] ──► approve handler ──► run continues
   [X] ──► abort handler   ──► run stops
   [Esc] ──► sentinel polling resumes (operator defers decision)
@@ -349,81 +332,197 @@ OperatorApp.wait_for_hitl_decision() ──► auto-push HitlGateScreen
 
 ---
 
-## Flow 9 — Estimate (Dry Run)
-
-```
-Home [D]
-  │
-  ▼
-┌───────────────────────────────────────┐
-│  EstimateScreen                       │
-│                                       │
-│  Mode: [ ] Estimate  [x] Dry Run      │
-│  Plan: [_____________________________]│
-│                                       │
-│  [RUN ESTIMATE]  [BACK]               │
-└───────────────────┬───────────────────┘
-                    │
-                    ▼
-┌──────────────────────────────────────────────────┐
-│  EstimateResultScreen                            │
-│                                                  │
-│  Task estimates, per-model costs,                │
-│  total estimated USD, token budget               │
-│  [BACK]                                          │
-└──────────────────────────────────────────────────┘
-```
-
----
-
-## Flow 10 — Inspect Tools (Agents / Skills)
+## Flow 8 — Agents
 
 ```
 Home [A] ──► AgentsScreen
-Home [K] ──► SkillsScreen
 
-  AgentsScreen:
-  ┌──────────────────────┬────────────────────────────────────────────┐
-  │ Name    Role  Skills │  agent detail                              │
-  │ planner plan  3      │  prompt size: 12.4 KB                      │
-  │ coder   impl  5      │  ⚠ prompt > 8 KB — may hit context limits  │
-  │ ...                  │  tools: read_file, write_file, bash, ...   │
-  └──────────────────────┴────────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  [ AGENTS ]  Available agent definitions                        │
+  │  ag-path: ai/orchestrator/agents.json                           │
+  │  ┌───────────────────────────────────────────────────────────┐  │
+  │  │ Name            Model     Skills  Effort  Workspace       │  │
+  │  │ planner         power     3       high    repo            │  │
+  │  │ coder           balanced  5       medium  copy            │  │
+  │  │ docs-writer     simple    1       low     scratch         │  │
+  │  │ reviewer        balanced  2       medium  repo            │  │
+  │  │ test-runner     simple    0       low     copy            │  │
+  │  └───────────────────────────────────────────────────────────┘  │
+  │  [◀ PREV]  Page 1/2  (8 agents)  [NEXT ▶]                      │
+  │  ─────────────────────────────────────────────────────────────  │
+  │  ┌───────────────────────────────────────────────────────────┐  │
+  │  │ planner  (detail RichLog)                                 │  │
+  │  │   Model: power   Effort: high   Workspace: repo           │  │
+  │  │   Prompt: agents/planner/prompt.md  ✓ 3.2KB               │  │
+  │  │   Skills: caveman, java, python                           │  │
+  │  └───────────────────────────────────────────────────────────┘  │
+  │  [NEW]  [EDIT]  [BACK]                                          │
+  └─────────────────────────────────────────────────────────────────┘
 
-  SkillsScreen:
-  ┌─────────────────────┬─────────────────────────────────────────────┐
-  │ Name   Size  Status │  skill file content / description           │
-  │ java   4.2KB OK     │  ⚠ > 6 KB: review for trim                  │
-  │ python 7.1KB WARN   │  ✗ > 8 KB: too large, will be truncated     │
-  └─────────────────────┴─────────────────────────────────────────────┘
+  [NEW]  ──► AgentEditScreen (is_new=True)
+  [EDIT] ──► AgentEditScreen (is_new=False, current agent)
+```
+
+### AgentEditScreen
+
+```
+AgentEditScreen
+│  [ NEW AGENT ] / [ EDIT AGENT ]
+│
+│  name            [___________________]
+│  description     ┌─────────────────────────────────────┐  (TextArea)
+│                  │ What this agent does...              │
+│                  └─────────────────────────────────────┘
+│  promptFile      [agents/my-agent/prompt.md_____________]
+│  modelProfile    [▼ power           ]
+│  effort          [▼ high            ]
+│  workspaceMode   [▼ repo            ]
+│  contextMode     [▼ full            ]
+│  permissionMode  [▼ dontAsk         ]
+│  outputProfile   [▼ standard        ]
+│  skills          ┌─────────────────────────────────────┐  (SelectionList)
+│  (space=toggle)  │ ✓ caveman                           │
+│                  │ ✓ java                              │
+│                  │   python                            │
+│                  └─────────────────────────────────────┘
+│  allowedTools    ┌─────────────────────────────────────┐  (SelectionList)
+│  (space=toggle)  │ ✓ Read                              │
+│                  │ ✓ Write                             │
+│                  │   Bash                              │
+│                  └─────────────────────────────────────┘
+│  maxPromptEstimatedTokens  [1600___]
+│  timeoutSec                [1800___]
+│
+│  [SAVE]  [CANCEL]
+
+SAVE writes agents.json (key = name).
+Renames key if name changed on edit.
 ```
 
 ---
 
-## Flow 11 — Memory & Settings
+## Flow 9 — Skills
+
+```
+Home [S] ──► SkillsScreen
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  [ SKILLS ]  Skill registry                                     │
+  │  sk-path: ai/orchestrator/skills/registry.json                  │
+  │  ┌───────────────────────────────────────────────────────────┐  │
+  │  │ Skill           Size     State   Description              │  │
+  │  │ caveman         1.2KB    OK      Terse output mode        │  │
+  │  │ java            4.1KB    OK      Java 17 development      │  │
+  │  │ python          3.8KB    OK      Python 3.10+ patterns    │  │
+  │  │ router          0.9KB    OK      Skill routing table      │  │
+  │  │ textual-tui     5.9KB    WARN    Textual TUI patterns     │  │
+  │  └───────────────────────────────────────────────────────────┘  │
+  │  [◀ PREV]  Page 1/3  (12 skills)  [NEXT ▶]                     │
+  │  ─────────────────────────────────────────────────────────────  │
+  │  ┌───────────────────────────────────────────────────────────┐  │
+  │  │ caveman  (detail RichLog)                                 │  │
+  │  │   Prompt File: caveman/SKILL.md  ✓ 1.2KB                 │  │
+  │  │   ── Content preview ──                                   │  │
+  │  │   # Caveman mode...                                       │  │
+  │  └───────────────────────────────────────────────────────────┘  │
+  │  [NEW]  [EDIT]  [BACK]                                          │
+  └─────────────────────────────────────────────────────────────────┘
+
+  File size thresholds: > 6KB → WARN (#ffaa00), > 8KB → ERR (#ff2244)
+  promptFile resolved relative to registry.json dir (not CWD).
+
+  [NEW]  ──► SkillEditScreen (is_new=True)
+  [EDIT] ──► SkillEditScreen (is_new=False, current skill)
+```
+
+### SkillEditScreen
+
+```
+SkillEditScreen
+│  [ NEW SKILL ] / [ EDIT SKILL ]
+│
+│  name (key in registry.json)  [___________________]
+│  description                  ┌─────────────────────────────────────┐  (TextArea)
+│                               │ What this skill does...             │
+│                               └─────────────────────────────────────┘
+│  promptFile                   [my-skill/SKILL.md___________________]
+│  tags (comma-separated)       [java, testing______________________]
+│  prompt content               ┌─────────────────────────────────────┐  (TextArea, markdown)
+│                               │ # My Skill                          │
+│                               │ ...                                 │
+│                               └─────────────────────────────────────┘
+│
+│  [SAVE]  [CANCEL]
+
+SAVE writes:
+  1. prompt file at (registry.json dir / promptFile)  — creates parent dirs
+  2. registry.json entry  { promptFile, description?, tags? }
+Renames key if name changed on edit.
+```
+
+---
+
+## Flow 10 — Memory Tools
 
 ```
 Home [M] ──► MemoryToolsScreen
   │
-  │  [ MEMORY TOOLS ]
+  │  [ MEMORY TOOLS ]  AI Memory Maintenance
+  │  Hot context: ai/core/agent-invariants.md · ai/core/repo-purpose.md
+  │               ai/state/current-state.md · ai/state/handoff.md
   │  Status: [ RUNNING ] refreshing...  ← live status + button lock
   │  [________________]  ← query input
-  │  [R] Refresh   [C] Check   [Q] Query   [BACK]
+  │  [REFRESH] [CHECK] [QUERY] [BACK]
   │
-  │  workers: refresh-ai-memory.ps1 / .py
-  │           query-ai-memory.ps1 / .py
+  │  workers run:
+  │    refresh-ai-memory.ps1 / .py   (platform-aware)
+  │    query-ai-memory.ps1 / .py
   │
   └── logs subprocess output; shows ✓ / ✗ on completion
+```
 
-Home [T] ──► SettingsScreen
+---
+
+## Flow 11 — Config / Settings
+
+```
+Home [C] ──► SettingsScreen
   │
-  │  ═══ Operator Defaults ═══
-  │  Runtime Root / Agents File / Claude Binary / Tasks Dir
-  │  ═══ Effort → Model Mapping ═══
-  │  ═══ Rate Limits ═══
-  │  ═══ Notification Defaults ═══
-  │  ═══ Config File ═══
-  │  ═══ Providers ═══  (id, class, pricing, TPM/RPM per provider)
+  │  [ SETTINGS ]
+  │  config-path: pojolens-agents.toml  (will be created if absent)
+  │
+  │  ── TOKENS / API KEYS ────────────────────────────────────────────
+  │  ANTHROPIC_API_KEY  (stored in .env, never in TOML)
+  │  [●●●●●●●●●●●●●●●●●●●●●●●●●]  password field
+  │  Current status: ● SET  env/.env
+  │
+  │  POJO_LENS_PROVIDER
+  │  [▼ auto                   ]  auto / sdk / subprocess
+  │
+  │  ── DEFAULTS ─────────────────────────────────────────────────────
+  │  runtime_root           [.claude-orchestrator_____________]
+  │  claude_bin             [claude___________________________]
+  │  max_parallel           [4_______]
+  │  continue_on_error      [▼ false  ]
+  │  worker_validation_mode [▼ intents-only ]
+  │
+  │  ── NOTIFICATIONS ─────────────────────────────────────────────────
+  │  desktop        [▼ true  ]
+  │  notify_on      [▼ always]
+  │  webhook_url    [https://...]
+  │  slack_webhook_url [https://hooks.slack.com/...]
+  │
+  │  ── WORKSPACE ──────────────────────────────────────────────────────
+  │  strategy  [▼ repo    ]
+  │  root       [.workspaces_________________]
+  │
+  │  [SAVE]  [BACK]
+
+SAVE writes:
+  1. .env  ← ANTHROPIC_API_KEY, POJO_LENS_PROVIDER  (API key preserved if left blank)
+  2. pojolens-agents.toml  ← [defaults], [notifications], [workspace]
+
+claude-orchestrator.ps1 sources .env from repo root on startup.
 ```
 
 ---
@@ -431,34 +530,34 @@ Home [T] ──► SettingsScreen
 ## Home Screen Layout
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ POJOLENS  //  OPERATOR CONSOLE                          MISSION CONTROL  12:34│
-├────────────────────────────────────────┬────────────────────────────────────┤
-│           nav-panel                    │         dashboard-panel             │
-│  ┌──────────────────────────────────┐  │  ┌────────────────────────────────┐ │
-│  │  [ascii banner art]              │  │  │ [ DASHBOARD ]                  │ │
-│  │  // MISSION CONTROL //           │  │  │ Runs: 6  ✓4  ✗1  1▸            │ │
-│  └──────────────────────────────────┘  │  │ Total: $0.035  Tok: ↓1.1K ↑10K │ │
-│  [ MAIN NAVIGATION ]                   │  │ ────────────────────────────── │ │
-│  [N]  CREATE NEW PLAN  Generate plan   │  │ Run 1 / 6  [latest]            │ │
-│  [S]  SAVED PLANS      Browse saved    │  │ ────────────────────────────── │ │
-│  ──────────────────────────────────── │  │ Run  : 20260504T11...          │ │
-│  [R]  RUNS             Run history     │  │ State: COMPLETED               │ │
-│  [V]  VALIDATE         Validate plan   │  │ Tasks: ████████████░░░░░░░░    │ │
-│  [D]  DRY RUN          Cost estimate   │  │        4/4                     │ │
-│  [P]  PROMOTE          Review diffs    │  │ Cost : $0.023                  │ │
-│  ──────────────────────────────────── │  │ Tokens: ↓96K in  ↑6.5K out    │ │
-│  [A]  AGENTS           Agent defs      │  │ Time : 00:02:41                │ │
-│  [K]  SKILLS           Skill registry  │  │ ────────────────────────────── │ │
-│  [M]  MEMORY TOOLS     AI memory       │  │ [ RECENT ACTIVITY ]            │ │
-│  [T]  SETTINGS         Config          │  │ 11:01:23  ✓ task-1 completed   │ │
-│  ──────────────────────────────────── │  │ 11:03:12  RUN COMPLETED        │ │
-│  [Q]  QUIT             Exit            │  │ [STOP] [PAUSE] [DELETE]        │ │
-│                                        │  └────────────────────────────────┘ │
-├────────────────────────────────────────┴────────────────────────────────────┤
-│ ▶ CREATE NEW PLAN  Generate an AI task plan                                  │
-│ ↑↓ navigate · Enter/letter select · [N] new  [S] saved  [R] runs ...        │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│ POJOLENS  //  OPERATOR CONSOLE                        MISSION CONTROL  12:34│
+├───────────────────────────────────┬────────────────────────────────────────┤
+│           nav-panel               │         dashboard-panel                 │
+│  ┌─────────────────────────────┐  │  ┌────────────────────────────────┐    │
+│  │  [ascii banner art]         │  │  │ [ DASHBOARD ]                  │    │
+│  │  // MISSION CONTROL //      │  │  │ Runs: 6  ✓4  ✗1  1▸           │    │
+│  └─────────────────────────────┘  │  │ Total: $0.035  Tok: ↓1.1K ↑10K│    │
+│  [ MAIN NAVIGATION ]              │  │ ─────────────────────────────  │    │
+│  [N]  NEW PLAN    Generate plan   │  │ Run 1 / 6  [◀] [▶]            │    │
+│  [P]  PLANS       Browse saved    │  │ ─────────────────────────────  │    │
+│  ─────────────────────────────── │  │ Run  : 20260504T11...          │    │
+│  [R]  RUNS        Run history     │  │ State: COMPLETED               │    │
+│  ─────────────────────────────── │  │ Tasks: ████████████░░░░░░░░    │    │
+│  [A]  AGENTS      Agent defs      │  │        4/4                     │    │
+│  [S]  SKILLS      Skill registry  │  │ Cost : $0.023                  │    │
+│  [M]  MEMORY TOOLS  AI memory     │  │ Tokens: ↓96K in  ↑6.5K out    │    │
+│  [C]  CONFIG      Config & tokens │  │ Time : 00:02:41                │    │
+│  ─────────────────────────────── │  │ ─────────────────────────────  │    │
+│  [Q]  QUIT        Exit            │  │ [ RECENT ACTIVITY ]            │    │
+│                                   │  │ 11:01:23  ✓ task-1 completed   │    │
+│                                   │  │ 11:03:12  RUN COMPLETED        │    │
+│                                   │  │ [OPEN] [STOP] [PAUSE] [DELETE] │    │
+│                                   │  └────────────────────────────────┘    │
+├───────────────────────────────────┴────────────────────────────────────────┤
+│ ▶ NEW PLAN  Generate an AI task plan                                        │
+│ ↑↓ navigate · Enter/letter select · [N][P][R][A][S][M][C][Q]               │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -466,92 +565,44 @@ Home [T] ──► SettingsScreen
 ## Full Navigation Graph
 
 ```
-                               ┌─────────┐
-                               │  HOME   │
-                               └────┬────┘
-         ┌──────┬──────┬──────┬─────┼──────┬──────┬──────┬──────┐
-         │      │      │      │     │      │      │      │      │
-        [N]    [S]   [R/P]  [V]   [D]   [A]   [K]   [M]   [T]
-         │      │      │      │     │      │      │      │      │
-         ▼      ▼      ▼      ▼     ▼      ▼      ▼      ▼      ▼
-       Goal  Saved  Runs/  Valid  Est.  Agents Skills Memory  Settings
-       Input Plans  Ledger Modal  Screen Screen Screen Tools  Screen
-         │      │      │      │     │
-         ▼      │      │      ▼     ▼
-       Clarif  │      │   ValidRun  EstResult
-         │      │      │
-         ▼      │      ├──[I]──► RunDetails
-       Effort   │      ├──[R]──► ResumeRetry (resume)
-         │      │      ├──[Y]──► ResumeRetry (retry)
-         ▼      │      ├──[P]──► DiffReview ──► PromoteConfirmDialog (modal)
-       WsMode   │      ├──[L]──► (tab: title → LEDGER view, same data)
-         │      │      └──[G]──► HitlGate
-         ▼      │
-      RunConfig │         ┌──[A]──► RunPlanScreen
-         │      ▼         ├──[V]──► ValidateRunScreen
-         ▼   PlanDetails ─┤──[D]──► RunPlanScreen (dry)
-       PlanRun (wizard)   ├──[E]──► PlanEditor
-                          ├──[S]──► (save copy, notify)
-                          ├──[T]──► PlanInspect (tools)
-                          ├──[I]──► PlanInspect (intents)
-                          ├──[O]──► PlanInspect (profiles)
-                          ├──[P]──► PlanInspect (prompt)
-                          └──[F]──► PlanInspect (followup)
-```
-
----
-
-## Complexity Audit
-
-### Identified complexities and notes
-
-```
-COMPLEXITY                          SEVERITY   NOTES
-───────────────────────────────────────────────────────────────────────────────
-Wizard steps merged                 RESOLVED   ProviderSelectScreen +
-(was 6 steps, now 5)                           GovernanceScreen merged into
-                                               RunConfigScreen (step 4/5).
-                                               Wizard depth: 6 screens.
-
-[L] Ledger moved inside             RESOLVED   [L] Ledger removed from Home
-RunLedgerScreen                                menu. RunLedgerScreen now has
-                                               a [L] tab button + binding that
-                                               switches the title in-place.
-                                               [L] keybinding freed at Home.
-
-DiffReview promote inlined          RESOLVED   DiffReview [P] now opens
-                                               PromoteConfirmDialog (modal)
-                                               inline.  ResumeRetryScreen is
-                                               no longer used for promote.
-
-ValidatePlanScreen renamed          RESOLVED   Class is now ValidatePlanDialog.
-                                               ValidatePlanScreen kept as a
-                                               backward-compat alias.  CSS
-                                               selector updated accordingly.
-
-PlanRunScreen vs RunPlanScreen      MEDIUM     PlanRunScreen = wizard execution
-(naming confusion)                             RunPlanScreen = saved plan run
-                                               Nearly identical purpose, different
-                                               constructors.  Merge candidate
-                                               for a future pass.
-
-SavedPlans → PlanDetails →          LOW        3 levels deep before execution.
-PlanInspect                                    Deep but each level adds value.
-                                               Acceptable.
-
-HitlGateScreen reachable only       LOW        Auto-push works during live runs.
-from [G] in ledger or auto-push                Operator-triggered path added
-(previously no manual path)                    (WP80). OK now.
-
-PlanInspectScreen replaces 5        RESOLVED   Was 5 separate screens.  Now one
-individual inspect screens                     tabbed screen with backward-compat
-                                               aliases.  Correct direction.
-
-ProviderSelectScreen/               INFO       Both kept as backward-compat
-GovernanceScreen kept as aliases               aliases pointing to RunConfigScreen.
-                                               Not a bug; useful for any code
-                                               that already imports these names.
-───────────────────────────────────────────────────────────────────────────────
+                              ┌─────────┐
+                              │  HOME   │
+                              └────┬────┘
+        ┌──────┬──────┬──────┬─────┼──────┬──────┬──────┐
+        │      │      │      │     │      │      │      │
+       [N]    [P]    [R]    [A]   [S]   [M]   [C]   [Q]
+        │      │      │      │     │      │      │
+        ▼      ▼      ▼      ▼     ▼      ▼      ▼
+      Goal  Plans  Runs/  Agents Skills Memory Config
+      Input        Ledger Screen Screen  Tools  Screen
+        │      │      │      │     │
+        ▼      │      │      │     │
+      Clarif   │      │      ├──[NEW]──► AgentEditScreen
+        │      │      │      └──[EDIT]─► AgentEditScreen
+        ▼      │      │
+      Effort   │      │            ├──[NEW]──► SkillEditScreen
+        │      │      │            └──[EDIT]─► SkillEditScreen
+        ▼      │      │
+      WsMode   │      ├──[OPEN]──► RunDetails
+        │      │      ├──[R]────► ResumeRetry (resume)
+        ▼      │      ├──[Y]────► ResumeRetry (retry)
+     RunConfig │      ├──[P]────► DiffReview ──► PromoteConfirmDialog (modal)
+        │      │      ├──[L]────► (tab: title → LEDGER view, same data)
+        ▼      │      └──[G]────► HitlGate
+      PlanRun  │
+               └─► SavedPlans ──[R]──► RunPlanScreen (direct)
+                     │        ──[V]──► ValidateRunScreen (direct)
+                     │        ──[E]──► PlanEditor (direct)
+                     │
+                     └──[D]──► PlanDetails ─┬──[A]──► RunPlanScreen
+                                            ├──[V]──► ValidateRunScreen
+                                            ├──[D]──► RunPlanScreen (dry)
+                                            ├──[S]──► (save copy, notify)
+                                            ├──[T]──► PlanInspect (tools)
+                                            ├──[I]──► PlanInspect (intents)
+                                            ├──[O]──► PlanInspect (profiles)
+                                            ├──[P]──► PlanInspect (prompt)
+                                            └──[F]──► PlanInspect (followup)
 ```
 
 ---
@@ -560,19 +611,18 @@ GovernanceScreen kept as aliases               aliases pointing to RunConfigScre
 
 ```
 HOME
-  [N] New Plan        [S] Saved Plans     [R] Runs
-  [V] Validate        [D] Dry Run         [P] Promote
-  [A] Agents          [K] Skills          [M] Memory Tools
-  [T] Settings        [Q] Quit
-  [↑↓] Navigate menu  [Enter] Activate
+  [N] New Plan     [P] Plans       [R] Runs
+  [A] Agents       [S] Skills      [M] Memory Tools
+  [C] Config       [Q] Quit
+  [↑↓] Navigate    [Enter] Activate
 
 WIZARD (each step)
-  [Esc]  Cancel / back to previous step
+  [Esc]   Cancel / back to previous step
   [Enter] Submit / proceed
 
-SAVED PLANS
+PLANS (SavedPlansScreen)
   [R] Run   [D] Details  [V] Validate  [E] Edit
-  [◀▶] Paginate          [Esc] Back
+  [◀▶] Paginate           [Esc] Back
 
 PLAN DETAILS
   [A] Approve+Run  [V] Validate  [D] Dry Run  [S] Save
@@ -580,12 +630,26 @@ PLAN DETAILS
   [F] Follow-up    [Esc] Back
 
 PLAN INSPECT
-  [T] Tools   [I] Intents   [O] Profiles   [P] Prompt   [F] Follow-up
+  [T] Tools  [I] Intents  [O] Profiles  [P] Prompt  [F] Follow-up
   [Esc] Back
 
 RUN LEDGER
-  [I] Inspect   [R] Resume   [Y] Retry   [P] Promote
-  [G] HITL Gate [L] Ledger tab           [Esc] Back
+  [I] Open/Inspect  [R] Resume  [Y] Retry  [P] Promote
+  [G] HITL Gate     [L] Ledger tab          [Esc] Back
+
+AGENTS SCREEN
+  [Esc] Back  (mouse/keyboard row selection)
+  [NEW] Create agent   [EDIT] Edit selected   [BACK]
+  [◀ PREV] / [NEXT ▶] Paginate (5 per page)
+
+SKILLS SCREEN
+  [Esc] Back
+  [NEW] Create skill   [EDIT] Edit selected   [BACK]
+  [◀ PREV] / [NEXT ▶] Paginate (5 per page)
+
+AGENT EDIT / SKILL EDIT
+  [Space] Toggle selection in SelectionList
+  [SAVE] Write JSON + prompt file   [CANCEL / Esc] Discard
 
 DIFF REVIEW
   [P] Promote (→ modal confirm)   [E] Export Patch   [C] Coord. Val.   [Esc] Back
@@ -593,7 +657,7 @@ DIFF REVIEW
 PROMOTE CONFIRM DIALOG
   [Y] Confirm   [N] Cancel   [Esc] Cancel
 
-RUN PLAN / PLAN RUN
+PLANRUNSCREEN  (wizard run + saved plan run)
   [H] Home / Dashboard   [Esc] Back
 
 HITL GATE
@@ -601,6 +665,9 @@ HITL GATE
 
 MEMORY TOOLS
   [R] Refresh   [C] Check   [Q] Query   [Esc] Back
+
+CONFIG
+  [SAVE] Write TOML + .env   [BACK / Esc] Discard
 ```
 
 ---
@@ -613,14 +680,18 @@ _tui_wizard.py       GoalInputScreen, ClarificationScreen,
                      EffortSelectScreen, WorkspaceModeScreen,
                      RunConfigScreen
                      (+ legacy aliases: ProviderSelectScreen, GovernanceScreen)
-_tui_wizard_run.py   PlanRunScreen
+_tui_wizard_run.py   PlanRunScreen  (wizard + plan run, merged)
+                     (+ alias exported: RunPlanScreen → PlanRunScreen)
 _tui_plans.py        SavedPlansScreen, PlanDetailsScreen, PlanEditorScreen
-_tui_validate.py     ValidatePlanDialog (modal), ValidateRunScreen, RunPlanScreen
-                     (+ alias: ValidatePlanScreen → ValidatePlanDialog)
+_tui_validate.py     ValidatePlanDialog (modal), ValidateRunScreen
+                     (+ aliases: ValidatePlanScreen → ValidatePlanDialog,
+                      RunPlanScreen re-exported from _tui_wizard_run)
 _tui_ledger.py       RunLedgerScreen, RunDetailsScreen, ResumeRetryScreen
 _tui_gate.py         HitlGateScreen
 _tui_diff.py         DiffReviewScreen, PromoteConfirmDialog (modal)
-_tui_inspect.py      AgentsScreen, SkillsScreen, PlanInspectScreen
+_tui_inspect.py      AgentsScreen, AgentEditScreen,
+                     SkillsScreen, SkillEditScreen,
+                     PlanInspectScreen
                      (+ aliases: ExtraToolsScreen, ValidationIntentsScreen,
                       OutputProfilesScreen, PromptAccountingScreen,
                       FollowUpTaskScreen)

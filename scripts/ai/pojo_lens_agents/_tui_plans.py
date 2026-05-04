@@ -289,17 +289,19 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
     def action_run(self) -> None:
         path = self._selected_path()
         if path:
-            self.app.push_screen(PlanDetailsScreen(path, mode="run"))  # type: ignore[attr-defined]
+            from pojo_lens_agents._tui_validate import RunPlanScreen
+            self.app.push_screen(RunPlanScreen(path))  # type: ignore[attr-defined]
 
     def action_details(self) -> None:
         path = self._selected_path()
         if path:
-            self.app.push_screen(PlanDetailsScreen(path, mode="view"))  # type: ignore[attr-defined]
+            self.app.push_screen(PlanDetailsScreen(path))  # type: ignore[attr-defined]
 
     def action_validate(self) -> None:
         path = self._selected_path()
         if path:
-            self.app.push_screen(PlanDetailsScreen(path, mode="validate"))  # type: ignore[attr-defined]
+            from pojo_lens_agents._tui_validate import ValidateRunScreen
+            self.app.push_screen(ValidateRunScreen(path))  # type: ignore[attr-defined]
 
     def action_edit(self) -> None:
         path = self._selected_path()
@@ -325,10 +327,9 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("f",      "follow_up",    "Follow-up",     show=True),
     ]
 
-    def __init__(self, plan_path: str, *, mode: str = "view") -> None:
+    def __init__(self, plan_path: str) -> None:
         super().__init__()
         self._plan_path = plan_path
-        self._mode = mode
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -349,8 +350,6 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
     def on_mount(self) -> None:
         self.app.title = "POJOLENS  //  PLAN DETAILS"
         self.run_worker(self._load_and_display, thread=True, name="plan-detail")
-        if self._mode == "run":
-            self.query_one("#btn-run", Button).focus()
 
     def _load_and_display(self) -> None:
         log = self.query_one("#details-log", RichLog)

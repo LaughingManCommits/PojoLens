@@ -349,55 +349,7 @@ OptionList {
     margin-top: 1;
 }
 
-/* ── GovernanceScreen ────────────────────────────────────────────────────── */
-GovernanceScreen {
-    align: center middle;
-}
-#card {
-    width: 84;
-    height: auto;
-    max-height: 50;
-    border: heavy $green 30%;
-    background: $bg_panel;
-    padding: 2 3;
-    overflow-y: auto;
-}
-#card-title {
-    color: $cyan;
-    text-style: bold;
-    margin-bottom: 1;
-}
-.field-label {
-    color: $cyan;
-    margin-top: 1;
-}
-.field-hint {
-    color: $text_dim;
-    margin-bottom: 0;
-}
-#hitl-list         { height: 8; margin-bottom: 0; }
-#budget-behavior-list { height: 4; margin-bottom: 0; }
-#followup-list     { height: 4; margin-bottom: 0; }
-#budget-input {
-    width: 20;
-}
-#parallel-input {
-    width: 10;
-}
-.field-err {
-    color: $red;
-    height: auto;
-    margin-bottom: 0;
-}
-Rule {
-    color: $green_dim;
-    margin-top: 1;
-}
-#btns {
-    height: auto;
-    align: right middle;
-    margin-top: 2;
-}
+/* GovernanceScreen is an alias for RunConfigScreen — no separate CSS needed */
 
 /* ── RunConfigScreen ─────────────────────────────────────────────────────── */
 RunConfigScreen {
@@ -433,39 +385,9 @@ PromoteConfirmDialog #confirm-ref   { color: $text_dim; margin-bottom: 1; }
 PromoteConfirmDialog #confirm-msg   { color: $amber; margin-bottom: 1; }
 PromoteConfirmDialog #btns          { height: auto; align: right middle; margin-top: 1; }
 
-/* ── PlanRunScreen ───────────────────────────────────────────────────────── */
+/* ── PlanRunScreen (wizard + plan run — shared screen) ───────────────────── */
 PlanRunScreen {
     background: $bg;
-}
-#header-strip {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
-#run-title {
-    color: $cyan;
-    text-style: bold;
-}
-#run-params {
-    color: $text_dim;
-    margin-top: 1;
-}
-#status-line {
-    color: $green;
-    margin-top: 1;
-}
-#log {
-    height: 1fr;
-    background: $bg;
-    padding: 0 1;
-}
-#bottom-bar {
-    height: 3;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: right middle;
-    padding: 0 2;
 }
 
 /* ── SavedPlansScreen ────────────────────────────────────────────────────── */
@@ -589,29 +511,7 @@ PlanEditorScreen {
     padding: 0 1;
 }
 
-/* ── RunPlanScreen ───────────────────────────────────────────────────────── */
-RunPlanScreen {
-    background: $bg;
-}
-#top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
-#run-title { color: $cyan; text-style: bold; }
-#run-plan  { color: $text_dim; }
-#run-status { color: $green; margin-top: 1; }
-#run-log {
-    height: 1fr;
-}
-#action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: left middle;
-    padding: 0 1;
-}
+/* RunPlanScreen is an alias for PlanRunScreen — no separate CSS needed */
 
 /* ── ValidatePlanDialog (modal) ──────────────────────────────────────────── */
 ValidatePlanDialog {

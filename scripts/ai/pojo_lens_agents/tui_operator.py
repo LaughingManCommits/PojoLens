@@ -330,22 +330,17 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         budget          = config.get("budget")
         budget_behavior = config.get("budget_behavior",  "warn")
         follow_up       = config.get("follow_up",        "ignore")
-        await self.push_screen_wait(PlanRunScreen(
-            goal=goal,
-            effort=effort,
-            workspace_mode=ws_mode,
-            hitl=hitl,
-            max_parallel=max_parallel,
-            budget=budget,
-            provider=provider,
-            budget_behavior=budget_behavior,
-            follow_up=follow_up,
-            handlers=self._handlers,
-            parse_args_fn=self._parse_args_fn,
-            runtime_root=self._runtime_root,
-            agents=self._agents,
-            claude_bin=self._claude_bin,
-        ))
+        await self.push_screen_wait(PlanRunScreen(wizard_params={
+            "goal":            goal,
+            "effort":          effort,
+            "workspace_mode":  ws_mode,
+            "hitl":            hitl,
+            "max_parallel":    max_parallel,
+            "budget":          budget,
+            "provider":        provider,
+            "budget_behavior": budget_behavior,
+            "follow_up":       follow_up,
+        }))
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
