@@ -19,15 +19,7 @@ except ImportError as exc:  # pragma: no cover
     Widget = object  # type: ignore[assignment,misc]
     ComposeResult = Any  # type: ignore[assignment]
 
-from pojo_lens_agents._tui_helpers import _status_color
-
-
-def _fmt_tok(n: int) -> str:
-    if n >= 1_000_000:
-        return f"{n / 1_000_000:.1f}M"
-    if n >= 1_000:
-        return f"{n / 1_000:.1f}K"
-    return str(n)
+from pojo_lens_agents._tui_helpers import _fmt_tok, _status_color
 
 
 def _manifest_run_state(data: dict[str, Any]) -> str:

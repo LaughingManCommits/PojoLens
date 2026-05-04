@@ -350,8 +350,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         self.app.title = "POJOLENS  //  PLAN DETAILS"
         self.run_worker(self._load_and_display, thread=True, name="plan-detail")
         if self._mode == "run":
-            # Focus run button immediately
-            pass
+            self.query_one("#btn-run", Button).focus()
 
     def _load_and_display(self) -> None:
         log = self.query_one("#details-log", RichLog)
@@ -439,7 +438,29 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
 
     def action_follow_up(self) -> None:
         from pojo_lens_agents._tui_inspect import PlanInspectScreen
-        self.app.push_screen(PlanInspectScreen(self._plan_path, mode="followup"))  # type: ignore[attr-defined]
+        run_dir = self._find_most_recent_run()
+        self.app.push_screen(PlanInspectScreen(self._plan_path, mode="followup", run_dir=run_dir))  # type: ignore[attr-defined]
+
+    def _find_most_recent_run(self) -> str:
+        """Find the most recent run dir that used this plan file."""
+        import json as _json
+        try:
+            runtime_root = Path(str(getattr(self.app, "_runtime_root", DEFAULT_RUNTIME_ROOT)))
+            runs_dir = runtime_root / "runs"
+            if not runs_dir.exists():
+                return ""
+            plan_name = Path(self._plan_path).name
+            candidates: list[tuple[float, str]] = []
+            for mp in runs_dir.glob("*/manifest.json"):
+                try:
+                    data = _json.loads(mp.read_text(encoding="utf-8"))
+                    if Path(str(data.get("planPath") or "")).name == plan_name:
+                        candidates.append((mp.stat().st_mtime, str(mp.parent)))
+                except Exception:
+                    pass
+            return sorted(candidates, reverse=True)[0][1] if candidates else ""
+        except Exception:
+            return ""
 
 
 # ── PlanEditorScreen ──────────────────────────────────────────────────────────

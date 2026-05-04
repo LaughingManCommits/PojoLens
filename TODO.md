@@ -87,6 +87,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP77| Multi-Workspace Codebase Targeting  | Complete | `workspace_manager.py` (new); `codebase_path`/`workspace_strategy` in `TaskPlan`+`TaskPlanModel`+`RunManifestModel`; `load_workspace_config()` in `config_loader.py`; `_add_workspace_args()` CLI flags (run/resume/wizard); `_WORKSPACE_DIR_CTX` ContextVar; `run_loaded_plan(workspace_dir=)` + `run_plan()` prep+cleanup; manifest `codebasePath`/`workspaceStrategy`; 28 regression tests; 1191 pass |
 | WP78| LLM Provider Plugin System          | Complete | `provider_plugin.py` (LLMProvider Protocol, ProviderResult, RateLimitMeta, ModelPricing, exception hierarchy); `provider_registry.py` (singleton, auto-builtins, load_from_config); `providers/` package (anthropic_sdk, subprocess_claude, openai_compat); `provider` field on AgentDefinition+TaskDefinition+models; `load_providers_config()` in config_loader; plugin dispatch in task_execution.py; `_init_provider_registry()` in orchestrator_app.py; 30 tests; 1221 pass |
 | WP79| TUI Cross-Platform & UX Polish      | Planned  | `HomeScreen` [Enter] cursor-aware dispatch; `MemoryToolsScreen` POSIX script fallback; `PlanEditorScreen` cross-platform editor detection; `GovernanceScreen` inline validation feedback |
+| WP80| TUI Screen Gap Fixes                | Complete | 10 correctness/UX gaps fixed across operator screens — see WP80 section |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
 
@@ -1049,6 +1050,36 @@ Tests:
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+
+---
+
+## WP80: TUI Screen Gap Fixes ✅ 2026-05-04
+
+**Priority:** Medium → **Complete**
+
+**Goal:** Fix 10 correctness and UX gaps identified via operator TUI audit across six screen files.
+
+**Fixes delivered:**
+
+1. **RunLedgerScreen — missing Cost/Tokens/Duration columns** (`_tui_ledger.py`): Added `Cost`, `Tokens` (↓in ↑out), and `Duration` columns to the runs table. Token and duration values derived from manifest `usageTotals` + event timestamps.
+
+2. **RunLedgerScreen — no fallback when inventory handler absent** (`_tui_ledger.py`): Added direct manifest scan under `runs_dir.glob("*/manifest.json")` as fallback when `inventory` handler returns empty or is unavailable. Fallback builds complete entry list with cost/token/duration enrichment.
+
+3. **RunLedgerScreen — HITL Gate navigation dead** (`_tui_ledger.py`): Added `[G] Gate` binding, `GATE [G]` button, and `action_gate_run()` that pushes `HitlGateScreen(run_ref=run_dir)` for the selected run. Gate screen now reachable from ledger without a live run context.
+
+4. **RunDetailsScreen — missing input/output token breakdown** (`_tui_ledger.py`): Added `Tokens: ↓{in} in  ↑{out} out` line after total cost. Falls back to direct manifest read if status handler payload lacks `usageTotals`.
+
+5. **ValidateRunScreen — title update broken** (`_tui_validate.py`): Removed a spurious `call_from_thread(setattr(widget, "update", ...))` that replaced the widget's update method with a no-op before the real update could fire. Title now correctly shows `✓ VALID` / `✗ ERRORS FOUND` on completion.
+
+6. **PlanDetailsScreen — dead `if self._mode == "run": pass`** (`_tui_plans.py`): Changed to `self.query_one("#btn-run", Button).focus()` so the Run button is keyboard-focused immediately when the screen is opened in run mode.
+
+7. **PlanDetailsScreen — follow-up screen had no run_dir** (`_tui_plans.py`): Added `_find_most_recent_run()` that scans manifests for the most recent run using this plan file. `action_follow_up()` now passes the resolved `run_dir` to `PlanInspectScreen(mode="followup")` so follow-up task injection events are visible.
+
+8. **MemoryToolsScreen — no running/error state feedback** (`_tui_tools.py`): Added `#mem-status` Static widget showing `[ RUNNING ]...`, `[ DONE ]`, or `[ ERROR ]` state. Buttons disabled during operation and re-enabled on completion. All three workers (`_run_refresh`, `_run_check`, `_run_query`) updated.
+
+9. **`_fmt_tok` / `_calc_run_duration` moved to shared helpers** (`_tui_helpers.py`): Added `_fmt_tok(n)` (K/M formatter) and `_calc_run_duration(manifest_data)` as shared utilities imported by both `_tui_dashboard.py` and `_tui_ledger.py`. Eliminates duplication.
+
+10. **Dashboard elapsed time frozen for completed runs** (`_tui_dashboard.py`): Time field now uses `run-finished` event timestamp as `t1` instead of `now`, so completed run durations are stable.
 
 ---
 

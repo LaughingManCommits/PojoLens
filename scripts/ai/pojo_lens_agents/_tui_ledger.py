@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -30,7 +31,24 @@ except ImportError:  # pragma: no cover
     DEFAULT_RUNTIME_ROOT = Path(".claude-orchestrator")
     DEFAULT_AGENTS_PATH = Path("ai/orchestrator/agents.json")
 
-from pojo_lens_agents._tui_helpers import _status_color
+from pojo_lens_agents._tui_helpers import _fmt_tok, _calc_run_duration, _status_color
+
+
+def _manifest_state(data: dict[str, Any]) -> str:
+    phases = [e.get("phase", "") for e in (data.get("events") or [])]
+    if "run-finished" in phases:
+        return "completed"
+    if "run-start" in phases:
+        return "running"
+    return "unknown"
+
+
+def _manifest_cost(data: dict[str, Any]) -> float:
+    cost = float((data.get("usageTotals") or {}).get("totalCostUsd", 0.0) or 0.0)
+    if cost == 0.0:
+        rg = data.get("runGovernance") or {}
+        cost = sum(float(t.get("costUsd", 0.0)) for t in (rg.get("highestCostTasks") or []))
+    return cost
 
 
 # ── RunLedgerScreen ────────────────────────────────────────────────────────────
@@ -44,6 +62,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("r",      "resume_run", "Resume",  show=True),
         Binding("y",      "retry_run",  "Retry",   show=True),
         Binding("p",      "promote_run","Promote", show=True),
+        Binding("g",      "gate_run",   "Gate",    show=True),
     ]
 
     def __init__(self, *, mode: str = "runs") -> None:
@@ -61,7 +80,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         with Container(id="top-bar"):
             yield Static(label, id="screen-title")
             yield Static(
-                "[I] Inspect  [R] Resume  [Y] Retry  [P] Promote  [Esc] Back",
+                "[I] Inspect  [R] Resume  [Y] Retry  [P] Promote  [G] Gate  [Esc] Back",
                 id="screen-hint",
             )
         yield DataTable(id="runs-table")
@@ -71,6 +90,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
             yield Button("RESUME",   id="btn-resume")
             yield Button("RETRY",    id="btn-retry")
             yield Button("PROMOTE",  id="btn-promote")
+            yield Button("GATE [G]", id="btn-gate")
             yield Button("BACK",     id="btn-back")
         yield Footer()
 
@@ -79,10 +99,13 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         table = self.query_one("#runs-table", DataTable)
         table.cursor_type = "row"
         table.add_column("Run ID",   key="run_id",   width=24)
-        table.add_column("Plan",     key="plan",     width=28)
-        table.add_column("Status",   key="status",   width=14)
-        table.add_column("Tasks",    key="tasks",    width=10)
-        table.add_column("Date",     key="date",     width=20)
+        table.add_column("Plan",     key="plan",     width=24)
+        table.add_column("Status",   key="status",   width=12)
+        table.add_column("Tasks",    key="tasks",    width=6)
+        table.add_column("Cost",     key="cost",     width=9)
+        table.add_column("Tokens",   key="tokens",   width=14)
+        table.add_column("Duration", key="duration", width=10)
+        table.add_column("Date",     key="date",     width=17)
         self.run_worker(self._load_runs, thread=True, name="load-runs")
 
     def _load_runs(self) -> None:
@@ -100,6 +123,62 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                 entries = sorted(runs, key=lambda r: str(r.get("startedAt") or ""), reverse=True)
             except Exception:
                 pass
+
+        # Fallback: scan manifests directly to get enriched cost/token/duration data
+        # Also used when inventory handler unavailable or returns empty
+        runs_dir = Path(runtime_root) / "runs"
+        if runs_dir.exists():
+            manifest_map: dict[str, dict[str, Any]] = {}
+            for mp in runs_dir.glob("*/manifest.json"):
+                try:
+                    data = json.loads(mp.read_text(encoding="utf-8"))
+                    run_id = str(data.get("runId") or mp.parent.name)
+                    ut = data.get("usageTotals") or {}
+                    manifest_map[run_id] = {
+                        "_cost":        _manifest_cost(data),
+                        "_inputTokens": int(ut.get("inputTokens",  0) or 0),
+                        "_outputTokens":int(ut.get("outputTokens", 0) or 0),
+                        "_duration":    _calc_run_duration(data),
+                        "_runDir":      str(mp.parent),
+                    }
+                except Exception:
+                    pass
+
+            if not entries:
+                # Build entries from manifests directly
+                for mp in sorted(
+                    runs_dir.glob("*/manifest.json"),
+                    key=lambda p: p.stat().st_mtime, reverse=True,
+                ):
+                    try:
+                        data = json.loads(mp.read_text(encoding="utf-8"))
+                        run_id = str(data.get("runId") or mp.parent.name)
+                        events = data.get("events") or []
+                        ut = data.get("usageTotals") or {}
+                        entries.append({
+                            "runId":      run_id,
+                            "planName":   Path(str(data.get("planPath") or "")).name,
+                            "status":     _manifest_state(data),
+                            "totalTasks": len(data.get("tasks") or {}),
+                            "startedAt":  events[0].get("ts") if events else "",
+                            "runDir":     str(mp.parent),
+                            "_cost":         _manifest_cost(data),
+                            "_inputTokens":  int(ut.get("inputTokens",  0) or 0),
+                            "_outputTokens": int(ut.get("outputTokens", 0) or 0),
+                            "_duration":     _calc_run_duration(data),
+                        })
+                    except Exception:
+                        pass
+            else:
+                # Enrich handler entries with manifest data
+                for e in entries:
+                    rid = str(e.get("runId") or e.get("run_id") or "")
+                    m = manifest_map.get(rid) or {}
+                    for k, v in m.items():
+                        if k not in e:
+                            e[k] = v
+                    if "runDir" not in e and "_runDir" in m:
+                        e["runDir"] = m["_runDir"]
 
         self._entries = entries
         self.app.call_from_thread(self._populate_table)
@@ -120,13 +199,22 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
             tasks    = str(entry.get("totalTasks") or entry.get("task_count") or "-")
             date_raw = str(entry.get("startedAt") or entry.get("createdAt") or "")
             date     = date_raw[:16].replace("T", " ") if date_raw else "-"
+            cost     = float(entry.get("_cost") or 0.0)
+            cost_s   = f"${cost:.4f}" if cost else "—"
+            inp      = int(entry.get("_inputTokens",  0) or 0)
+            out      = int(entry.get("_outputTokens", 0) or 0)
+            tok_s    = f"↓{_fmt_tok(inp)} ↑{_fmt_tok(out)}" if (inp or out) else "—"
+            dur_s    = str(entry.get("_duration") or "—") or "—"
             sc       = _status_color(status)
             status_cell = Text(status, style=sc) if Text is not None else status
             table.add_row(
                 run_id[:24],
-                plan[:28],
+                plan[:24],
                 status_cell,
                 tasks,
+                cost_s,
+                tok_s,
+                dur_s,
                 date,
                 key=run_id,
             )
@@ -159,6 +247,8 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
             self.action_retry_run()
         elif event.button.id == "btn-promote":
             self.action_promote_run()
+        elif event.button.id == "btn-gate":
+            self.action_gate_run()
         elif event.button.id == "btn-back":
             self.action_go_back()
 
@@ -191,6 +281,14 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         if run_dir:
             from pojo_lens_agents._tui_diff import DiffReviewScreen
             self.app.push_screen(DiffReviewScreen(run_dir))  # type: ignore[attr-defined]
+        else:
+            self.app.notify("Select a run first.", title="No Run Selected")  # type: ignore[attr-defined]
+
+    def action_gate_run(self) -> None:
+        run_dir = self._selected_run_dir()
+        if run_dir:
+            from pojo_lens_agents._tui_gate import HitlGateScreen
+            self.app.push_screen(HitlGateScreen(run_ref=run_dir))  # type: ignore[attr-defined]
         else:
             self.app.notify("Select a run first.", title="No Run Selected")  # type: ignore[attr-defined]
 
@@ -271,6 +369,30 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         if budget is not None:
             self._log("")
             self._log(f"[bold #00e5ff]Total cost:[/] [#ffaa00]${budget:.5f}[/]")
+
+        # Token breakdown — try payload first, then read manifest directly
+        inp = out = 0
+        ut = payload.get("usageTotals") or {}
+        inp = int(ut.get("inputTokens",  0) or 0)
+        out = int(ut.get("outputTokens", 0) or 0)
+        if not (inp or out):
+            try:
+                run_path = Path(self._run_ref)
+                mp = (run_path if run_path.is_dir() else run_path.parent) / "manifest.json"
+                if mp.exists():
+                    mdata = json.loads(mp.read_text(encoding="utf-8"))
+                    ut2 = mdata.get("usageTotals") or {}
+                    inp = int(ut2.get("inputTokens",  0) or 0)
+                    out = int(ut2.get("outputTokens", 0) or 0)
+            except Exception:
+                pass
+        if inp or out:
+            self._log("")
+            self._log(
+                f"[bold #00e5ff]Tokens :[/]"
+                f" [#00e5ff]↓{_fmt_tok(inp)}[/] in"
+                f"  [#a0ffa0]↑{_fmt_tok(out)}[/] out"
+            )
 
         self._log("")
         self._log("[dim #2a5a3a][ trace ] run detail complete[/]")

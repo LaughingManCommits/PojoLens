@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import json
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,35 @@ except ImportError:  # pragma: no cover
     PlanPreview = None  # type: ignore[assignment,misc]
     discover_plan_previews = None  # type: ignore[assignment]
     discover_saved_plans = None  # type: ignore[assignment]
+
+
+def _fmt_tok(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n / 1_000:.1f}K"
+    return str(n)
+
+
+def _calc_run_duration(manifest_data: dict[str, Any]) -> str:
+    """Return HH:MM:SS duration string from manifest events, or empty string."""
+    events = manifest_data.get("events") or []
+    if not events:
+        return ""
+    try:
+        t0 = datetime.datetime.fromisoformat(str(events[0].get("ts", "")))
+        finished = next(
+            (e for e in reversed(events) if e.get("phase") == "run-finished"), None
+        )
+        t1 = (
+            datetime.datetime.fromisoformat(str(finished["ts"]))
+            if finished and finished.get("ts")
+            else datetime.datetime.now(t0.tzinfo)
+        )
+        secs = int((t1 - t0).total_seconds())
+        return f"{secs // 3600:02d}:{(secs % 3600) // 60:02d}:{secs % 60:02d}"
+    except Exception:
+        return ""
 
 
 def _status_color(status: str) -> str:

@@ -41,6 +41,7 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
         with Container(id="top-bar"):
             yield Static("[ MEMORY TOOLS ]  AI Memory Maintenance", id="mem-title")
             yield Static("[R] Refresh  [C] Check  [Q] Query  [Esc] Back", id="mem-hint")
+            yield Static("", id="mem-status")
             yield Static(
                 "Hot context: ai/core/agent-invariants.md · ai/core/repo-purpose.md\n"
                 "             ai/state/current-state.md · ai/state/handoff.md\n"
@@ -89,6 +90,18 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
     def _log(self, text: str) -> None:
         self.app.call_from_thread(lambda: self.query_one("#mem-log", RichLog).write(text))
 
+    def _set_status(self, text: str) -> None:
+        self.app.call_from_thread(lambda: self.query_one("#mem-status", Static).update(text))
+
+    def _set_buttons(self, enabled: bool) -> None:
+        def _update() -> None:
+            for btn_id in ("#btn-refresh", "#btn-check", "#btn-query"):
+                try:
+                    self.query_one(btn_id, Button).disabled = not enabled
+                except Exception:
+                    pass
+        self.app.call_from_thread(_update)
+
     def action_refresh(self) -> None:
         self.run_worker(self._run_refresh, thread=True, name="mem-refresh")
 
@@ -119,7 +132,10 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
         return [_sys.executable, str(_py), *_extra]
 
     def _run_query(self, query: str) -> None:
+        self._set_status("[#ffaa00][ RUNNING ] querying...[/]")
+        self._set_buttons(False)
         self._log(f"[#00e5ff][ SIGNAL ] querying memory: {query!r}...[/]")
+        ok = False
         try:
             import subprocess
             import sys as _sys
@@ -135,13 +151,19 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
                 self._log(line)
             if result.returncode == 0:
                 self._log("[bold #00ff41]✓ query complete[/]")
+                ok = True
             else:
                 self._log(f"[#ff2244]✗ query exited {result.returncode}[/]")
         except Exception as exc:
             self._log(f"[#ff2244]query error: {exc}[/]")
+        self._set_status("[#00ff41][ DONE ] query complete[/]" if ok else "[#ff2244][ ERROR ] query failed[/]")
+        self._set_buttons(True)
 
     def _run_refresh(self) -> None:
+        self._set_status("[#ffaa00][ RUNNING ] refreshing memory...[/]")
+        self._set_buttons(False)
         self._log("[#00e5ff][ SIGNAL ] launching memory refresh...[/]")
+        ok = False
         try:
             import subprocess
             cmd = self._memory_cmd("refresh-ai-memory")
@@ -151,13 +173,19 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
                 self._log(line)
             if result.returncode == 0:
                 self._log("[bold #00ff41]✓ refresh complete[/]")
+                ok = True
             else:
                 self._log(f"[#ff2244]✗ refresh exited {result.returncode}[/]")
         except Exception as exc:
             self._log(f"[#ff2244]refresh error: {exc}[/]")
+        self._set_status("[#00ff41][ DONE ] refresh complete[/]" if ok else "[#ff2244][ ERROR ] refresh failed[/]")
+        self._set_buttons(True)
 
     def _run_check(self) -> None:
+        self._set_status("[#ffaa00][ RUNNING ] checking memory...[/]")
+        self._set_buttons(False)
         self._log("[#00e5ff][ SIGNAL ] running memory check...[/]")
+        ok = False
         try:
             import subprocess
             import sys as _sys
@@ -169,10 +197,13 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
                 self._log(line)
             if result.returncode == 0:
                 self._log("[bold #00ff41]✓ check passed[/]")
+                ok = True
             else:
                 self._log(f"[#ff2244]✗ check failed (exit {result.returncode})[/]")
         except Exception as exc:
             self._log(f"[#ff2244]check error: {exc}[/]")
+        self._set_status("[#00ff41][ DONE ] check passed[/]" if ok else "[#ff2244][ ERROR ] check failed[/]")
+        self._set_buttons(True)
 
 
 # ── SettingsScreen ─────────────────────────────────────────────────────────────

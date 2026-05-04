@@ -422,8 +422,6 @@ class ValidateRunScreen(Screen):  # type: ignore[type-arg,misc]
         # Update title based on result
         valid = payload.get("valid") if payload else None
         if valid is True:
-            self.app.call_from_thread(lambda: setattr(self.query_one("#val-title", Static), "update",
-                                                  lambda _: None))
             self.app.call_from_thread(
                 lambda: self.query_one("#val-title", Static).update(
                     "[bold #00ff41][ VALIDATE ]  ✓ VALID[/]"
