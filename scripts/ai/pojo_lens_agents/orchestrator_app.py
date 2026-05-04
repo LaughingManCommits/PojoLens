@@ -192,6 +192,15 @@ async def execute_task(
     worker_validation_mode: str | None = None,
     effort_override: str | None = None,
 ) -> TaskRunRecord:
+    _stop_flag = run_dir / "stop.flag"
+    _pause_flag = run_dir / "pause.flag"
+    if _stop_flag.exists():
+        raise OrchestratorError(f"Run aborted: stop requested by user ({run_dir.name})")
+    while _pause_flag.exists():
+        if _stop_flag.exists():
+            raise OrchestratorError(f"Run aborted: stop requested while paused ({run_dir.name})")
+        await asyncio.sleep(1.0)
+
     _task_extra_tools = [
         {
             "name": etd.name,

@@ -45,19 +45,19 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
     ]
 
     _MENU_ITEMS = [
-        ("n", "CREATE NEW PLAN",  "Generate an AI task plan (primary path)"),
-        ("s", "SAVED PLANS",      "Browse tracked & user-saved plans"),
+        ("n", "CREATE NEW PLAN",  "Generate an AI task plan"),
+        ("s", "SAVED PLANS",      "Browse & load saved plans"),
         ("──", None, None),
-        ("r", "RUNS",             "Run / Resume / Retry retained runs"),
-        ("l", "LEDGER",           "Run history, cost summary, status"),
+        ("r", "RUNS",             "Run / resume / retry runs"),
+        ("l", "LEDGER",           "Run history & cost summary"),
         ("v", "VALIDATE",         "Validate a plan file"),
-        ("d", "DRY RUN",          "Cost estimate / dry-run without execution"),
-        ("p", "PROMOTE",          "Review diffs and promote changes"),
+        ("d", "DRY RUN",          "Cost estimate, no execution"),
+        ("p", "PROMOTE",          "Review diffs & promote"),
         ("──", None, None),
-        ("a", "AGENTS",           "Inspect agent definitions and prompt sizes"),
-        ("k", "SKILLS",           "Inspect skill registry and file sizes"),
+        ("a", "AGENTS",           "Inspect agent definitions"),
+        ("k", "SKILLS",           "Inspect skill registry"),
         ("m", "MEMORY TOOLS",     "Refresh / query AI memory"),
-        ("t", "SETTINGS",         "View configuration defaults"),
+        ("t", "SETTINGS",         "View config & providers"),
         ("──", None, None),
         ("q", "QUIT",             "Exit operator console"),
     ]
@@ -105,13 +105,7 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
                             _nav_idx += 1
             with Container(id="dashboard-panel"):
                 yield DashboardWidget(id="dashboard")
-        yield Static(
-            "[dim #2a5a3a]KEYBOARD: ↑↓ navigate · Enter select · "
-            "[N] new  [S] saved  [R] runs  [L] ledger  "
-            "[V] validate  [D] dry-run  [A] agents  [K] skills  [M] memory  "
-            "[T] settings  [Q] quit[/]",
-            id="status-bar",
-        )
+        yield Static("", id="status-bar")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -121,6 +115,7 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
             self.query_one("#menu-row-0").add_class("menu-row--selected")
         except Exception:
             pass
+        self._refresh_status_bar(0)
 
     def watch__cursor(self, old: int, new: int) -> None:
         try:
@@ -129,6 +124,34 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
             pass
         try:
             self.query_one(f"#menu-row-{new}").add_class("menu-row--selected")
+        except Exception:
+            pass
+        self._refresh_status_bar(new)
+
+    def _refresh_status_bar(self, cursor: int) -> None:
+        try:
+            sb = self.query_one("#status-bar", Static)
+            nav_items = self._NAV_ITEMS
+            if 0 <= cursor < len(nav_items):
+                key = nav_items[cursor]
+                item = next(
+                    (i for i in self._MENU_ITEMS if i[0] == key and i[1] is not None),
+                    None,
+                )
+                if item:
+                    _, label, desc = item
+                    sb.update(
+                        f"[bold #00e5ff]▶ {label}[/]  [dim]{desc}[/]\n"
+                        "[dim #2a5a3a]↑↓ navigate · Enter/letter select · "
+                        "[N] new  [S] saved  [R] runs  [V] validate  "
+                        "[A] agents  [M] memory  [T] settings  [Q] quit[/]"
+                    )
+                    return
+            sb.update(
+                "[dim #2a5a3a]↑↓ navigate · Enter select · "
+                "[N] new  [S] saved  [R] runs  [V] validate  "
+                "[A] agents  [M] memory  [T] settings  [Q] quit[/]"
+            )
         except Exception:
             pass
 

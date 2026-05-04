@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -39,22 +40,50 @@ from pojo_lens_agents._tui_helpers import (
 
 # ── SavedPlansScreen ───────────────────────────────────────────────────────────
 
+def _collect_run_stats(runtime_root: Path) -> tuple[int, float]:
+    """Scan all run manifests and return (run_count, total_cost_usd)."""
+    runs_dir = runtime_root / "runs"
+    if not runs_dir.exists():
+        return 0, 0.0
+    count = 0
+    total = 0.0
+    for manifest_path in runs_dir.glob("*/manifest.json"):
+        count += 1
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            cost = float((data.get("usageTotals") or {}).get("totalCostUsd", 0.0) or 0.0)
+            if cost == 0.0:
+                rg = data.get("runGovernance") or {}
+                cost = sum(float(t.get("costUsd", 0.0)) for t in (rg.get("highestCostTasks") or []))
+            total += cost
+        except Exception:
+            pass
+    return count, total
+
+
 class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
-    """Browse tracked and user-saved plans."""
+    """Browse tracked and user-saved plans with pagination and stats."""
 
     BINDINGS = [
-        Binding("escape", "go_back", "Back", show=True),
-        Binding("r", "action_run",      "Run",      show=True),
-        Binding("v", "action_validate", "Validate", show=True),
-        Binding("d", "action_details",  "Details",  show=True),
-        Binding("e", "action_edit",     "Edit",     show=True),
+        Binding("escape", "go_back",        "Back",     show=True),
+        Binding("r",      "action_run",     "Run",      show=True),
+        Binding("v",      "action_validate","Validate", show=True),
+        Binding("d",      "action_details", "Details",  show=True),
+        Binding("e",      "action_edit",    "Edit",     show=True),
+        Binding("left",   "prev_page",      "Prev",     show=False),
+        Binding("right",  "next_page",      "Next",     show=False),
     ]
+
+    PAGE_SIZE = 15
 
     def __init__(self) -> None:
         super().__init__()
         self._previews: list[Any] = []
         self._visible_previews: list[Any] = []
         self._filter: str = ""
+        self._page: int = 0
+        self._run_count: int = 0
+        self._total_cost: float = 0.0
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -67,8 +96,13 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
         with Horizontal(id="search-bar"):
             yield Static("FILTER: ", classes="dim")
             yield Input(placeholder="type to filter by name or goal...", id="search-input")
+        yield Static("", id="plans-stats")
         yield DataTable(id="plans-table")
         yield Static("", id="empty-notice")
+        with Horizontal(id="pagination-bar"):
+            yield Button("◀",    id="btn-prev",  variant="default", disabled=True)
+            yield Static("",    id="page-label")
+            yield Button("▶",    id="btn-next",  variant="default", disabled=True)
         with Horizontal(id="action-bar"):
             yield Button("RUN",      id="btn-run",      variant="primary")
             yield Button("DETAILS",  id="btn-details")
@@ -96,7 +130,48 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
         except Exception:
             previews = []
         self._previews = previews
+        try:
+            runtime_root = Path(str(getattr(self.app, "_runtime_root", DEFAULT_RUNTIME_ROOT)))
+            self._run_count, self._total_cost = _collect_run_stats(runtime_root)
+        except Exception:
+            pass
         self.app.call_from_thread(self._populate_table)
+
+    def _total_pages(self) -> int:
+        n = len(self._visible_previews)
+        return max(1, (n + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
+
+    def _update_stats(self) -> None:
+        total_tasks = sum(getattr(p, "task_count", 0) for p in self._previews)
+        n_visible   = len(self._visible_previews)
+        n_total     = len(self._previews)
+        cost_str    = f"${self._total_cost:.4f}" if self._total_cost else "—"
+        filt_part   = f"  [dim](filtered: {n_visible})[/]" if self._filter else ""
+        try:
+            self.query_one("#plans-stats", Static).update(
+                f"[#00e5ff]Plans:[/] [#a0ffa0]{n_total}[/]{filt_part}"
+                f"   [#00e5ff]Tasks:[/] [#a0ffa0]{total_tasks}[/]"
+                f"   [#00e5ff]Runs:[/] [#a0ffa0]{self._run_count}[/]"
+                f"   [#00e5ff]Total cost:[/] [#ffaa00]{cost_str}[/]"
+            )
+        except Exception:
+            pass
+
+    def _update_pagination_bar(self) -> None:
+        pages = self._total_pages()
+        page  = self._page
+        n     = len(self._visible_previews)
+        start = page * self.PAGE_SIZE + 1
+        end   = min((page + 1) * self.PAGE_SIZE, n)
+        try:
+            self.query_one("#page-label", Static).update(
+                f"  [dim]Page [bold]{page + 1}[/bold] / {pages}  "
+                f"({start}–{end} of {n})[/]  "
+            )
+            self.query_one("#btn-prev", Button).disabled = page == 0
+            self.query_one("#btn-next", Button).disabled = page >= pages - 1
+        except Exception:
+            pass
 
     def _populate_table(self) -> None:
         table = self.query_one("#plans-table", DataTable)
@@ -109,6 +184,11 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
             or filt in (p.goal or "").lower()
         ]
         self._visible_previews = visible
+        # Reset to page 0 when filter changes
+        self._page = 0
+
+        self._update_stats()
+
         if not visible:
             msg = (
                 "[dim #2a5a3a][ construct scan complete ][/]\n"
@@ -117,9 +197,12 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
                 f"[dim]No plans match filter: {filt}[/]"
             )
             self.query_one("#empty-notice", Static).update(msg)
+            self._update_pagination_bar()
             return
         self.query_one("#empty-notice", Static).update("")
-        for preview in visible:
+
+        page_slice = visible[self._page * self.PAGE_SIZE : (self._page + 1) * self.PAGE_SIZE]
+        for preview in page_slice:
             path_obj = Path(preview.path)
             source   = (
                 "saved"   if "saved-plans" in str(path_obj) else
@@ -133,6 +216,39 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
                 source,
                 key=preview.path,
             )
+        self._update_pagination_bar()
+
+    def _go_to_page(self, page: int) -> None:
+        pages = self._total_pages()
+        self._page = max(0, min(page, pages - 1))
+        table = self.query_one("#plans-table", DataTable)
+        table.clear()
+        page_slice = self._visible_previews[
+            self._page * self.PAGE_SIZE : (self._page + 1) * self.PAGE_SIZE
+        ]
+        for preview in page_slice:
+            path_obj = Path(preview.path)
+            source   = (
+                "saved"   if "saved-plans" in str(path_obj) else
+                "tracked" if "tasks"       in str(path_obj) else
+                "file"
+            )
+            table.add_row(
+                preview.name[:30],
+                (preview.goal or "-")[:40],
+                str(preview.task_count),
+                source,
+                key=preview.path,
+            )
+        self._update_pagination_bar()
+
+    def action_prev_page(self) -> None:
+        if self._page > 0:
+            self._go_to_page(self._page - 1)
+
+    def action_next_page(self) -> None:
+        if self._page < self._total_pages() - 1:
+            self._go_to_page(self._page + 1)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "search-input":
@@ -143,14 +259,20 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
         table = self.query_one("#plans-table", DataTable)
         if not table.row_count:
             return None
-        visible = getattr(self, "_visible_previews", self._previews)
+        page_slice = self._visible_previews[
+            self._page * self.PAGE_SIZE : (self._page + 1) * self.PAGE_SIZE
+        ]
         row_key = table.cursor_row
-        if row_key < 0 or row_key >= len(visible):
+        if row_key < 0 or row_key >= len(page_slice):
             return None
-        return visible[row_key].path
+        return page_slice[row_key].path
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-run":
+        if event.button.id == "btn-prev":
+            self.action_prev_page()
+        elif event.button.id == "btn-next":
+            self.action_next_page()
+        elif event.button.id == "btn-run":
             self.action_run()
         elif event.button.id == "btn-details":
             self.action_details()
