@@ -86,7 +86,7 @@ class ValidateRunScreen(Screen):  # type: ignore[type-arg,misc]
             # ── result banner ──────────────────────────────────────────────
             yield Static("", id="val-banner")
             # ── plan ──────────────────────────────────────────────────────
-            yield Static("── PLAN ──────────────────────────────────────────────", classes="val-hdr")
+            yield Static("[ PLAN ]", classes="val-hdr")
             with Horizontal(classes="val-row"):
                 yield Static("name",    classes="val-label")
                 yield Static("", id="f-plan-name",  classes="val-value")
@@ -99,21 +99,17 @@ class ValidateRunScreen(Screen):  # type: ignore[type-arg,misc]
             with Horizontal(classes="val-row"):
                 yield Static("policy",  classes="val-label")
                 yield Static("", id="f-policy",     classes="val-value")
-            # ── agents used by this plan ──────────────────────────────────
-            yield Static("── AGENTS ────────────────────────────────────────────", classes="val-hdr")
+            yield Static("[ AGENTS ]", classes="val-hdr")
             with Horizontal(classes="val-row"):
                 yield Static("used",    classes="val-label")
                 yield Static("", id="f-agent-names", classes="val-value")
-            # ── tasks table ───────────────────────────────────────────────
-            yield Static("── TASK DETAILS ──────────────────────────────────────", classes="val-hdr")
+            yield Static("[ TASK DETAILS ]", classes="val-hdr")
             yield DataTable(id="tasks-table", show_cursor=False)
-            # ── issues (errors + warnings) — hidden if none ───────────────
             with Container(id="issues-section"):
-                yield Static("── ISSUES ────────────────────────────────────────────", classes="val-hdr-err")
+                yield Static("[ ISSUES ]", classes="val-hdr-err")
                 yield Static("", id="issues-list", classes="val-issues")
-            # ── cost estimate — hidden if none ────────────────────────────
             with Container(id="cost-section"):
-                yield Static("── COST ESTIMATE ─────────────────────────────────────", classes="val-hdr")
+                yield Static("[ COST ESTIMATE ]", classes="val-hdr")
                 with Horizontal(classes="val-row"):
                     yield Static("total",   classes="val-label")
                     yield Static("", id="f-cost-total",  classes="val-value")

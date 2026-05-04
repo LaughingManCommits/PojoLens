@@ -725,7 +725,7 @@ class PlanEditorScreen(Screen):  # type: ignore[type-arg,misc]
         with Horizontal(id="ed-split"):
             with VerticalScroll(id="set-form"):
                 # ── PLAN ──────────────────────────────────────────────────────
-                yield Static("── PLAN ──────────────────────────────────────────", classes="section-hdr")
+                yield Static("[ PLAN ]", classes="section-hdr")
                 yield Static("name *", classes="set-label")
                 yield Input(id="f-name", placeholder="my-plan")
                 yield Static("goal *", classes="set-label")
@@ -735,7 +735,7 @@ class PlanEditorScreen(Screen):  # type: ignore[type-arg,misc]
                 yield Static("workspace strategy", classes="set-label")
                 yield _make_sel("f-workspace", _WS_OPTS, allow_blank=False)
                 # ── GOVERNANCE ────────────────────────────────────────────────
-                yield Static("── GOVERNANCE ────────────────────────────────────", classes="section-hdr")
+                yield Static("[ GOVERNANCE ]", classes="section-hdr")
                 yield Static("run budget USD  (blank = unlimited)", classes="set-label")
                 yield Input(id="f-budget", placeholder="0.50")
                 yield Static("HITL mode", classes="set-label")
@@ -745,7 +745,7 @@ class PlanEditorScreen(Screen):  # type: ignore[type-arg,misc]
                 yield Static("follow-up behavior", classes="set-label")
                 yield _make_sel("f-followup", _FOLL_OPTS, allow_blank=False)
                 # ── SHARED CONTEXT ─────────────────────────────────────────────
-                yield Static("── SHARED CONTEXT ────────────────────────────────", classes="section-hdr")
+                yield Static("[ SHARED CONTEXT ]", classes="section-hdr")
                 yield Static("summary", classes="set-label")
                 yield _make_ta("f-summary")
                 yield Static("constraints  (one per line)", classes="set-label")
@@ -753,7 +753,7 @@ class PlanEditorScreen(Screen):  # type: ignore[type-arg,misc]
                 yield Static("read paths  (one per line)", classes="set-label")
                 yield _make_ta("f-readpaths")
                 # ── TASKS ──────────────────────────────────────────────────────
-                yield Static("── TASKS ─────────────────────────────────────────", classes="section-hdr")
+                yield Static("[ TASKS ]", classes="section-hdr")
                 yield DataTable(id="task-table")
                 with Horizontal(id="task-actions"):
                     yield Button("+ ADD",     id="btn-task-add",    variant="success")

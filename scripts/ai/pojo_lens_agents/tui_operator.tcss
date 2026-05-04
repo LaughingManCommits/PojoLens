@@ -27,6 +27,13 @@ Footer {
 .section-rule {
     color: $green_dim;
 }
+/* ── Section dividers  [ NAME ]  — neon cyan ────────────────────────── */
+.section-hdr {
+    color: $cyan;
+    text-style: bold;
+    margin-top: 2;
+    margin-bottom: 1;
+}
 .dim {
     color: $text_dim;
 }
@@ -202,7 +209,50 @@ LoadingIndicator {
     color: $green;
     background: $bg;
 }
-
+Select {
+    background: $bg_input;
+    color: $green;
+    border: solid $green 40%;
+}
+Select:focus {
+    border: solid $cyan;
+    color: $cyan;
+}
+SelectionList {
+    background: $bg_input;
+    border: tall $green_dim;
+    color: $green_body;
+}
+SelectionList:focus { border: tall $cyan; }
+SelectionList > .selection-list--button-highlighted {
+    background: $green_dim;
+    color: $green;
+    text-style: bold;
+}
+SelectionList > .selection-list--button-selected {
+    color: $cyan;
+}
+/* ── Common layout primitives (all screens) ─────────────────────────── */
+#top-bar {
+    height: auto;
+    background: $bg_panel;
+    border-bottom: heavy $green 25%;
+    padding: 1 2;
+}
+#screen-title {
+    color: $cyan;
+    text-style: bold;
+}
+#screen-hint {
+    color: $text_dim;
+}
+#action-bar {
+    height: 5;
+    background: $bg_input;
+    border-top: solid $green 25%;
+    align: left middle;
+    padding: 0 1;
+}
 
 /* ── GoalInputScreen ─────────────────────────────────────────────────────── */
 GoalInputScreen {
@@ -411,23 +461,37 @@ PromoteConfirmDialog #btns          { height: auto; align: right middle; margin-
 PlanRunScreen {
     background: $bg;
 }
-
-/* ── SavedPlansScreen ────────────────────────────────────────────────────── */
-SavedPlansScreen {
-    background: $bg;
-}
-#top-bar {
+PlanRunScreen #top-bar {
     height: auto;
     background: $bg_panel;
     border-bottom: heavy $green 25%;
     padding: 1 2;
 }
-#screen-title {
-    color: $cyan;
-    text-style: bold;
+#run-title  { color: $cyan; text-style: bold; }
+#run-plan   { color: $text_dim; }
+#run-status { color: $green; margin-top: 1; }
+#run-progress-bar {
+    height: 1;
+    background: $bg_input;
+    border-bottom: solid $green_dim;
+    padding: 0 2;
+    align: left middle;
 }
-#screen-hint {
-    color: $text_dim;
+#run-prog-label { color: $text_dim; width: auto; }
+#run-prog-bar   { color: $green;    width: 1fr;  }
+#run-prog-cost  { color: $amber;    width: auto; }
+#run-log { height: 1fr; }
+PlanRunScreen #action-bar {
+    height: 5;
+    background: $bg_input;
+    border-top: solid $green 25%;
+    align: left middle;
+    padding: 0 1;
+}
+
+/* ── SavedPlansScreen ────────────────────────────────────────────────────── */
+SavedPlansScreen {
+    background: $bg;
 }
 #search-bar {
     height: 3;
@@ -475,27 +539,10 @@ SavedPlansScreen {
     color: $text_dim;
     border: solid $text_dim 20%;
 }
-#action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: left middle;
-    padding: 0 1;
-}
 
 /* ── PlanDetailsScreen ───────────────────────────────────────────────────── */
 PlanDetailsScreen {
     background: $bg;
-}
-#top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
-#screen-title {
-    color: $cyan;
-    text-style: bold;
 }
 #plan-path {
     color: $text_dim;
@@ -539,9 +586,8 @@ PlanEditorScreen #json-pane-title {
 PlanEditorScreen #json-log {
     height: 1fr;
 }
+/* .section-hdr global rule handles color: $cyan; text-style: bold */
 PlanEditorScreen .section-hdr {
-    color: $green;
-    text-style: bold;
     margin-top: 2;
     margin-bottom: 1;
 }
@@ -648,7 +694,7 @@ ValidateRunScreen #val-banner {
     text-style: bold;
 }
 ValidateRunScreen .val-hdr {
-    color: $green;
+    color: $cyan;
     text-style: bold;
     margin-top: 2;
     margin-bottom: 1;
@@ -687,14 +733,6 @@ ValidateRunScreen #issues-list {
 RunLedgerScreen {
     background: $bg;
 }
-RunLedgerScreen #top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
-RunLedgerScreen #screen-title { color: $cyan; text-style: bold; }
-RunLedgerScreen #screen-hint  { color: $text_dim; }
 #runs-table   { height: 1fr; }
 #empty-notice {
     color: $text_dim;
@@ -713,12 +751,6 @@ RunLedgerScreen #action-bar {
 /* ── RunDetailsScreen ────────────────────────────────────────────────────── */
 RunDetailsScreen {
     background: $bg;
-}
-RunDetailsScreen #top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
 }
 RunDetailsScreen #run-title      { color: $cyan; text-style: bold; }
 RunDetailsScreen #run-ref        { color: $text_dim; }
@@ -774,23 +806,10 @@ RunDetailsScreen #action-bar {
 ResumeRetryScreen {
     background: $bg;
 }
-#top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
 #rr-title  { color: $cyan; text-style: bold; }
 #rr-ref    { color: $text_dim; }
 #rr-status { color: $green; margin-top: 1; }
 #rr-log    { height: 1fr; }
-#action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: left middle;
-    padding: 0 1;
-}
 
 /* ── HitlGateScreen ──────────────────────────────────────────────────────── */
 HitlGateScreen {
@@ -868,12 +887,6 @@ HitlGateScreen {
 MemoryToolsScreen {
     background: $bg;
 }
-#top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
 #mem-title  { color: $cyan; text-style: bold; }
 #mem-hint   { color: $text_dim; }
 #mem-status { color: $green; height: 1; margin-top: 1; }
@@ -888,23 +901,10 @@ MemoryToolsScreen {
 #query-label { color: $cyan; width: 10; }
 #query-input { width: 1fr; }
 #mem-log   { height: 1fr; }
-#action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: left middle;
-    padding: 0 1;
-}
 
 /* ── SettingsScreen ──────────────────────────────────────────────────────── */
 SettingsScreen {
     background: $bg;
-}
-#top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
 }
 #set-title { color: $cyan; text-style: bold; }
 #set-path  { color: $text_dim; margin-top: 1; }
@@ -946,22 +946,13 @@ SettingsScreen Select {
 SettingsScreen Select:focus {
     border: tall $cyan;
 }
-#action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
+SettingsScreen #action-bar {
     align: right middle;
     padding: 0 2;
 }
 
 /* ── DiffReviewScreen ────────────────────────────────────────────────────── */
 DiffReviewScreen { background: $bg; }
-#top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
 #diff-title  { color: $cyan; text-style: bold; }
 #diff-ref    { color: $text_dim; }
 #diff-status { color: $green; margin-top: 1; }
@@ -975,22 +966,12 @@ DiffReviewScreen { background: $bg; }
 #split-view  { height: 1fr; layout: horizontal; }
 #file-list   { width: 42; border-right: heavy $green 20%; }
 #diff-log    { width: 1fr; }
-#action-bar  {
+DiffReviewScreen #action-bar  {
     height: 3;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: left middle;
-    padding: 0 1;
 }
 
 /* ── AgentsScreen ────────────────────────────────────────────────────────── */
 AgentsScreen { background: $bg; }
-AgentsScreen #top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
 #ag-title { color: $cyan; text-style: bold; }
 #ag-path  { color: $text_dim; }
 #ag-split {
@@ -1025,22 +1006,8 @@ AgentsScreen #top-bar {
     border: solid $text_dim 20%;
 }
 #ag-detail { height: 1fr; }
-AgentsScreen #action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: left middle;
-    padding: 0 1;
-}
-
 /* ── SkillsScreen ────────────────────────────────────────────────────────── */
 SkillsScreen { background: $bg; }
-SkillsScreen #top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
 #sk-title { color: $cyan; text-style: bold; }
 #sk-path  { color: $text_dim; }
 #sk-split {
@@ -1075,13 +1042,6 @@ SkillsScreen #top-bar {
     border: solid $text_dim 20%;
 }
 #sk-detail { height: 1fr; }
-SkillsScreen #action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: left middle;
-    padding: 0 1;
-}
 
 /* ── AgentEditScreen / SkillEditScreen ───────────────────────────────────── */
 AgentEditScreen { background: $bg; }
@@ -1122,12 +1082,6 @@ TaskEditModal .set-label {
 
 /* ── PlanInspectScreen ───────────────────────────────────────────────────── */
 PlanInspectScreen { background: $bg; }
-PlanInspectScreen #top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
 PlanInspectScreen #insp-title { color: $cyan; text-style: bold; }
 PlanInspectScreen #insp-path  { color: $text_dim; }
 PlanInspectScreen #mode-tabs  {
@@ -1157,9 +1111,6 @@ PlanInspectScreen #insp-table {
 }
 PlanInspectScreen #insp-log { width: 1fr; }
 PlanInspectScreen #action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
     align: right middle;
     padding: 0 2;
 }
@@ -1179,16 +1130,12 @@ EstimateScreen { align: center middle; }
 
 /* ── EstimateResultScreen ────────────────────────────────────────────────── */
 EstimateResultScreen { background: $bg; }
-#top-bar {
-    height: auto; background: $bg_panel;
-    border-bottom: heavy $green 25%; padding: 1 2;
-}
 #est-title { color: $cyan; text-style: bold; }
 #est-plan  { color: $text_dim; }
 #est-log   { height: 1fr; }
-#action-bar {
-    height: 5; background: $bg_input;
-    border-top: solid $green 25%; align: right middle; padding: 0 2;
+EstimateResultScreen #action-bar {
+    align: right middle;
+    padding: 0 2;
 }
 
 /* ── HomeScreen ──────────────────────────────────────────────────────────── */
@@ -1337,50 +1284,7 @@ DashboardWidget {
     margin-top: 0;
 }
 
-#btn-dash-open {
-    background: #001a08;
-    color: $green;
-    border: tall $green;
+/* Dashboard action buttons — colors come from variant classes (-success/-error/-warning) */
+#btn-dash-open, #btn-dash-stop, #btn-dash-pause, #btn-dash-delete {
     min-width: 10;
-}
-#btn-dash-open:disabled {
-    background: $bg_panel;
-    color: #0d200d;
-    border: tall #0d200d;
-}
-
-#btn-dash-stop {
-    background: #2a1400;
-    color: $amber;
-    border: tall $amber;
-    min-width: 10;
-}
-#btn-dash-stop:disabled {
-    background: $bg_panel;
-    color: #1a0d00;
-    border: tall #1a0d00;
-}
-
-#btn-dash-pause {
-    background: #001530;
-    color: $cyan;
-    border: tall $cyan;
-    min-width: 10;
-}
-#btn-dash-pause:disabled {
-    background: $bg_panel;
-    color: #000e20;
-    border: tall #000e20;
-}
-
-#btn-dash-delete {
-    background: #280008;
-    color: $red;
-    border: tall $red;
-    min-width: 10;
-}
-#btn-dash-delete:disabled {
-    background: $bg_panel;
-    color: #180005;
-    border: tall #180005;
 }

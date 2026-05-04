@@ -169,14 +169,14 @@ class EstimateResultScreen(Screen):  # type: ignore[type-arg,misc]
 
             estimate = payload.get("estimate") or payload.get("costEstimate") or {}
             if isinstance(estimate, dict) and estimate:
-                self._log("[bold #00e5ff]── Cost / Token Estimate ──[/]")
+                self._log("[bold #00e5ff][ Cost / Token Estimate ][/]")
                 for k, v in sorted(estimate.items()):
                     self._log(f"  [#00e5ff]{k}:[/] {v}")
 
             tasks = list(payload.get("tasks") or payload.get("taskEstimates") or [])
             if tasks:
                 self._log("")
-                self._log("[bold #00e5ff]── Per-Task Estimates ──[/]")
+                self._log("[bold #00e5ff][ Per-Task Estimates ][/]")
                 for t in tasks:
                     tid  = str(t.get("taskId") or t.get("id") or "?")
                     mdl  = str(t.get("model") or t.get("modelProfile") or "-")

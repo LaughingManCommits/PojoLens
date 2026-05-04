@@ -13,6 +13,7 @@ _MTX_VARS: dict[str, str] = {
     "text_dim":   "#2a5a3a",
     "border_dim": "#1a3a1a",
     "purple":     "#bf5fff",
+    "blue":       "#4488ff",
 }
 
 _BANNER_ART = (

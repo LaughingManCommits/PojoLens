@@ -237,7 +237,7 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Static("[ SETTINGS ]", id="set-title")
             yield Static("", id="set-path")
         with VerticalScroll(id="set-form"):
-            yield Static("TOKENS / API KEYS", classes="set-section")
+            yield Static("[ TOKENS / API KEYS ]", classes="set-section")
             yield Static("ANTHROPIC_API_KEY  (stored in .env, never in TOML)", classes="set-label")
             yield Input(id="f-api-key", password=True, placeholder="sk-ant-api03-...")
             yield Static("", id="f-api-key-status")
@@ -247,7 +247,7 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
                 id="f-provider", allow_blank=False,
             )
 
-            yield Static("DEFAULTS", classes="set-section")
+            yield Static("[ DEFAULTS ]", classes="set-section")
             yield Static("runtime_root", classes="set-label")
             yield Input(id="f-runtime-root", placeholder=".claude-orchestrator")
             yield Static("claude_bin", classes="set-label")
@@ -259,7 +259,7 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Static("worker_validation_mode", classes="set-label")
             yield Select(_WORKER_VAL_OPTIONS, id="f-worker-val-mode", allow_blank=False)
 
-            yield Static("NOTIFICATIONS", classes="set-section")
+            yield Static("[ NOTIFICATIONS ]", classes="set-section")
             yield Static("desktop (OS notification)", classes="set-label")
             yield Select(_BOOL_OPTIONS, id="f-desktop", allow_blank=False)
             yield Static("notify_on", classes="set-label")
@@ -269,7 +269,7 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Static("slack_webhook_url", classes="set-label")
             yield Input(id="f-slack-webhook", placeholder="https://hooks.slack.com/...")
 
-            yield Static("WORKSPACE", classes="set-section")
+            yield Static("[ WORKSPACE ]", classes="set-section")
             yield Static("strategy", classes="set-label")
             yield Select(_WORKSPACE_STRATEGY_OPTIONS, id="f-ws-strategy", allow_blank=False)
             yield Static("root (workspace dir)", classes="set-label")
