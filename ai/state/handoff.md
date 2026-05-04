@@ -7,6 +7,7 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-04`: WP79 complete; HomeScreen cursor reactive + Up/Down + Enter dispatch; MemoryTools POSIX platform cmd; PlanEditor editor chain ($VISUAL→$EDITOR→code→platform); GovernanceScreen inline budget/parallel validation; 40 tests; 1296 pass.
 - `2026-05-04`: TUI Provider Selector complete (pre-WP79 insert); `ProviderSelectScreen` wizard step 4/6; AgentsScreen + SettingsScreen show provider info; `--default-provider` CLI; `_DEFAULT_PROVIDER_ID_CTX`; task_execution fallback; 26 tests; 1247 pass.
 - `2026-05-04`: WP78 is complete; `provider_plugin.py` (LLMProvider Protocol + data types + exception hierarchy); `provider_registry.py` (singleton, auto-builtins, load_from_config); `providers/` package (anthropic_sdk, subprocess_claude, openai_compat); `provider` field on AgentDefinition+TaskDefinition+models; `load_providers_config()` in config_loader; plugin dispatch in task_execution.py; 30 tests; 1221 pass.
 - `2026-05-04`: WP77 is complete; `workspace_manager.py` (new: `prepare_workspace`/`cleanup_workspace`/helper fns); `codebase_path`/`workspace_strategy` in `TaskPlan`+`TaskPlanModel`+`RunManifestModel`; `load_workspace_config()` in `config_loader.py`; `_add_workspace_args()` in `cli_parser.py` (run/resume/wizard parsers); `_WORKSPACE_DIR_CTX` context var in `orchestrator_app.py`; `run_loaded_plan(workspace_dir=)` + `run_plan()` workspace prep+cleanup; manifest `codebasePath`/`workspaceStrategy` fields; 28 new tests; 1191 pass.
@@ -22,7 +23,7 @@
 - `2026-05-04`: WP79 added — TUI cross-platform & UX polish; `HomeScreen` cursor-aware [Enter]; `MemoryToolsScreen` POSIX fallback; `PlanEditorScreen` cross-platform editor; `GovernanceScreen` inline validation.
 - `2026-05-04`: WP78 added — LLM provider plugin system; `LLMProvider` Protocol; `ProviderRegistry`; OpenAI-compatible reference impl; per-agent/task `provider` field; multi-provider rate-limit buckets; TUI provider selector.
 - `2026-05-04`: WP77 added — multi-workspace codebase targeting; per-plan `codebasePath`/`workspaceStrategy`; global `workspace.root`; scratch/copy/repo modes; TUI workspace picker; prune integration.
-- `2026-05-04`: Queue is WP79 -> WP40 -> Release Gate. TUI Provider Selector done.
+- `2026-05-04`: Queue is WP40 -> Release Gate. WP79 done.
 
 ## Facts
 - `2026-05-04`: WP78 provider plugin system: `LLMProvider` Protocol (complete/rate_limit_meta/model_pricing/map_usage); registry singleton via `get_registry()`/`reset_registry()`; builtins auto-register at import; `anthropic-sdk` wraps run_sdk_provider; `subprocess-claude` raises NotImplementedError (dispatch stays in task_execution); openai-compat needs `openai` package; `provider` field on agent/task overrides dispatch when registry.has(id) and id not in builtins.

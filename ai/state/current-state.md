@@ -5,6 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
+- `2026-05-04`: WP79 complete; `HomeScreen` cursor-aware [Enter] (reactive `_cursor`, Up/Down bindings, `watch__cursor` CSS class toggle, `action_activate_item` dispatch map); `MemoryToolsScreen` POSIX fallback (`_memory_cmd` platform helper, `--query`/`--check` on POSIX vs `-Query`/`-Check` on win32); `PlanEditorScreen` editor chain (`$VISUAL` → `$EDITOR` → `code` → platform default, fallthrough on FileNotFoundError); `GovernanceScreen` inline validation (`#budget-err`/`#parallel-err` statics, `on_input_changed`, submit disabled on error); 40 tests; 1296 pass.
 - `2026-05-04`: Provider config default wired; `load_default_provider_id()` in config_loader; `_CONFIG_DEFAULT_PROVIDER_ID` module-level var set in `_init_provider_registry`; deps use `_DEFAULT_PROVIDER_ID_CTX.get() or _CONFIG_DEFAULT_PROVIDER_ID`; `ProviderSelectScreen` pre-selects config default; `SettingsScreen` shows `[config default]` tag; priority chain: global config → run-level → agent → task; 1256 pass.
 - `2026-05-04`: TUI Provider Selector complete; `ProviderSelectScreen` (wizard step 4/6); `AgentsScreen` shows `provider` field; `SettingsScreen` Providers section (id, class, pricing, rate-limit); `--default-provider` CLI flag; `_DEFAULT_PROVIDER_ID_CTX` ContextVar + `run_loaded_plan(default_provider_id=)` + task_execution fallback; 26 tests; 1247 pass.
 - `2026-05-04`: WP78 is complete; `provider_plugin.py` (LLMProvider Protocol, ProviderResult, RateLimitMeta, ModelPricing, exception hierarchy); `provider_registry.py` (singleton, auto-registers builtins, load_from_config); `providers/anthropic_sdk.py`, `providers/subprocess_claude.py`, `providers/openai_compat.py`; `provider` field on AgentDefinition/TaskDefinition/models; `load_providers_config()` in config_loader.py; plugin dispatch in task_execution.py; `_init_provider_registry()` in orchestrator_app.py; 30 tests; 1221 pass.
@@ -20,6 +21,7 @@
 - `2026-05-03`: WP60, WP50, WP59, WP67, WP58, WP57, WP55 complete.
 
 ## Verified
+- `2026-05-04`: Full Python suite at `1296` tests after WP79.
 - `2026-05-04`: Full Python suite at `1256` tests after provider config default wiring.
 - `2026-05-04`: Full Python suite at `1247` tests after TUI Provider Selector.
 - `2026-05-04`: Full Python suite at `1221` tests after WP78.
@@ -39,4 +41,4 @@
 - No active orchestrator risks beyond the remaining roadmap queue.
 
 ## Next
-- `2026-05-04`: Roadmap order is WP79 -> WP40 -> Release Gate. TUI Provider Selector done (pre-WP79 insert).
+- `2026-05-04`: Roadmap order is WP40 -> Release Gate. WP79 done.

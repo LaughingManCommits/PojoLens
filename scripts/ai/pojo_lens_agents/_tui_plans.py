@@ -385,16 +385,26 @@ class PlanEditorScreen(Screen):  # type: ignore[type-arg,misc]
     def _launch_editor(self) -> None:
         import os
         import subprocess
-        editor = (
-            os.environ.get("EDITOR")
-            or os.environ.get("VISUAL")
-            or ("notepad" if sys.platform == "win32" else "vi")
+        _platform_default = "notepad" if sys.platform == "win32" else "nano"
+        candidates = [
+            c for c in [
+                os.environ.get("VISUAL"),
+                os.environ.get("EDITOR"),
+                "code",
+                _platform_default,
+            ] if c
+        ]
+        for editor in candidates:
+            self._log(f"[#00e5ff][ SIGNAL ] trying editor {editor!r}...[/]")
+            try:
+                subprocess.run([editor, self._plan_path], check=False)
+                self._log("[#00ff41][ EXIT ] editor closed — press [R] to reload changes[/]")
+                return
+            except FileNotFoundError:
+                self._log(f"[dim]editor {editor!r} not found, trying next...[/]")
+            except Exception as exc:
+                self._log(f"[#ff2244]editor error ({editor!r}): {exc}[/]")
+                return
+        self._log(
+            f"[#ff2244]no editor found — set $VISUAL or $EDITOR env var[/]"
         )
-        self._log(f"[#00e5ff][ SIGNAL ] launching {editor!r} for {self._plan_path}[/]")
-        try:
-            subprocess.run([editor, self._plan_path], check=False)
-            self._log("[#00ff41][ EXIT ] editor closed — press [R] to reload changes[/]")
-        except FileNotFoundError:
-            self._log(f"[#ff2244]editor not found: {editor!r}  — set $EDITOR env var[/]")
-        except Exception as exc:
-            self._log(f"[#ff2244]editor error: {exc}[/]")

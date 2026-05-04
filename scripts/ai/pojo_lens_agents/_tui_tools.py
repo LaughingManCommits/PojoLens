@@ -105,17 +105,31 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
             lambda: self._run_query(query), thread=True, name="mem-query"
         )
 
+    @staticmethod
+    def _memory_cmd(script_stem: str, extra_args: list[str] | None = None) -> list[str]:
+        """Return platform-appropriate command to run a memory script."""
+        import sys as _sys
+        from pathlib import Path as _Path
+        _base = _Path(__file__).resolve().parents[3]
+        _extra = extra_args or []
+        if _sys.platform == "win32":
+            _ps1 = _base / "scripts" / "ai" / f"{script_stem}.ps1"
+            return ["powershell", "-File", str(_ps1), *_extra]
+        _py = _base / "scripts" / "ai" / f"{script_stem}.py"
+        return [_sys.executable, str(_py), *_extra]
+
     def _run_query(self, query: str) -> None:
         self._log(f"[#00e5ff][ SIGNAL ] querying memory: {query!r}...[/]")
         try:
             import subprocess
-            result = subprocess.run(
-                ["powershell", "-File", "scripts/ai/query-ai-memory.ps1",
-                 "-Query", query, "-Limit", "10"],
-                capture_output=True,
-                text=True,
-                timeout=60,
+            import sys as _sys
+            _extra = (
+                ["-Query", query, "-Limit", "10"]
+                if _sys.platform == "win32"
+                else ["--query", query, "--limit", "10"]
             )
+            cmd = self._memory_cmd("query-ai-memory", _extra)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             output = (result.stdout or "") + (result.stderr or "")
             for line in output.splitlines():
                 self._log(line)
@@ -130,12 +144,8 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
         self._log("[#00e5ff][ SIGNAL ] launching memory refresh...[/]")
         try:
             import subprocess
-            result = subprocess.run(
-                ["powershell", "-File", "scripts/ai/refresh-ai-memory.ps1"],
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
+            cmd = self._memory_cmd("refresh-ai-memory")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             output = (result.stdout or "") + (result.stderr or "")
             for line in output.splitlines():
                 self._log(line)
@@ -150,12 +160,10 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
         self._log("[#00e5ff][ SIGNAL ] running memory check...[/]")
         try:
             import subprocess
-            result = subprocess.run(
-                ["powershell", "-File", "scripts/ai/refresh-ai-memory.ps1", "-Check"],
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
+            import sys as _sys
+            _extra = ["-Check"] if _sys.platform == "win32" else ["--check"]
+            cmd = self._memory_cmd("refresh-ai-memory", _extra)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             output = (result.stdout or "") + (result.stderr or "")
             for line in output.splitlines():
                 self._log(line)

@@ -8,12 +8,14 @@ try:
     from textual.app import ComposeResult
     from textual.binding import Binding
     from textual.containers import Container, Horizontal, ScrollableContainer
+    from textual.reactive import reactive
     from textual.screen import Screen
     from textual.widgets import Footer, Header, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
     Screen = object  # type: ignore[assignment,misc]
     ComposeResult = Any  # type: ignore[assignment]
+    reactive = lambda v: v  # type: ignore[assignment]
 
 from pojo_lens_agents._tui_theme import _BANNER_ART
 from pojo_lens_agents._tui_dashboard import DashboardWidget  # noqa: F401
@@ -25,19 +27,21 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
     """Main navigation hub with live dashboard."""
 
     BINDINGS = [
-        Binding("n", "new_plan",    "New Plan",    show=False),
-        Binding("s", "saved_plans", "Saved Plans", show=False),
-        Binding("r", "runs",        "Runs",        show=False),
-        Binding("l", "ledger",      "Ledger",      show=False),
-        Binding("v", "validate",    "Validate",    show=False),
-        Binding("d", "dry_run",     "Dry Run",     show=False),
-        Binding("p", "promote",     "Promote",     show=False),
-        Binding("a", "agents",      "Agents",      show=False),
-        Binding("k", "skills",      "Skills",      show=False),
-        Binding("m", "memory",      "Memory",      show=False),
-        Binding("t", "settings",    "Settings",    show=False),
-        Binding("q", "quit_app",    "Quit",        show=False),
-        Binding("enter", "activate_item", "Select", show=False),
+        Binding("n",     "new_plan",       "New Plan",    show=False),
+        Binding("s",     "saved_plans",    "Saved Plans", show=False),
+        Binding("r",     "runs",           "Runs",        show=False),
+        Binding("l",     "ledger",         "Ledger",      show=False),
+        Binding("v",     "validate",       "Validate",    show=False),
+        Binding("d",     "dry_run",        "Dry Run",     show=False),
+        Binding("p",     "promote",        "Promote",     show=False),
+        Binding("a",     "agents",         "Agents",      show=False),
+        Binding("k",     "skills",         "Skills",      show=False),
+        Binding("m",     "memory",         "Memory",      show=False),
+        Binding("t",     "settings",       "Settings",    show=False),
+        Binding("q",     "quit_app",       "Quit",        show=False),
+        Binding("up",    "cursor_up",      "Up",          show=False),
+        Binding("down",  "cursor_down",    "Down",        show=False),
+        Binding("enter", "activate_item",  "Select",      show=False),
     ]
 
     _MENU_ITEMS = [
@@ -58,6 +62,22 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         ("q", "QUIT",             "Exit operator console"),
     ]
 
+    # Navigable (non-divider) items: list of (action_key,)
+    _NAV_ITEMS: list[str] = [key for key, label, _ in _MENU_ITEMS if label is not None]
+
+    _cursor: reactive[int] = reactive(0)  # type: ignore[assignment]
+
+    DEFAULT_CSS = """
+    HomeScreen .menu-row--selected .menu-label {
+        color: #00ff41;
+        text-style: bold;
+    }
+    HomeScreen .menu-row--selected .menu-key {
+        color: #ffaa00;
+        text-style: bold;
+    }
+    """
+
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Horizontal(id="home-main"):
@@ -70,18 +90,24 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
                     )
                 with Container(id="menu-box"):
                     yield Static("[ MAIN NAVIGATION ]", id="menu-title")
+                    _nav_idx = 0
                     for key, label, desc in self._MENU_ITEMS:
                         if label is None:
                             yield Static("─" * 40, classes="menu-divider")
                         else:
-                            with Horizontal(classes="menu-row"):
+                            with Horizontal(
+                                classes="menu-row",
+                                id=f"menu-row-{_nav_idx}",
+                            ):
                                 yield Static(f"[{key.upper()}]", classes="menu-key")
                                 yield Static(label, classes="menu-label")
                                 yield Static(desc, classes="menu-desc")
+                            _nav_idx += 1
             with Container(id="dashboard-panel"):
                 yield DashboardWidget(id="dashboard")
         yield Static(
-            "[dim #2a5a3a]KEYBOARD: [N] new  [S] saved  [R] runs  [L] ledger  "
+            "[dim #2a5a3a]KEYBOARD: ↑↓ navigate · Enter select · "
+            "[N] new  [S] saved  [R] runs  [L] ledger  "
             "[V] validate  [D] dry-run  [A] agents  [K] skills  [M] memory  "
             "[T] settings  [Q] quit[/]",
             id="status-bar",
@@ -91,9 +117,28 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
     def on_mount(self) -> None:
         self.app.title = "POJOLENS  //  OPERATOR CONSOLE"  # type: ignore[attr-defined]
         self.app.sub_title = "MISSION CONTROL"  # type: ignore[attr-defined]
+        try:
+            self.query_one("#menu-row-0").add_class("menu-row--selected")
+        except Exception:
+            pass
+
+    def watch__cursor(self, old: int, new: int) -> None:
+        try:
+            self.query_one(f"#menu-row-{old}").remove_class("menu-row--selected")
+        except Exception:
+            pass
+        try:
+            self.query_one(f"#menu-row-{new}").add_class("menu-row--selected")
+        except Exception:
+            pass
+
+    def action_cursor_up(self) -> None:
+        self._cursor = max(0, self._cursor - 1)  # type: ignore[assignment]
+
+    def action_cursor_down(self) -> None:
+        self._cursor = min(len(self._NAV_ITEMS) - 1, self._cursor + 1)  # type: ignore[assignment]
 
     # ── Actions ────────────────────────────────────────────────────────────────
-    # action_new_plan bubbles to OperatorApp.action_new_plan
 
     def action_saved_plans(self) -> None:
         from pojo_lens_agents._tui_plans import SavedPlansScreen
@@ -139,4 +184,22 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         self.app.exit(0)  # type: ignore[attr-defined]
 
     def action_activate_item(self) -> None:
-        self.app.run_worker(self.app.action_new_plan())  # type: ignore[attr-defined]
+        _dispatch: dict[str, Any] = {
+            "n": lambda: self.app.run_worker(self.app.action_new_plan()),  # type: ignore[attr-defined]
+            "s": self.action_saved_plans,
+            "r": self.action_runs,
+            "l": self.action_ledger,
+            "v": self.action_validate,
+            "d": self.action_dry_run,
+            "p": self.action_promote,
+            "a": self.action_agents,
+            "k": self.action_skills,
+            "m": self.action_memory,
+            "t": self.action_settings,
+            "q": self.action_quit_app,
+        }
+        cursor = int(self._cursor)  # type: ignore[arg-type]
+        if 0 <= cursor < len(self._NAV_ITEMS):
+            fn = _dispatch.get(self._NAV_ITEMS[cursor])
+            if fn:
+                fn()

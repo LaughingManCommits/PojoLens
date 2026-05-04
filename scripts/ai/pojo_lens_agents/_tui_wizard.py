@@ -553,8 +553,10 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
             yield Rule()
             yield Static("Run Budget USD  (blank = unlimited):", classes="field-label")
             yield Input(placeholder="e.g.  0.50", id="budget-input")
+            yield Static("", id="budget-err", classes="field-err")
             yield Static("Max Parallel Tasks:", classes="field-label")
             yield Input(value="2", id="parallel-input")
+            yield Static("", id="parallel-err", classes="field-err")
             with Horizontal(id="btns"):
                 yield Button("CONTINUE  →", id="btn-continue", variant="primary")
                 yield Button("BACK", id="btn-back")
@@ -564,6 +566,47 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
         self.query_one("#hitl-list",          OptionList).highlighted = 0
         self.query_one("#budget-behavior-list", OptionList).highlighted = 0
         self.query_one("#followup-list",       OptionList).highlighted = 0
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "budget-input":
+            self._validate_budget(event.value)
+        elif event.input.id == "parallel-input":
+            self._validate_parallel(event.value)
+
+    def _validate_budget(self, raw: str) -> None:
+        err = self.query_one("#budget-err", Static)
+        if raw.strip() == "":
+            err.update("")
+        else:
+            try:
+                v = float(raw.strip())
+                if v <= 0:
+                    raise ValueError
+                err.update("")
+            except (ValueError, TypeError):
+                err.update("[bold #ff2244]⚠ must be a positive number (e.g. 0.50)[/]")
+        self._update_submit_state()
+
+    def _validate_parallel(self, raw: str) -> None:
+        err = self.query_one("#parallel-err", Static)
+        try:
+            v = int(raw.strip())
+            if v < 1:
+                raise ValueError
+            err.update("")
+        except (ValueError, TypeError):
+            err.update("[bold #ff2244]⚠ must be an integer ≥ 1[/]")
+        self._update_submit_state()
+
+    def _has_errors(self) -> bool:
+        return bool(
+            str(self.query_one("#budget-err",   Static).renderable).strip()
+            or str(self.query_one("#parallel-err", Static).renderable).strip()
+        )
+
+    def _update_submit_state(self) -> None:
+        btn = self.query_one("#btn-continue", Button)
+        btn.disabled = self._has_errors()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-continue":
