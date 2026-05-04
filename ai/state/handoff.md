@@ -3,10 +3,11 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP78 -> WP79 -> WP40 -> Release Gate.
+3. Follow `TODO.md`: WP79 -> WP40 -> Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-04`: WP78 is complete; `provider_plugin.py` (LLMProvider Protocol + data types + exception hierarchy); `provider_registry.py` (singleton, auto-builtins, load_from_config); `providers/` package (anthropic_sdk, subprocess_claude, openai_compat); `provider` field on AgentDefinition+TaskDefinition+models; `load_providers_config()` in config_loader; plugin dispatch in task_execution.py; 30 tests; 1221 pass.
 - `2026-05-04`: WP77 is complete; `workspace_manager.py` (new: `prepare_workspace`/`cleanup_workspace`/helper fns); `codebase_path`/`workspace_strategy` in `TaskPlan`+`TaskPlanModel`+`RunManifestModel`; `load_workspace_config()` in `config_loader.py`; `_add_workspace_args()` in `cli_parser.py` (run/resume/wizard parsers); `_WORKSPACE_DIR_CTX` context var in `orchestrator_app.py`; `run_loaded_plan(workspace_dir=)` + `run_plan()` workspace prep+cleanup; manifest `codebasePath`/`workspaceStrategy` fields; 28 new tests; 1191 pass.
 - `2026-05-04`: WP76 is complete; `ClarificationScreen` AI backend wired (`clarify_fn` param + `_make_clarify_fn` closure in `OperatorApp`); `SettingsScreen` TPM/RPM + notifications; 5 inspector screens in `_tui_inspect.py`; `PlanDetailsScreen` [T]/[I]/[O]/[P] bindings; 34 tests; 1167 pass.
 - `2026-05-04`: WP75 is complete; `_read_gate_manifest` + gate screen live data; `OrchestratorApp` auto-pushes `HitlGateScreen` via `push_screen`+Future; approve/abort/back+sentinel wired; 17 tests; 1129 pass.
@@ -20,9 +21,10 @@
 - `2026-05-04`: WP79 added — TUI cross-platform & UX polish; `HomeScreen` cursor-aware [Enter]; `MemoryToolsScreen` POSIX fallback; `PlanEditorScreen` cross-platform editor; `GovernanceScreen` inline validation.
 - `2026-05-04`: WP78 added — LLM provider plugin system; `LLMProvider` Protocol; `ProviderRegistry`; OpenAI-compatible reference impl; per-agent/task `provider` field; multi-provider rate-limit buckets; TUI provider selector.
 - `2026-05-04`: WP77 added — multi-workspace codebase targeting; per-plan `codebasePath`/`workspaceStrategy`; global `workspace.root`; scratch/copy/repo modes; TUI workspace picker; prune integration.
-- `2026-05-04`: Queue is WP78 -> WP79 -> WP40 -> Release Gate.
+- `2026-05-04`: Queue is WP79 -> WP40 -> Release Gate.
 
 ## Facts
+- `2026-05-04`: WP78 provider plugin system: `LLMProvider` Protocol (complete/rate_limit_meta/model_pricing/map_usage); registry singleton via `get_registry()`/`reset_registry()`; builtins auto-register at import; `anthropic-sdk` wraps run_sdk_provider; `subprocess-claude` raises NotImplementedError (dispatch stays in task_execution); openai-compat needs `openai` package; `provider` field on agent/task overrides dispatch when registry.has(id) and id not in builtins.
 - `2026-05-04`: `workspace_manager.py` strategies: `repo` (return codebasePath or cwd), `copy` (shutil.copytree → workspace_root/slug/run_id/), `scratch` (empty dir). `_WORKSPACE_DIR_CTX` ContextVar set inside `_run_inner` coroutine so it's scoped per-run; `execute_task` reads it via `_WORKSPACE_DIR_CTX.get() or ROOT`.
 - `2026-05-04`: `ClarificationScreen` takes optional `clarify_fn: Callable[[str], dict] | None`; `OperatorApp._make_clarify_fn()` builds the closure; `_ai_questions`/`_ai_refined_goal` fields; static `_CLARIF_QUESTIONS` fallback when no AI.
 - `2026-05-04`: Inspector screens in `_tui_inspect.py`: `ExtraToolsScreen`, `ValidationIntentsScreen`, `OutputProfilesScreen`, `FollowUpTaskScreen`, `PromptAccountingScreen`; all wired into `PlanDetailsScreen` [T]/[I]/[O]/[P]; re-exported from `tui_operator.py`.

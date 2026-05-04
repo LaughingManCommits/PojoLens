@@ -400,7 +400,18 @@ async def execute_task(
         max_estimated_tokens=deps["resolved_max_prompt_estimated_tokens"](task, agent),
     )
     _provider_mode = deps.get("provider_mode", lambda: "subprocess")()
-    if _provider_mode != "sdk":
+    _effective_provider_id = (
+        getattr(task, "provider", None)
+        or getattr(agent, "provider", None)
+    )
+    _plugin_registry = deps.get("provider_registry")
+    _use_plugin = bool(
+        _effective_provider_id
+        and _plugin_registry is not None
+        and _plugin_registry.has(_effective_provider_id)
+        and _effective_provider_id not in ("anthropic-sdk", "subprocess-claude")
+    )
+    if _provider_mode != "sdk" and not _use_plugin:
         task_allowed, task_disallowed = deps["effective_tool_lists"](task, agent)
         command = deps["claude_command"](
             claude_bin,
@@ -416,6 +427,15 @@ async def execute_task(
             max_budget_usd=task.max_budget_usd if task.max_budget_usd is not None else agent.max_budget_usd,
         )
         _command_artifact: dict[str, Any] = {"cwd": str(prepared_workspace), "command": command}
+    elif _use_plugin:
+        command = []
+        _command_artifact = {
+            "cwd": str(prepared_workspace),
+            "command": [_effective_provider_id],
+            "providerMode": "plugin",
+            "providerId": _effective_provider_id,
+            "model": model_name,
+        }
     else:
         command = []
         _command_artifact = {
@@ -478,7 +498,24 @@ async def execute_task(
     actual_changed_files: list[str] = []
     changed_repo_files: list[str] = []
     try:
-        if _provider_mode == "sdk":
+        if _use_plugin:
+            _plugin = _plugin_registry.get(_effective_provider_id)
+            _plugin_result = await asyncio.to_thread(
+                _plugin.complete,
+                agent.prompt or "",
+                prompt,
+                model=model_name,
+                workspace_root=prepared_workspace,
+                timeout_sec=task.timeout_sec or agent.timeout_sec,
+                extra_tools=deps.get("extra_tools") or None,
+                shared_context_path=shared_context_path,
+                task_id=task.id,
+            )
+            return_code = 1 if _plugin_result.error else 0
+            stdout_text = _plugin_result.text
+            stderr_text = _plugin_result.error or ""
+            usage = _plugin.map_usage(_plugin_result.usage)
+        elif _provider_mode == "sdk":
             _partial_factory = deps.get("partial_text_writer_factory")
             _partial_cb = _partial_factory(task_id=task.id, task_title=task.title) if _partial_factory else None
             _sdk_result = await asyncio.to_thread(

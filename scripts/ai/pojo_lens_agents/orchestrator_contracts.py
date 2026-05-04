@@ -408,6 +408,7 @@ class AgentDefinition:
     disallowed_tools: list[str] = field(default_factory=list)
     max_retries: int | None = None
     extra_tools: list[ExtraToolDef] = field(default_factory=list)
+    provider: str | None = None
 
 
 @dataclass(frozen=True)
@@ -462,6 +463,7 @@ class TaskDefinition:
     condition_value: str | None = None
     extra_tools: list[ExtraToolDef] = field(default_factory=list)
     shared_context_tags: list[str] = field(default_factory=list)
+    provider: str | None = None
 
     @property
     def files(self) -> list[str]:

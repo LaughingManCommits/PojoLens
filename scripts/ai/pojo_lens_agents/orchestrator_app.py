@@ -68,6 +68,7 @@ validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
 rate_limiter_layer = _LazyModuleProxy("pojo_lens_agents.rate_limiter")
 notify_layer = _LazyModuleProxy("pojo_lens_agents.notify")
 workspace_manager_layer = _LazyModuleProxy("pojo_lens_agents.workspace_manager")
+provider_registry_layer = _LazyModuleProxy("pojo_lens_agents.provider_registry")
 
 from pojo_lens_agents.cli_parser import parse_args
 from pojo_lens_agents.command_dispatch import _worker_run_exit_code, dispatch_main
@@ -250,6 +251,7 @@ async def execute_task(
             "coerce_validation_intent_payload": coerce_validation_intent_payload,
             "reviewer_finding_factory": ReviewFinding,
             "prepare_workspace": prepare_workspace,
+            "provider_registry": provider_registry_layer.get_registry(),
             "error_factory": OrchestratorError,
             "asdict": asdict,
             "task_run_record_factory": TaskRunRecord,
@@ -1567,8 +1569,19 @@ def _build_handlers() -> dict[str, Any]:
     }
 
 
+def _init_provider_registry() -> None:
+    """Load provider plugins from config into the singleton registry."""
+    try:
+        providers_cfg = config_loader_layer.load_providers_config()
+        if providers_cfg:
+            provider_registry_layer.get_registry().load_from_config(providers_cfg)
+    except Exception:
+        pass
+
+
 def main() -> int:
     args = parse_args()
+    _init_provider_registry()
     if args.command == "console":
         from pojo_lens_agents.cli_parser import parse_args as _child_parse_args
         handlers = _build_handlers()

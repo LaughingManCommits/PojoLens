@@ -226,6 +226,38 @@ def load_workspace_config(
     return result
 
 
+def load_providers_config(
+    config_path: str | Path | None = None,
+    *,
+    env: dict[str, str] | None = None,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    """Return the raw ``[providers]`` table from the config file, or ``{}``."""
+    if env is None:
+        env = dict(os.environ)
+    if root is None:
+        root = Path(__file__).resolve().parents[3]
+
+    resolved_path = _find_config_path(config_path, env, root)
+    if resolved_path is None:
+        return {}
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Config file not found: {resolved_path}")
+
+    if tomllib is None:
+        raise ImportError(
+            "TOML support requires Python 3.11+ (tomllib) or the 'tomli' package."
+        )
+
+    with open(resolved_path, "rb") as fh:
+        raw = tomllib.load(fh)
+
+    providers_section = raw.get("providers", {})
+    if not isinstance(providers_section, dict):
+        raise ValueError(f"{resolved_path}: [providers] section must be a TOML table")
+    return providers_section
+
+
 WATCH_PHASES = frozenset({"task-finished", "task-retry", "batch-ready", "run-finished", "task-reused"})
 
 

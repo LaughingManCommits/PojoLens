@@ -157,6 +157,7 @@ class AgentDefinitionModel(ContractModel):
     disallowed_tools: list[str] = Field(default_factory=list, alias="disallowedTools")
     max_retries: int | None = Field(default=None, alias="maxRetries", ge=0)
     extra_tools: list[ExtraToolDefModel] = Field(default_factory=list, alias="extraTools")
+    provider: str | None = None
 
     @field_validator("workspace_mode")
     @classmethod
@@ -237,6 +238,7 @@ class TaskDefinitionModel(ContractModel):
     condition_value: str | None = Field(default=None, alias="conditionValue")
     extra_tools: list[ExtraToolDefModel] = Field(default_factory=list, alias="extraTools")
     shared_context_tags: list[str] = Field(default_factory=list, alias="sharedContextTags")
+    provider: str | None = None
 
     @property
     def files(self) -> list[str]:
