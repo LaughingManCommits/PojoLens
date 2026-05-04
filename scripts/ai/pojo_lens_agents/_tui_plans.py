@@ -165,8 +165,8 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
         end   = min((page + 1) * self.PAGE_SIZE, n)
         try:
             self.query_one("#page-label", Static).update(
-                f"  [dim]Page [bold]{page + 1}[/bold] / {pages}  "
-                f"({start}–{end} of {n})[/]  "
+                f"  Page [bold]{page + 1}[/bold] / {pages}  "
+                f"({start}–{end} of {n})  "
             )
             self.query_one("#btn-prev", Button).disabled = page == 0
             self.query_one("#btn-next", Button).disabled = page >= pages - 1

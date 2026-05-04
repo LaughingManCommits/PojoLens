@@ -288,6 +288,11 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
 
         return _clarify
 
+    def go_home(self) -> None:
+        """Pop all screens back to HomeScreen."""
+        while len(self.screen_stack) > 1:
+            self.pop_screen()
+
     async def action_new_plan(self) -> None:
         from pojo_lens_agents._tui_wizard import (
             GoalInputScreen,

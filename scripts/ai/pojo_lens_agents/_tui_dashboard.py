@@ -150,9 +150,9 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         n = len(manifests)
         if n == 0:
             return
-        label = f"[dim]Run [bold]{idx + 1}[/bold] / {n}[/]"
+        label = f"Run [bold]{idx + 1}[/bold] / {n}"
         if idx == 0:
-            label += "  [dim #00ff41][latest][/]"
+            label += "  [#00ff41][latest][/]"
         try:
             self.query_one("#dash-run-nav", Static).update(label)
             self.query_one("#btn-run-prev", Button).disabled = idx >= n - 1
@@ -173,7 +173,7 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             self.query_one("#dash-idle-msg", Static).update(
                 "[dim #2a5a3a][ IDLE ]  No run data yet — press [N] to start a plan[/]"
             )
-            self.query_one("#dash-run-nav", Static).update("[dim]—[/]")
+            self.query_one("#dash-run-nav", Static).update("—")
             self.query_one("#btn-run-prev", Button).disabled = True
             self.query_one("#btn-run-next", Button).disabled = True
         except Exception:
