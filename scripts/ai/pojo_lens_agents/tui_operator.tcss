@@ -870,3 +870,102 @@ EstimateResultScreen { background: $bg; }
     height: 5; background: $bg_input;
     border-top: solid $green 25%; align: right middle; padding: 0 2;
 }
+
+/* ── HomeScreen (dashboard layout) ──────────────────────────────────────── */
+HomeScreen { background: $bg; }
+
+#home-main {
+    height: 1fr;
+}
+
+#nav-panel {
+    width: 52;
+    border-right: heavy $green 20%;
+}
+
+#banner-box {
+    width: 100%;
+    background: $bg_panel;
+    border: heavy $green 25%;
+    padding: 1 2;
+    margin-bottom: 1;
+    align: center middle;
+    height: auto;
+}
+#banner-art  { color: $green; text-style: bold; text-align: center; }
+#tagline     { color: $cyan; text-align: center; text-style: italic; margin-top: 1; }
+
+#menu-box {
+    width: 100%;
+    background: $bg_panel;
+    border: heavy $green 20%;
+    padding: 1 2;
+    height: auto;
+}
+#menu-title  { color: $cyan; text-style: bold; text-align: center; margin-bottom: 1; border-bottom: solid $green_dim; }
+.menu-row    { height: 1; margin: 0; }
+.menu-divider{ color: $text_dim; height: 1; margin: 0; }
+.menu-key    { width: 5; color: $green; text-style: bold; }
+.menu-label  { width: 20; color: $green; text-style: bold; }
+.menu-desc   { color: $green_body; }
+
+#status-bar {
+    height: 1;
+    padding: 0 2;
+    color: $text_dim;
+    background: $bg_input;
+}
+
+/* ── DashboardWidget ─────────────────────────────────────────────────────── */
+#dashboard-panel {
+    width: 1fr;
+    padding: 0;
+}
+
+DashboardWidget {
+    width: 1fr;
+    height: 1fr;
+    background: $bg_panel;
+    padding: 1 2;
+    border-left: solid $green_dim;
+}
+
+#dash-title {
+    color: $cyan;
+    text-style: bold;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#dash-rule-top  { color: $green_dim; margin-bottom: 1; }
+#dash-rule-mid  { color: $green_dim; margin-top: 1; margin-bottom: 1; }
+
+#dash-stats {
+    height: auto;
+    margin-bottom: 1;
+}
+
+#dash-run-id   { color: $green_body; }
+#dash-status   { margin-top: 1; }
+#dash-progress { margin-top: 1; }
+#dash-cost     { margin-top: 1; }
+#dash-elapsed  { margin-top: 1; }
+
+#dash-activity-title {
+    color: $cyan;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#dash-log {
+    height: 1fr;
+    background: $bg;
+    border: solid $green_dim;
+    padding: 0 1;
+}
+
+#dash-idle-msg {
+    color: $text_dim;
+    text-align: center;
+    margin-top: 2;
+}

@@ -111,6 +111,7 @@ from pojo_lens_agents._tui_helpers import (  # noqa: F401
     _plan_summary_rich,
     _collect_previews,
 )
+from pojo_lens_agents._tui_dashboard import DashboardWidget  # noqa: F401
 from pojo_lens_agents._tui_home import HomeScreen  # noqa: F401
 from pojo_lens_agents._tui_wizard import (  # noqa: F401
     GoalInputScreen,

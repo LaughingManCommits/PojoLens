@@ -167,7 +167,7 @@ class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
                     warn  = " [#ff2244]⚠ collides with base tool[/]" if tname in self._BASE_TOOLS else ""
                     detail.write(f"    [{col}]•[/{col}] {tname} ({tkind}){warn}")
 
-        self.app.call_from_thread(_write)
+        _write()
 
 
 # ── SkillsScreen ──────────────────────────────────────────────────────────────
@@ -309,4 +309,4 @@ class SkillsScreen(Screen):  # type: ignore[type-arg,misc]
                 except OSError:
                     detail.write(f"  [dim](file not found)[/]")
 
-        self.app.call_from_thread(_write)
+        _write()

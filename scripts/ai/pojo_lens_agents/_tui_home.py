@@ -9,19 +9,20 @@ try:
     from textual.binding import Binding
     from textual.containers import Container, Horizontal, ScrollableContainer
     from textual.screen import Screen
-    from textual.widgets import Button, Footer, Header, Static
+    from textual.widgets import Footer, Header, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
-    App = object  # type: ignore[assignment,misc]
     Screen = object  # type: ignore[assignment,misc]
     ComposeResult = Any  # type: ignore[assignment]
-    Text = None  # type: ignore[assignment]
 
 from pojo_lens_agents._tui_theme import _BANNER_ART
+from pojo_lens_agents._tui_dashboard import DashboardWidget  # noqa: F401
 
+
+# ── HomeScreen ─────────────────────────────────────────────────────────────────
 
 class HomeScreen(Screen):  # type: ignore[type-arg,misc]
-    """Main navigation hub."""
+    """Main navigation hub with live dashboard."""
 
     BINDINGS = [
         Binding("n", "new_plan",    "New Plan",    show=False),
@@ -59,40 +60,40 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        with ScrollableContainer(id="outer"):
-            with Container(id="banner-box"):
-                yield Static(_BANNER_ART, id="banner-art")
-                yield Static(
-                    "// AI MULTI-AGENT OPERATOR CONSOLE  //  MISSION CONTROL",
-                    id="tagline",
-                )
-            with Container(id="menu-box"):
-                yield Static("[ MAIN NAVIGATION ]", id="menu-title")
-                for key, label, desc in self._MENU_ITEMS:
-                    if label is None:
-                        yield Static(
-                            "─" * 46,
-                            classes="menu-divider",
-                        )
-                    else:
-                        with Horizontal(classes="menu-row"):
-                            yield Static(f"[{key.upper()}]", classes="menu-key")
-                            yield Static(label, classes="menu-label")
-                            yield Static(desc, classes="menu-desc")
+        with Horizontal(id="home-main"):
+            with ScrollableContainer(id="nav-panel"):
+                with Container(id="banner-box"):
+                    yield Static(_BANNER_ART, id="banner-art")
+                    yield Static(
+                        "// AI MULTI-AGENT OPERATOR CONSOLE  //  MISSION CONTROL",
+                        id="tagline",
+                    )
+                with Container(id="menu-box"):
+                    yield Static("[ MAIN NAVIGATION ]", id="menu-title")
+                    for key, label, desc in self._MENU_ITEMS:
+                        if label is None:
+                            yield Static("─" * 40, classes="menu-divider")
+                        else:
+                            with Horizontal(classes="menu-row"):
+                                yield Static(f"[{key.upper()}]", classes="menu-key")
+                                yield Static(label, classes="menu-label")
+                                yield Static(desc, classes="menu-desc")
+            with Container(id="dashboard-panel"):
+                yield DashboardWidget(id="dashboard")
         yield Static(
             "[dim #2a5a3a]KEYBOARD: [N] new  [S] saved  [R] runs  [L] ledger  "
-            "[V] validate  [D] dry-run  [A] agents  [K] skills  [M] memory  [T] settings  [Q] quit[/]",
+            "[V] validate  [D] dry-run  [A] agents  [K] skills  [M] memory  "
+            "[T] settings  [Q] quit[/]",
             id="status-bar",
         )
         yield Footer()
 
     def on_mount(self) -> None:
-        self.app.title = "POJOLENS  //  OPERATOR CONSOLE"
-        self.app.sub_title = "MISSION CONTROL"
+        self.app.title = "POJOLENS  //  OPERATOR CONSOLE"  # type: ignore[attr-defined]
+        self.app.sub_title = "MISSION CONTROL"  # type: ignore[attr-defined]
 
     # ── Actions ────────────────────────────────────────────────────────────────
-    # action_new_plan is intentionally NOT defined here — the binding bubbles to
-    # OperatorApp.action_new_plan which uses push_screen_wait to chain all wizard steps.
+    # action_new_plan bubbles to OperatorApp.action_new_plan
 
     def action_saved_plans(self) -> None:
         from pojo_lens_agents._tui_plans import SavedPlansScreen
