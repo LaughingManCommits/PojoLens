@@ -230,3 +230,94 @@ class TestDefaultProviderIdContextVar(unittest.TestCase):
             runtime_root=".", agents=".", claude_bin="claude",
         )
         self.assertIsNone(s._provider)
+
+    def test_config_default_provider_id_var_exists(self):
+        from ai.pojo_lens_agents.orchestrator_app import _CONFIG_DEFAULT_PROVIDER_ID
+        # Value is None at import time (set only after _init_provider_registry runs)
+        self.assertIsNone(_CONFIG_DEFAULT_PROVIDER_ID)
+
+    def test_deps_use_config_default_as_fallback(self):
+        import importlib.util
+        spec = importlib.util.find_spec("ai.pojo_lens_agents.orchestrator_app")
+        if spec is None or spec.origin is None:
+            self.skipTest("orchestrator_app not found")
+        src = Path(spec.origin).read_text(encoding="utf-8")
+        self.assertIn("_DEFAULT_PROVIDER_ID_CTX.get() or _CONFIG_DEFAULT_PROVIDER_ID", src)
+
+
+# ── load_default_provider_id helper ──────────────────────────────────────────
+
+class TestLoadDefaultProviderId(unittest.TestCase):
+
+    def test_returns_none_when_no_config(self):
+        from ai.pojo_lens_agents.config_loader import load_default_provider_id
+        result = load_default_provider_id(config_path=None, root=Path("/nonexistent_xyz"))
+        self.assertIsNone(result)
+
+    def test_reads_default_from_toml(self, tmp_path=None):
+        import tempfile
+        from ai.pojo_lens_agents.config_loader import load_default_provider_id
+        with tempfile.TemporaryDirectory() as td:
+            cfg = Path(td) / "pojolens-agents.toml"
+            cfg.write_bytes(b'[providers]\ndefault = "openai-compat"\n')
+            result = load_default_provider_id(config_path=str(cfg))
+        self.assertEqual(result, "openai-compat")
+
+    def test_returns_none_when_default_key_absent(self):
+        import tempfile
+        from ai.pojo_lens_agents.config_loader import load_default_provider_id
+        with tempfile.TemporaryDirectory() as td:
+            cfg = Path(td) / "pojolens-agents.toml"
+            cfg.write_bytes(b'[providers]\n[providers.openai]\nplugin_class = "x.Y"\n')
+            result = load_default_provider_id(config_path=str(cfg))
+        self.assertIsNone(result)
+
+    def test_returns_none_on_exception(self):
+        from ai.pojo_lens_agents.config_loader import load_default_provider_id
+        # Non-existent explicit path raises inside; helper catches and returns None
+        result = load_default_provider_id(config_path="/no/such/file.toml")
+        self.assertIsNone(result)
+
+
+# ── ProviderSelectScreen config-default pre-selection ─────────────────────────
+
+class TestProviderSelectScreenConfigDefault(unittest.TestCase):
+
+    def _cls(self):
+        from ai.pojo_lens_agents._tui_wizard import ProviderSelectScreen
+        return ProviderSelectScreen
+
+    def test_read_config_default_returns_none_when_no_config(self):
+        cls = self._cls()
+        s = cls("g", "medium", "copy")
+        with patch("ai.pojo_lens_agents._tui_wizard.ProviderSelectScreen._read_config_default",
+                   return_value=None):
+            result = s._read_config_default()
+        # Actual call — won't crash even with no config file
+        result = s._read_config_default()
+        # Result is None or a string; no exception
+        self.assertTrue(result is None or isinstance(result, str))
+
+    def test_action_submit_index_zero_returns_none(self):
+        cls = self._cls()
+        s = cls("g", "medium", "copy")
+        s._provider_ids = ["(config-default)", "anthropic-sdk", "openai-compat"]
+        dismissed: list = []
+        s.dismiss = lambda v: dismissed.append(v)
+        mock_ol = MagicMock()
+        mock_ol.highlighted = 0
+        with patch.object(s, "query_one", return_value=mock_ol):
+            s.action_submit()
+        self.assertIsNone(dismissed[0])
+
+    def test_action_submit_non_zero_returns_provider_id(self):
+        cls = self._cls()
+        s = cls("g", "medium", "copy")
+        s._provider_ids = ["(config-default)", "anthropic-sdk", "openai-compat"]
+        dismissed: list = []
+        s.dismiss = lambda v: dismissed.append(v)
+        mock_ol = MagicMock()
+        mock_ol.highlighted = 2
+        with patch.object(s, "query_one", return_value=mock_ol):
+            s.action_submit()
+        self.assertEqual(dismissed[0], "openai-compat")

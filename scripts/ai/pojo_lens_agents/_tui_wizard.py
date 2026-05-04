@@ -386,6 +386,14 @@ class ProviderSelectScreen(Screen):  # type: ignore[type-arg,misc]
         self._workspace_mode = workspace_mode
         self._provider_ids: list[str] = []
 
+    @staticmethod
+    def _read_config_default() -> str | None:
+        try:
+            from pojo_lens_agents.config_loader import load_default_provider_id
+            return load_default_provider_id()
+        except Exception:
+            return None
+
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="card"):
@@ -395,10 +403,11 @@ class ProviderSelectScreen(Screen):  # type: ignore[type-arg,misc]
             )
             yield Static(
                 "Choose the LLM provider for worker agents.\n"
-                "DEFAULT uses the built-in subprocess-claude dispatch.",
+                "CONTINUE without changing to use the configured default.",
                 id="desc",
             )
             yield OptionList(id="provider-list")
+            yield Static("", id="prov-config-note")
             yield Static("", id="prov-meta")
             with Horizontal(id="btns"):
                 yield Button("CONTINUE  →", id="btn-continue", variant="primary")
@@ -407,6 +416,7 @@ class ProviderSelectScreen(Screen):  # type: ignore[type-arg,misc]
 
     def on_mount(self) -> None:
         self.app.title = "POJOLENS  //  PROVIDER"
+        cfg_default = self._read_config_default()
         pl = self.query_one("#provider-list", OptionList)
         try:
             from pojo_lens_agents.provider_registry import get_registry
@@ -414,14 +424,31 @@ class ProviderSelectScreen(Screen):  # type: ignore[type-arg,misc]
             ids = reg.list_ids()
         except Exception:
             ids = []
-        self._provider_ids = ["(default)", *ids]
-        for pid in self._provider_ids:
-            if pid == "(default)":
-                pl.add_option("DEFAULT  —  subprocess-claude built-in dispatch")
-            else:
-                pl.add_option(pid)
-        pl.highlighted = 0
-        self._refresh_meta(0)
+        self._provider_ids = ["(config-default)", *ids]
+        default_label = (
+            f"CONFIG DEFAULT  —  {cfg_default}" if cfg_default
+            else "CONFIG DEFAULT  —  subprocess-claude built-in"
+        )
+        pl.add_option(default_label)
+        for pid in ids:
+            suffix = "  [config default]" if pid == cfg_default else ""
+            pl.add_option(f"{pid}{suffix}")
+        # Pre-select the configured default if it is an explicit provider in the list
+        preselect = 0
+        if cfg_default and cfg_default in ids:
+            preselect = ids.index(cfg_default) + 1  # +1 for the "(config-default)" slot
+        pl.highlighted = preselect
+        note_widget = self.query_one("#prov-config-note", Static)
+        if cfg_default:
+            note_widget.update(
+                f"  [dim]Configured default:[/] [#00ff41]{cfg_default}[/]  "
+                "[dim](pojolens-agents.toml → [providers] default)[/]"
+            )
+        else:
+            note_widget.update(
+                "  [dim]No default configured — set [providers] default in pojolens-agents.toml[/]"
+            )
+        self._refresh_meta(preselect)
 
     def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:
         self._refresh_meta(int(event.option_index))
@@ -429,7 +456,15 @@ class ProviderSelectScreen(Screen):  # type: ignore[type-arg,misc]
     def _refresh_meta(self, idx: int) -> None:
         meta_widget = self.query_one("#prov-meta", Static)
         if idx <= 0 or idx >= len(self._provider_ids):
-            meta_widget.update("")
+            if idx == 0:
+                cfg = self._read_config_default()
+                meta_widget.update(
+                    f"  [dim]Will use configured default: [/][#00ff41]{cfg}[/]"
+                    if cfg else
+                    "  [dim]Will use subprocess-claude built-in dispatch[/]"
+                )
+            else:
+                meta_widget.update("")
             return
         pid = self._provider_ids[idx]
         try:

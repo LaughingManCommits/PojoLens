@@ -258,6 +258,21 @@ def load_providers_config(
     return providers_section
 
 
+def load_default_provider_id(
+    config_path: str | Path | None = None,
+    *,
+    env: dict[str, str] | None = None,
+    root: Path | None = None,
+) -> str | None:
+    """Return ``providers.default`` string from config, or ``None`` if unset."""
+    try:
+        cfg = load_providers_config(config_path, env=env, root=root)
+        val = cfg.get("default")
+        return str(val).strip() or None if val else None
+    except Exception:
+        return None
+
+
 WATCH_PHASES = frozenset({"task-finished", "task-retry", "batch-ready", "run-finished", "task-reused"})
 
 

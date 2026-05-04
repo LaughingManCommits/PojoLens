@@ -28,6 +28,7 @@ _WORKSPACE_DIR_CTX: contextvars.ContextVar[Any] = contextvars.ContextVar(
 _DEFAULT_PROVIDER_ID_CTX: contextvars.ContextVar[Any] = contextvars.ContextVar(
     "_pojo_default_provider_id", default=None
 )
+_CONFIG_DEFAULT_PROVIDER_ID: str | None = None
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
@@ -255,7 +256,7 @@ async def execute_task(
             "reviewer_finding_factory": ReviewFinding,
             "prepare_workspace": prepare_workspace,
             "provider_registry": provider_registry_layer.get_registry(),
-            "default_provider_id": _DEFAULT_PROVIDER_ID_CTX.get(),
+            "default_provider_id": _DEFAULT_PROVIDER_ID_CTX.get() or _CONFIG_DEFAULT_PROVIDER_ID,
             "error_factory": OrchestratorError,
             "asdict": asdict,
             "task_run_record_factory": TaskRunRecord,
@@ -1580,11 +1581,13 @@ def _build_handlers() -> dict[str, Any]:
 
 
 def _init_provider_registry() -> None:
-    """Load provider plugins from config into the singleton registry."""
+    """Load provider plugins from config into the singleton registry, capture global default."""
+    global _CONFIG_DEFAULT_PROVIDER_ID
     try:
         providers_cfg = config_loader_layer.load_providers_config()
         if providers_cfg:
             provider_registry_layer.get_registry().load_from_config(providers_cfg)
+        _CONFIG_DEFAULT_PROVIDER_ID = config_loader_layer.load_default_provider_id() or None
     except Exception:
         pass
 

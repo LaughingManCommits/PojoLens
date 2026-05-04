@@ -318,6 +318,12 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
         try:
             from pojo_lens_agents.provider_registry import get_registry
             from pojo_lens_agents.provider_plugin import RateLimitMeta, ModelPricing
+            from pojo_lens_agents.config_loader import load_default_provider_id
+            _cfg_default = load_default_provider_id()
+            if _cfg_default:
+                self._log(f"  [#00e5ff]configured default:[/] [bold #00ff41]{_cfg_default}[/]")
+            else:
+                self._log("  [#00e5ff]configured default:[/] [dim](none — set [providers] default in pojolens-agents.toml)[/]")
             _reg = get_registry()
             _ids = _reg.list_ids()
             if _ids:
@@ -331,7 +337,8 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
                         _in  = f"${_mp.input_per_1k_usd:.4f}" if _mp.input_per_1k_usd else "—"
                         _out = f"${_mp.output_per_1k_usd:.4f}" if _mp.output_per_1k_usd else "—"
                         _cls = type(_prov).__qualname__
-                        self._log(f"  [bold #00ff41]{_pid}[/]  [dim]({_cls})[/]")
+                        _tag = "  [bold #ffaa00][config default][/]" if _pid == _cfg_default else ""
+                        self._log(f"  [bold #00ff41]{_pid}[/]  [dim]({_cls})[/]{_tag}")
                         self._log(f"    [#00e5ff]pricing :[/] in {_in}/1k  out {_out}/1k")
                         self._log(f"    [#00e5ff]limits  :[/] TPM {_tpm}  RPM {_rpm}")
                     except Exception as _e:
