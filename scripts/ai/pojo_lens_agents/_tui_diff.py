@@ -312,9 +312,9 @@ class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
                           wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
             yield Button("PROMOTE",       id="btn-promote", variant="primary")
-            yield Button("ALL",            id="btn-all")
-            yield Button("EXPORT PATCH",  id="btn-export")
-            yield Button("COORD. VALID.", id="btn-coord")
+            yield Button("ALL",            id="btn-all",     variant="success")
+            yield Button("EXPORT PATCH",  id="btn-export",  variant="warning")
+            yield Button("COORD. VALID.", id="btn-coord",   variant="success")
             yield Button("BACK",          id="btn-back")
         yield Footer()
 

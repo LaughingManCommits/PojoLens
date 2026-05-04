@@ -87,12 +87,12 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         yield DataTable(id="runs-table")
         yield Static("", id="empty-notice")
         with Horizontal(id="action-bar"):
-            yield Button("OPEN",    id="btn-open",    disabled=True)
-            yield Button("RESUME",  id="btn-resume",  disabled=True)
-            yield Button("RETRY",   id="btn-retry",   disabled=True)
-            yield Button("PROMOTE", id="btn-promote", disabled=True)
-            yield Button("GATE",    id="btn-gate",    disabled=True)
-            yield Button("LEDGER",  id="btn-ledger")
+            yield Button("OPEN",    id="btn-open",    variant="success", disabled=True)
+            yield Button("RESUME",  id="btn-resume",  variant="primary", disabled=True)
+            yield Button("RETRY",   id="btn-retry",                      disabled=True)
+            yield Button("PROMOTE", id="btn-promote", variant="warning", disabled=True)
+            yield Button("GATE",    id="btn-gate",                       disabled=True)
+            yield Button("LEDGER",  id="btn-ledger",  variant="success")
             yield Button("BACK",    id="btn-back")
         yield Footer()
 

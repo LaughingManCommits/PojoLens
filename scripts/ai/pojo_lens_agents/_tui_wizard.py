@@ -147,7 +147,7 @@ class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
             )
             with Horizontal(id="btns"):
                 yield Button("NEXT  →",  id="btn-next",  variant="primary")
-                yield Button("SKIP ALL", id="btn-skip")
+                yield Button("SKIP ALL", id="btn-skip",  variant="warning")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -338,6 +338,14 @@ class WorkspaceModeScreen(Screen):  # type: ignore[type-arg,misc]
                 id="ws-list",
             )
             yield Static("", id="ws-warning")
+            yield Static(
+                "Repo source path  (blank = current repo):",
+                id="ws-source-label",
+            )
+            yield Input(
+                placeholder="/absolute/path/to/repo  or  leave blank for current",
+                id="ws-source-input",
+            )
             with Horizontal(id="btns"):
                 yield Button("CONTINUE  →", id="btn-continue", variant="primary")
                 yield Button("BACK", id="btn-back")
@@ -353,6 +361,9 @@ class WorkspaceModeScreen(Screen):  # type: ignore[type-arg,misc]
         self.query_one("#ws-warning", Static).update(
             f"[#ffaa00]{warn_text}[/]" if warn_text else ""
         )
+        needs_source = mode in ("copy", "worktree")
+        self.query_one("#ws-source-label", Static).display = needs_source
+        self.query_one("#ws-source-input", Input).display  = needs_source
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-continue":
@@ -363,7 +374,10 @@ class WorkspaceModeScreen(Screen):  # type: ignore[type-arg,misc]
     def action_submit(self) -> None:
         idx = int(self.query_one("#ws-list", OptionList).highlighted or 0)
         mode, _ = _WORKSPACE_OPTIONS[idx]
-        self.dismiss(mode)
+        source = ""
+        if mode in ("copy", "worktree"):
+            source = self.query_one("#ws-source-input", Input).value.strip()
+        self.dismiss({"mode": mode, "source": source})
 
     def action_cancel(self) -> None:
         self.dismiss(None)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -10,13 +9,14 @@ TEXTUAL_IMPORT_ERROR: Exception | None = None
 try:
     from textual.app import ComposeResult
     from textual.binding import Binding
-    from textual.containers import Container, Horizontal
-    from textual.screen import Screen
+    from textual.containers import Container, Horizontal, ScrollableContainer, Vertical, VerticalScroll
+    from textual.screen import ModalScreen, Screen
     from textual.widgets import Button, DataTable, Footer, Header, Input, RichLog, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
     App = object  # type: ignore[assignment,misc]
     Screen = object  # type: ignore[assignment,misc]
+    ModalScreen = object  # type: ignore[assignment,misc]
     ComposeResult = Any  # type: ignore[assignment]
     Text = None  # type: ignore[assignment]
 
@@ -105,9 +105,9 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
             yield Button("▶",    id="btn-next",  variant="default", disabled=True)
         with Horizontal(id="action-bar"):
             yield Button("RUN",      id="btn-run",      variant="primary")
-            yield Button("DETAILS",  id="btn-details")
-            yield Button("VALIDATE", id="btn-validate")
-            yield Button("EDIT",     id="btn-edit")
+            yield Button("DETAILS",  id="btn-details",  variant="success")
+            yield Button("VALIDATE", id="btn-validate", variant="success")
+            yield Button("EDIT",     id="btn-edit",     variant="success")
             yield Button("BACK",     id="btn-back")
         yield Footer()
 
@@ -339,11 +339,11 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         yield RichLog(id="details-log", markup=True, auto_scroll=False, wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
             yield Button("APPROVE + RUN", id="btn-run",      variant="primary")
-            yield Button("VALIDATE",      id="btn-validate")
-            yield Button("DRY RUN",       id="btn-dryrun")
-            yield Button("SAVE COPY",     id="btn-save")
-            yield Button("TOOLS",     id="btn-tools")
-            yield Button("FOLLOW-UP", id="btn-followup")
+            yield Button("VALIDATE",      id="btn-validate", variant="success")
+            yield Button("DRY RUN",       id="btn-dryrun",   variant="warning")
+            yield Button("SAVE COPY",     id="btn-save",     variant="warning")
+            yield Button("TOOLS",     id="btn-tools",     variant="success")
+            yield Button("FOLLOW-UP", id="btn-followup",  variant="success")
             yield Button("BACK",          id="btn-back")
         yield Footer()
 
@@ -464,97 +464,510 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
 
 # ── PlanEditorScreen ──────────────────────────────────────────────────────────
 
+_TEXTAREA_AVAILABLE = False
+try:
+    from textual.widgets import TextArea as _TextArea
+    _TEXTAREA_AVAILABLE = True
+except ImportError:
+    _TextArea = None  # type: ignore[assignment,misc]
+
+_SELECTIONLIST_AVAILABLE = False
+try:
+    from textual.widgets import SelectionList as _SelectionList
+    _SELECTIONLIST_AVAILABLE = True
+except ImportError:
+    _SelectionList = None  # type: ignore[assignment,misc]
+
+_SELECT_AVAILABLE = False
+_Select = None
+try:
+    from textual.widgets import Select as _Select  # type: ignore[assignment]
+    _SELECT_AVAILABLE = True
+except ImportError:
+    pass
+
+# Option tuples: (label, value) — matches AgentEditScreen / SkillEditScreen
+_WS_OPTS     = [("(unset)", ""), ("copy", "copy"), ("worktree", "worktree"), ("repo", "repo")]
+_HITL_OPTS   = [("(unset)", ""), ("always", "always"), ("batch", "batch"),
+                ("on-failure", "on-failure"), ("none", "none")]
+_BUDG_OPTS   = [("(unset)", ""), ("warn", "warn"), ("stop", "stop")]
+_FOLL_OPTS   = [("(unset)", ""), ("ignore", "ignore"), ("inject", "inject")]
+_EFFORT_OPTS = [("(unset)", ""), ("low", "low"), ("medium", "medium"), ("high", "high")]
+
+
+def _make_ta(widget_id: str, text: str = "") -> Any:
+    if _TEXTAREA_AVAILABLE and _TextArea is not None:
+        return _TextArea(text, id=widget_id)
+    return Input(id=widget_id, value=text[:400], placeholder="(TextArea unavailable)")
+
+
+def _read_ta(owner: Any, widget_id: str) -> str:
+    if _TEXTAREA_AVAILABLE and _TextArea is not None:
+        try:
+            return owner.query_one(f"#{widget_id}", _TextArea).text.strip()
+        except Exception:
+            pass
+    try:
+        return owner.query_one(f"#{widget_id}", Input).value.strip()
+    except Exception:
+        return ""
+
+
+def _load_ta(owner: Any, widget_id: str, text: str) -> None:
+    if _TEXTAREA_AVAILABLE and _TextArea is not None:
+        try:
+            owner.query_one(f"#{widget_id}", _TextArea).load_text(text)
+            return
+        except Exception:
+            pass
+    try:
+        owner.query_one(f"#{widget_id}", Input).value = text[:400]
+    except Exception:
+        pass
+
+
+def _make_sel(widget_id: str, options: list[tuple[str, str]], *, allow_blank: bool = False) -> Any:
+    if _SELECT_AVAILABLE and _Select is not None:
+        return _Select(options, id=widget_id, allow_blank=allow_blank)
+    return Input(id=widget_id, placeholder="(Select unavailable)")
+
+
+def _set_sel(owner: Any, wid: str, value: str) -> None:
+    if _SELECT_AVAILABLE and _Select is not None:
+        try:
+            w = owner.query_one(f"#{wid}", _Select)
+            w.value = value if value else _Select.BLANK
+            return
+        except Exception:
+            pass
+    try:
+        owner.query_one(f"#{wid}", Input).value = value
+    except Exception:
+        pass
+
+
+def _get_sel(owner: Any, wid: str) -> str:
+    if _SELECT_AVAILABLE and _Select is not None:
+        try:
+            v = owner.query_one(f"#{wid}", _Select).value
+            return "" if v is _Select.BLANK else str(v)
+        except Exception:
+            pass
+    try:
+        return owner.query_one(f"#{wid}", Input).value.strip()
+    except Exception:
+        return ""
+
+
+def _load_skill_names() -> list[str]:
+    try:
+        from pojo_lens_agents.orchestrator_contracts import DEFAULT_SKILL_REGISTRY_PATH
+        data = json.loads(DEFAULT_SKILL_REGISTRY_PATH.read_text(encoding="utf-8"))
+        return sorted(str(k) for k in data)
+    except Exception:
+        return []
+
+
+# ── TaskEditModal ──────────────────────────────────────────────────────────────
+
+class TaskEditModal(ModalScreen):  # type: ignore[type-arg,misc]
+    """Modal form for adding or editing a single task."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=True)]
+
+    def __init__(
+        self,
+        task: dict[str, Any] | None = None,
+        *,
+        skill_names: list[str] | None = None,
+        task_ids: list[str] | None = None,
+    ) -> None:
+        super().__init__()
+        self._task        = task or {}
+        self._skill_names = skill_names or []
+        self._task_ids    = task_ids    or []
+
+    def compose(self) -> ComposeResult:
+        t           = self._task
+        cur_skills  = set(t.get("skills")    or [])
+        cur_deps    = set(t.get("dependsOn") or [])
+
+        with Container(id="modal-card"):
+            yield Static(
+                "[ EDIT TASK ]" if self._task else "[ ADD TASK ]",
+                id="modal-title",
+            )
+            with VerticalScroll(id="set-form"):
+                yield Static("id *", classes="set-label")
+                yield Input(id="f-id", value=str(t.get("id") or ""), placeholder="task-1")
+                yield Static("title *", classes="set-label")
+                yield Input(id="f-title", value=str(t.get("title") or ""), placeholder="Short task title")
+                yield Static("agent *", classes="set-label")
+                yield Input(id="f-agent", value=str(t.get("agent") or ""), placeholder="coder")
+                yield Static("prompt *", classes="set-label")
+                yield _make_ta("f-prompt", str(t.get("prompt") or ""))
+
+                yield Static("skills  (space = toggle)", classes="set-label")
+                if _SELECTIONLIST_AVAILABLE and _SelectionList is not None:
+                    _skill_opts = self._skill_names or sorted(cur_skills)
+                    yield _SelectionList(
+                        *[(s, s, s in cur_skills) for s in _skill_opts],
+                        id="f-skills",
+                    )
+                else:
+                    yield Input(id="f-skills",
+                                value=", ".join(t.get("skills") or []),
+                                placeholder="java, python  (comma-separated)")
+
+                yield Static("dependsOn  (space = toggle)", classes="set-label")
+                if _SELECTIONLIST_AVAILABLE and _SelectionList is not None:
+                    _dep_opts = self._task_ids or sorted(cur_deps)
+                    yield _SelectionList(
+                        *[(tid, tid, tid in cur_deps) for tid in _dep_opts],
+                        id="f-deps",
+                    )
+                else:
+                    yield Input(id="f-deps",
+                                value=", ".join(t.get("dependsOn") or []),
+                                placeholder="task-1  (comma-separated)")
+
+                yield Static("readPaths  (one per line)", classes="set-label")
+                yield _make_ta("f-readpaths", "\n".join(t.get("readPaths") or []))
+                yield Static("writePaths  (one per line)", classes="set-label")
+                yield _make_ta("f-writepaths", "\n".join(t.get("writePaths") or []))
+
+                yield Static("workspaceMode  (blank = agent default)", classes="set-label")
+                yield _make_sel("f-wsmode", _WS_OPTS, allow_blank=False)
+                yield Static("effort  (blank = agent default)", classes="set-label")
+                yield _make_sel("f-effort", _EFFORT_OPTS, allow_blank=False)
+
+            with Horizontal(id="modal-btns"):
+                yield Button("SAVE", id="btn-save", variant="primary")
+                yield Button("CANCEL", id="btn-cancel")
+
+    def on_mount(self) -> None:
+        _set_sel(self, "f-wsmode", str(self._task.get("workspaceMode") or ""))
+        _set_sel(self, "f-effort", str(self._task.get("effort") or ""))
+
+    def _gi(self, fid: str) -> str:
+        try:
+            return self.query_one(f"#{fid}", Input).value.strip()
+        except Exception:
+            return ""
+
+    def _read_sl(self, fid: str, fallback_input: str) -> list[str]:
+        if _SELECTIONLIST_AVAILABLE and _SelectionList is not None:
+            try:
+                return list(self.query_one(f"#{fid}", _SelectionList).selected)
+            except Exception:
+                pass
+        return [s.strip() for s in fallback_input.split(",") if s.strip()]
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-save":
+            self._do_save()
+        else:
+            self.action_cancel()
+
+    def _do_save(self) -> None:
+        task_id = self._gi("f-id")
+        title   = self._gi("f-title")
+        agent   = self._gi("f-agent")
+        prompt  = _read_ta(self, "f-prompt")
+        if not (task_id and title and agent and prompt):
+            self.app.notify("id, title, agent and prompt are required", severity="error")  # type: ignore[attr-defined]
+            return
+        task: dict[str, Any] = {**self._task, "id": task_id, "title": title,
+                                 "agent": agent, "prompt": prompt}
+        skills = self._read_sl("f-skills", self._gi("f-skills"))
+        deps   = self._read_sl("f-deps",   self._gi("f-deps"))
+        read_p = [p.strip() for p in _read_ta(self, "f-readpaths").splitlines()  if p.strip()]
+        writ_p = [p.strip() for p in _read_ta(self, "f-writepaths").splitlines() if p.strip()]
+        wsmode = _get_sel(self, "f-wsmode")
+        effort = _get_sel(self, "f-effort")
+        for key, val in [("skills", skills), ("dependsOn", deps),
+                          ("readPaths", read_p), ("writePaths", writ_p),
+                          ("workspaceMode", wsmode), ("effort", effort)]:
+            if val:
+                task[key] = val
+            else:
+                task.pop(key, None)
+        self.dismiss(task)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+# ── PlanEditorScreen ───────────────────────────────────────────────────────────
+
 class PlanEditorScreen(Screen):  # type: ignore[type-arg,misc]
-    """View plan JSON and optionally open in $EDITOR / VISUAL / notepad."""
+    """Form-based plan editor — structured fields, no raw JSON."""
 
     BINDINGS = [
-        Binding("escape", "go_back",      "Back",            show=True),
-        Binding("e",      "open_editor",  "Open in Editor",  show=True),
-        Binding("r",      "reload",       "Reload",          show=True),
+        Binding("escape", "go_back", "Back",   show=True),
+        Binding("ctrl+s", "save",    "Save",   show=True),
+        Binding("ctrl+r", "reload",  "Reload", show=True),
     ]
 
     def __init__(self, plan_path: str) -> None:
         super().__init__()
-        self._plan_path = plan_path
+        self._plan_path   = plan_path
+        self._raw:        dict[str, Any]       = {}
+        self._tasks:      list[dict[str, Any]] = []
+        self._skill_names: list[str]           = []
 
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="top-bar"):
-            yield Static("[ PLAN EDITOR ]  View / open plan file", id="ed-title")
-            yield Static(self._plan_path, id="ed-path")
-            yield Static(
-                "[ EDITOR ] press [E] to open in $EDITOR  ·  [R] to reload",
-                id="ed-status",
-            )
-        yield RichLog(id="ed-log", markup=True, auto_scroll=False, wrap=True, highlight=False)
+            yield Static("[ PLAN EDITOR ]", id="ed-title")
+            yield Static(self._plan_path,   id="ed-path")
+            yield Static("",                id="ed-status")
+        with Horizontal(id="ed-split"):
+            with VerticalScroll(id="set-form"):
+                # ── PLAN ──────────────────────────────────────────────────────
+                yield Static("── PLAN ──────────────────────────────────────────", classes="section-hdr")
+                yield Static("name *", classes="set-label")
+                yield Input(id="f-name", placeholder="my-plan")
+                yield Static("goal *", classes="set-label")
+                yield _make_ta("f-goal")
+                yield Static("codebase path  (blank = current repo)", classes="set-label")
+                yield Input(id="f-codebase", placeholder="/absolute/path/to/repo")
+                yield Static("workspace strategy", classes="set-label")
+                yield _make_sel("f-workspace", _WS_OPTS, allow_blank=False)
+                # ── GOVERNANCE ────────────────────────────────────────────────
+                yield Static("── GOVERNANCE ────────────────────────────────────", classes="section-hdr")
+                yield Static("run budget USD  (blank = unlimited)", classes="set-label")
+                yield Input(id="f-budget", placeholder="0.50")
+                yield Static("HITL mode", classes="set-label")
+                yield _make_sel("f-hitl", _HITL_OPTS, allow_blank=False)
+                yield Static("budget behavior", classes="set-label")
+                yield _make_sel("f-budget-beh", _BUDG_OPTS, allow_blank=False)
+                yield Static("follow-up behavior", classes="set-label")
+                yield _make_sel("f-followup", _FOLL_OPTS, allow_blank=False)
+                # ── SHARED CONTEXT ─────────────────────────────────────────────
+                yield Static("── SHARED CONTEXT ────────────────────────────────", classes="section-hdr")
+                yield Static("summary", classes="set-label")
+                yield _make_ta("f-summary")
+                yield Static("constraints  (one per line)", classes="set-label")
+                yield _make_ta("f-constraints")
+                yield Static("read paths  (one per line)", classes="set-label")
+                yield _make_ta("f-readpaths")
+                # ── TASKS ──────────────────────────────────────────────────────
+                yield Static("── TASKS ─────────────────────────────────────────", classes="section-hdr")
+                yield DataTable(id="task-table")
+                with Horizontal(id="task-actions"):
+                    yield Button("+ ADD",     id="btn-task-add",    variant="success")
+                    yield Button("✎ EDIT",   id="btn-task-edit",   variant="success")
+                    yield Button("✕ REMOVE", id="btn-task-remove", variant="error")
+            with Container(id="json-pane"):
+                yield Static("[ ORIGINAL JSON ]", id="json-pane-title")
+                yield RichLog(id="json-log", markup=False, highlight=True,
+                              auto_scroll=False, wrap=False)
         with Horizontal(id="action-bar"):
-            yield Button("OPEN IN EDITOR", id="btn-editor", variant="primary")
-            yield Button("RELOAD",          id="btn-reload")
-            yield Button("BACK",            id="btn-back")
+            yield Button("SAVE  [Ctrl+S]",   id="btn-save",   variant="primary")
+            yield Button("RELOAD  [Ctrl+R]", id="btn-reload", variant="warning")
+            yield Button("BACK",             id="btn-back")
         yield Footer()
 
     def on_mount(self) -> None:
         self.app.title = "POJOLENS  //  PLAN EDITOR"
-        self.run_worker(self._load, thread=True, name="plan-ed-load")
+        table = self.query_one("#task-table", DataTable)
+        table.cursor_type = "row"
+        table.add_column("id",    key="id",    width=16)
+        table.add_column("title", key="title", width=32)
+        table.add_column("agent", key="agent", width=14)
+        table.add_column("deps",  key="deps",  width=18)
+        self._skill_names = _load_skill_names()
+        self._load()
+        self._refresh_json_preview()
+
+    # ── helpers ────────────────────────────────────────────────────────────────
+
+    def _refresh_json_preview(self) -> None:
+        try:
+            log = self.query_one("#json-log", RichLog)
+            log.clear()
+            raw_text = Path(self._plan_path).read_text(encoding="utf-8")
+            try:
+                from rich.syntax import Syntax
+                log.write(Syntax(raw_text, "json", theme="monokai", word_wrap=False))
+            except Exception:
+                for line in raw_text.splitlines():
+                    log.write(line)
+        except Exception:
+            pass
+
+    def _set_status(self, msg: str, *, error: bool = False) -> None:
+        color = "#ff2244" if error else "#00e5ff"
+        try:
+            self.query_one("#ed-status", Static).update(f"[{color}]{msg}[/]")
+        except Exception:
+            pass
+
+    def _gi(self, fid: str) -> str:
+        try:
+            return self.query_one(f"#{fid}", Input).value.strip()
+        except Exception:
+            return ""
+
+    def _si(self, fid: str, val: str) -> None:
+        try:
+            self.query_one(f"#{fid}", Input).value = val
+        except Exception:
+            pass
+
+    # ── load / populate ────────────────────────────────────────────────────────
+
+    def _load(self) -> None:
+        try:
+            raw = json.loads(Path(self._plan_path).read_text(encoding="utf-8"))
+        except Exception as exc:
+            self._set_status(f"Load error: {exc}", error=True)
+            return
+        self._raw   = raw
+        self._tasks = list(raw.get("tasks") or [])
+
+        self._si("f-name",     str(raw.get("name") or ""))
+        _load_ta(self, "f-goal", str(raw.get("goal") or ""))
+        self._si("f-codebase", str(raw.get("codebasePath") or ""))
+        _set_sel(self, "f-workspace", str(raw.get("workspaceStrategy") or ""))
+
+        rp = raw.get("runPolicy") or {}
+        self._si("f-budget", str(rp.get("runBudgetUsd") or ""))
+        _set_sel(self, "f-hitl",       str(rp.get("hitlMode")         or ""))
+        _set_sel(self, "f-budget-beh", str(rp.get("budgetBehavior")   or ""))
+        _set_sel(self, "f-followup",   str(rp.get("followUpBehavior") or ""))
+
+        sc = raw.get("sharedContext") or {}
+        _load_ta(self, "f-summary",     str(sc.get("summary") or ""))
+        _load_ta(self, "f-constraints", "\n".join(sc.get("constraints") or []))
+        _load_ta(self, "f-readpaths",   "\n".join(sc.get("readPaths")   or []))
+
+        self._refresh_tasks()
+        self._set_status("Ctrl+S  save  ·  Ctrl+R  reload  ·  * required")
+
+    def _refresh_tasks(self) -> None:
+        table = self.query_one("#task-table", DataTable)
+        table.clear()
+        for t in self._tasks:
+            deps = ", ".join(t.get("dependsOn") or []) or "—"
+            table.add_row(
+                str(t.get("id")    or "")[:16],
+                str(t.get("title") or "")[:32],
+                str(t.get("agent") or "")[:14],
+                deps[:18],
+            )
+
+    # ── save ───────────────────────────────────────────────────────────────────
+
+    def action_save(self) -> None:
+        name = self._gi("f-name")
+        goal = _read_ta(self, "f-goal")
+        if not name or not goal:
+            self.app.notify("name and goal are required", severity="error")  # type: ignore[attr-defined]
+            return
+
+        rp: dict[str, Any] = dict(self._raw.get("runPolicy") or {})
+        budget_s = self._gi("f-budget")
+        if budget_s:
+            try:
+                rp["runBudgetUsd"] = float(budget_s)
+            except ValueError:
+                self.app.notify(f"budget must be a number: {budget_s!r}", severity="error")  # type: ignore[attr-defined]
+                return
+        else:
+            rp.pop("runBudgetUsd", None)
+        for key, fid in [
+            ("hitlMode",         "f-hitl"),
+            ("budgetBehavior",   "f-budget-beh"),
+            ("followUpBehavior", "f-followup"),
+        ]:
+            v = _get_sel(self, fid)
+            if v:   rp[key] = v
+            else:   rp.pop(key, None)
+
+        sc: dict[str, Any] = dict(self._raw.get("sharedContext") or {})
+        sc["summary"]     = _read_ta(self, "f-summary")
+        sc["constraints"] = [c.strip() for c in _read_ta(self, "f-constraints").splitlines() if c.strip()]
+        sc["readPaths"]   = [p.strip() for p in _read_ta(self, "f-readpaths").splitlines()   if p.strip()]
+        sc.setdefault("validation", [])
+
+        plan: dict[str, Any] = {**self._raw, "name": name, "goal": goal,
+                                  "sharedContext": sc, "tasks": self._tasks}
+        plan.setdefault("version", 1)
+        codebase = self._gi("f-codebase")
+        ws       = _get_sel(self, "f-workspace")
+        if codebase: plan["codebasePath"]      = codebase
+        else:        plan.pop("codebasePath",      None)
+        if ws:       plan["workspaceStrategy"] = ws
+        else:        plan.pop("workspaceStrategy", None)
+        if rp:       plan["runPolicy"]         = rp
+        else:        plan.pop("runPolicy",         None)
+
+        try:
+            Path(self._plan_path).write_text(
+                json.dumps(plan, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+        except OSError as exc:
+            self._set_status(f"Write error: {exc}", error=True)
+            return
+        self._raw = plan
+        self._set_status("[ SAVED ]  changes written to disk")
+
+    def action_reload(self) -> None:
+        self._load()
+
+    # ── task management ────────────────────────────────────────────────────────
+
+    def _task_ids_except(self, exclude_idx: int = -1) -> list[str]:
+        return [
+            str(t.get("id") or "")
+            for i, t in enumerate(self._tasks)
+            if i != exclude_idx and t.get("id")
+        ]
+
+    def _open_task_add(self) -> None:
+        def _on_result(task: dict[str, Any] | None) -> None:
+            if task:
+                self._tasks.append(task)
+                self._refresh_tasks()
+        self.app.push_screen(  # type: ignore[attr-defined]
+            TaskEditModal(None, skill_names=self._skill_names,
+                          task_ids=self._task_ids_except()),
+            _on_result,
+        )
+
+    def _open_task_edit(self) -> None:
+        idx = self.query_one("#task-table", DataTable).cursor_row
+        if not (0 <= idx < len(self._tasks)):
+            return
+        original = self._tasks[idx]
+        def _on_result(task: dict[str, Any] | None) -> None:
+            if task:
+                self._tasks[idx] = task
+                self._refresh_tasks()
+        self.app.push_screen(  # type: ignore[attr-defined]
+            TaskEditModal(original, skill_names=self._skill_names,
+                          task_ids=self._task_ids_except(exclude_idx=idx)),
+            _on_result,
+        )
+
+    def _remove_task(self) -> None:
+        idx = self.query_one("#task-table", DataTable).cursor_row
+        if 0 <= idx < len(self._tasks):
+            self._tasks.pop(idx)
+            self._refresh_tasks()
+
+    # ── events ─────────────────────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-editor":
-            self.action_open_editor()
-        elif event.button.id == "btn-reload":
-            self.action_reload()
-        elif event.button.id == "btn-back":
-            self.action_go_back()
+        bid = event.button.id
+        if   bid == "btn-save":        self.action_save()
+        elif bid == "btn-reload":      self.action_reload()
+        elif bid == "btn-back":        self.action_go_back()
+        elif bid == "btn-task-add":    self._open_task_add()
+        elif bid == "btn-task-edit":   self._open_task_edit()
+        elif bid == "btn-task-remove": self._remove_task()
 
     def action_go_back(self) -> None:
         self.dismiss(None)
-
-    def action_reload(self) -> None:
-        self.query_one("#ed-log", RichLog).clear()
-        self.run_worker(self._load, thread=True, name="plan-ed-reload")
-
-    def action_open_editor(self) -> None:
-        self.run_worker(self._launch_editor, thread=True, name="plan-ed-editor")
-
-    def _log(self, text: str) -> None:
-        self.app.call_from_thread(lambda: self.query_one("#ed-log", RichLog).write(text))
-
-    def _load(self) -> None:
-        plan_data = _load_plan_json(self._plan_path)
-        if plan_data is None:
-            self._log(f"[#ff2244]ERROR: cannot load: {self._plan_path}[/]")
-            return
-        lines = _plan_summary_rich(plan_data)
-        def _write() -> None:
-            log = self.query_one("#ed-log", RichLog)
-            for ln in lines:
-                log.write(ln)
-            log.write("")
-            log.write("[dim #2a5a3a]Press [E] to open in system editor, [R] to reload after edits.[/]")
-        self.app.call_from_thread(_write)
-
-    def _launch_editor(self) -> None:
-        import os
-        import subprocess
-        _platform_default = "notepad" if sys.platform == "win32" else "nano"
-        candidates = [
-            c for c in [
-                os.environ.get("VISUAL"),
-                os.environ.get("EDITOR"),
-                "code",
-                _platform_default,
-            ] if c
-        ]
-        for editor in candidates:
-            self._log(f"[#00e5ff][ SIGNAL ] trying editor {editor!r}...[/]")
-            try:
-                subprocess.run([editor, self._plan_path], check=False)
-                self._log("[#00ff41][ EXIT ] editor closed — press [R] to reload changes[/]")
-                return
-            except FileNotFoundError:
-                self._log(f"[dim]editor {editor!r} not found, trying next...[/]")
-            except Exception as exc:
-                self._log(f"[#ff2244]editor error ({editor!r}): {exc}[/]")
-                return
-        self._log(
-            f"[#ff2244]no editor found — set $VISUAL or $EDITOR env var[/]"
-        )

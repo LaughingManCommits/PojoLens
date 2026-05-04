@@ -80,8 +80,8 @@ class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
                 yield Button("NEXT ▶", id="btn-ag-next", disabled=True)
             yield RichLog(id="ag-detail", markup=True, auto_scroll=False, wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
-            yield Button("NEW",   id="btn-ag-new")
-            yield Button("EDIT",  id="btn-ag-edit",  disabled=True)
+            yield Button("NEW",   id="btn-ag-new",  variant="primary")
+            yield Button("EDIT",  id="btn-ag-edit", variant="success", disabled=True)
             yield Button("BACK",  id="btn-back")
         yield Footer()
 
@@ -259,8 +259,8 @@ class SkillsScreen(Screen):  # type: ignore[type-arg,misc]
                 yield Button("NEXT ▶", id="btn-sk-next", disabled=True)
             yield RichLog(id="sk-detail", markup=True, auto_scroll=False, wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
-            yield Button("NEW",  id="btn-sk-new")
-            yield Button("EDIT", id="btn-sk-edit", disabled=True)
+            yield Button("NEW",  id="btn-sk-new",  variant="primary")
+            yield Button("EDIT", id="btn-sk-edit", variant="success", disabled=True)
             yield Button("BACK", id="btn-back")
         yield Footer()
 

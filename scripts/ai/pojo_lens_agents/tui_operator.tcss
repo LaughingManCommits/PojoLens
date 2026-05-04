@@ -93,6 +93,18 @@ Button.-error:disabled {
     border: tall #180005;
 }
 
+Button.-success {
+    background: #001530;
+    color: $cyan;
+    border: tall $cyan;
+}
+Button.-success:hover    { background: #002040; }
+Button.-success:disabled {
+    background: $bg_panel;
+    color: #000e20;
+    border: tall #000e20;
+}
+
 /* ── Semantic button IDs — consistent color across all screens ────────── */
 #btn-resume, #btn-ledger {
     background: #001530;
@@ -127,14 +139,17 @@ Button.-error:disabled {
     border: tall #180005;
 }
 
-#btn-run-prev, #btn-run-next, #btn-prev, #btn-next {
+#btn-run-prev, #btn-run-next, #btn-prev, #btn-next,
+#btn-ag-prev, #btn-ag-next, #btn-sk-prev, #btn-sk-next {
     background: #001530;
     color: $cyan;
     border: tall $cyan;
     min-width: 4;
 }
 #btn-run-prev:disabled, #btn-run-next:disabled,
-#btn-prev:disabled,     #btn-next:disabled {
+#btn-prev:disabled,     #btn-next:disabled,
+#btn-ag-prev:disabled,  #btn-ag-next:disabled,
+#btn-sk-prev:disabled,  #btn-sk-next:disabled {
     background: $bg_panel;
     color: #000e20;
     border: tall #000e20;
@@ -343,6 +358,13 @@ OptionList {
     margin-top: 1;
     margin-bottom: 1;
 }
+#ws-source-label {
+    color: $green;
+    margin-top: 1;
+}
+#ws-source-input {
+    margin-bottom: 1;
+}
 #btns {
     height: auto;
     align: right middle;
@@ -490,25 +512,105 @@ PlanDetailsScreen #action-bar {
 }
 
 /* ── PlanEditorScreen ────────────────────────────────────────────────────── */
-PlanEditorScreen {
-    background: $bg;
+PlanEditorScreen { background: $bg; }
+PlanEditorScreen #ed-title  { color: $cyan; text-style: bold; }
+PlanEditorScreen #ed-path   { color: $text_dim; }
+PlanEditorScreen #ed-status { color: $green; margin-top: 1; }
+PlanEditorScreen #ed-split {
+    height: 1fr;
 }
-#top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
+PlanEditorScreen #set-form {
+    width: 1fr;
+    height: 1fr;
+    padding: 1 3;
+    border-right: heavy $green 20%;
+}
+PlanEditorScreen #json-pane {
+    width: 1fr;
+    height: 1fr;
     padding: 1 2;
 }
-#ed-title  { color: $cyan; text-style: bold; }
-#ed-path   { color: $text_dim; }
-#ed-status { color: $green; margin-top: 1; }
-#ed-log    { height: 1fr; }
-#action-bar {
-    height: 5;
+PlanEditorScreen #json-pane-title {
+    color: $cyan;
+    text-style: bold;
+    height: auto;
+    margin-bottom: 1;
+}
+PlanEditorScreen #json-log {
+    height: 1fr;
+}
+PlanEditorScreen .section-hdr {
+    color: $green;
+    text-style: bold;
+    margin-top: 2;
+    margin-bottom: 1;
+}
+PlanEditorScreen TextArea {
+    height: 8;
+    border: tall $green_dim;
     background: $bg_input;
-    border-top: solid $green 25%;
-    align: left middle;
+    margin-bottom: 1;
+}
+PlanEditorScreen TextArea:focus { border: tall $cyan; }
+PlanEditorScreen SelectionList {
+    height: 10;
+    border: tall $green_dim;
+    background: $bg_input;
+    color: $green_body;
+    margin-bottom: 1;
+}
+PlanEditorScreen SelectionList:focus { border: tall $cyan; }
+PlanEditorScreen #task-table {
+    height: 10;
+    margin-top: 1;
+}
+PlanEditorScreen #task-actions {
+    height: 3;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+/* ── TaskEditModal ───────────────────────────────────────────────────────── */
+TaskEditModal {
+    align: center middle;
+    background: $bg 60%;
+}
+TaskEditModal #modal-card {
+    width: 84;
+    height: 88%;
+    layout: vertical;
+    border: heavy $green 30%;
+    background: $bg_panel;
+    padding: 1 2 0 2;
+}
+TaskEditModal #modal-title {
+    color: $cyan;
+    text-style: bold;
+    height: auto;
+}
+TaskEditModal #set-form {
+    height: 1fr;
     padding: 0 1;
+}
+TaskEditModal TextArea {
+    height: 8;
+    border: tall $green_dim;
+    background: $bg_input;
+    margin-bottom: 1;
+}
+TaskEditModal TextArea:focus { border: tall $cyan; }
+TaskEditModal SelectionList {
+    height: 10;
+    border: tall $green_dim;
+    background: $bg_input;
+    color: $green_body;
+    margin-bottom: 1;
+}
+TaskEditModal SelectionList:focus { border: tall $cyan; }
+TaskEditModal #modal-btns {
+    height: 4;
+    margin-top: 1;
+    align: right middle;
 }
 
 /* RunPlanScreen is an alias for PlanRunScreen — no separate CSS needed */
@@ -529,24 +631,56 @@ ValidatePlanDialog #card-title { color: $cyan; text-style: bold; margin-bottom: 
 ValidatePlanDialog #btns { height: auto; align: right middle; margin-top: 1; }
 
 /* ── ValidateRunScreen ───────────────────────────────────────────────────── */
-ValidateRunScreen {
-    background: $bg;
-}
-#top-bar {
-    height: auto;
-    background: $bg_panel;
-    border-bottom: heavy $green 25%;
-    padding: 1 2;
-}
+ValidateRunScreen { background: $bg; }
 #val-title { color: $cyan; text-style: bold; }
 #val-path  { color: $text_dim; }
-#val-log   { height: 1fr; }
-#action-bar {
-    height: 5;
-    background: $bg_input;
-    border-top: solid $green 25%;
-    align: right middle;
-    padding: 0 2;
+ValidateRunScreen #val-loading { height: 1fr; }
+ValidateRunScreen #val-body {
+    height: 1fr;
+    padding: 1 3;
+}
+ValidateRunScreen #val-banner {
+    height: auto;
+    text-align: center;
+    padding: 1 2;
+    margin: 0 0 1 0;
+    border: heavy $green 30%;
+    text-style: bold;
+}
+ValidateRunScreen .val-hdr {
+    color: $green;
+    text-style: bold;
+    margin-top: 2;
+    margin-bottom: 1;
+}
+ValidateRunScreen .val-hdr-err {
+    color: $red;
+    text-style: bold;
+    margin-top: 2;
+    margin-bottom: 1;
+}
+ValidateRunScreen .val-row {
+    height: auto;
+    margin-bottom: 0;
+}
+ValidateRunScreen .val-label {
+    width: 12;
+    color: $text_dim;
+}
+ValidateRunScreen .val-value {
+    width: 1fr;
+    color: $green_body;
+}
+ValidateRunScreen #tasks-table {
+    height: 12;
+    margin-top: 1;
+    margin-bottom: 1;
+    border: tall $green_dim;
+}
+ValidateRunScreen #issues-list {
+    height: auto;
+    margin-left: 2;
+    margin-bottom: 1;
 }
 
 /* ── RunLedgerScreen ─────────────────────────────────────────────────────── */
@@ -978,7 +1112,9 @@ SkillEditScreen SelectionList:focus {
     border: tall $cyan;
 }
 AgentEditScreen .set-label,
-SkillEditScreen .set-label {
+SkillEditScreen .set-label,
+PlanEditorScreen .set-label,
+TaskEditModal .set-label {
     color: $text_dim;
     margin-top: 1;
     margin-bottom: 0;

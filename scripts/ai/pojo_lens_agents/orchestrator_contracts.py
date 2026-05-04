@@ -358,6 +358,7 @@ PLAN_RESULT_SCHEMA = {
                 "additionalProperties": False,
             },
         },
+        "codebasePath": {"type": "string"},
     },
     "required": ["version", "name", "goal", "sharedContext", "tasks"],
     "additionalProperties": False,

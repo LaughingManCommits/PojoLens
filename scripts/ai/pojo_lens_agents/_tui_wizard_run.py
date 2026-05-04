@@ -79,10 +79,12 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
                     "[ STEP 5/5 ]  WIZARD: GENERATING + EXECUTING PLAN",
                     id="run-title",
                 )
+                _ws_src = wp.get('workspace_source') or ''
+                _ws_src_str = f"  src: {_ws_src[:40]}" if _ws_src else ""
                 yield Static(
                     f"goal: {(wp.get('goal') or '')[:60]}  "
                     f"effort: {wp.get('effort', '')}  "
-                    f"workspace: {wp.get('workspace_mode', '')}  "
+                    f"workspace: {wp.get('workspace_mode', '')}{_ws_src_str}  "
                     f"provider: {wp.get('provider') or 'default'}  "
                     f"hitl: {wp.get('hitl', '')}  "
                     f"parallel: {wp.get('max_parallel', 2)}",
@@ -99,7 +101,7 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
             yield Static("", id="run-prog-cost")
         yield RichLog(id="run-log", markup=True, auto_scroll=True, wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
-            yield Button("⬡ MONITOR DASHBOARD", id="btn-home", variant="primary")
+            yield Button("⬡ MONITOR DASHBOARD", id="btn-home", variant="success")
             yield Button("BACK",                 id="btn-back")
         yield Footer()
 
@@ -317,10 +319,13 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         follow_up      = str(wp.get("follow_up",       "ignore"))
         provider       = wp.get("provider")
 
-        if goal:           arg_list += ["--goal",             goal]
-        if effort:         arg_list += ["--planner-effort",   effort]
-        if workspace_mode: arg_list += ["--workspace-mode",   workspace_mode]
-        if hitl:           arg_list += ["--hitl",             hitl]
+        workspace_source = str(wp.get("workspace_source") or "")
+
+        if goal:             arg_list += ["--goal",             goal]
+        if effort:           arg_list += ["--planner-effort",   effort]
+        if workspace_mode:   arg_list += ["--workspace-mode",   workspace_mode]
+        if workspace_source: arg_list += ["--codebase-path",    workspace_source]
+        if hitl:             arg_list += ["--hitl",             hitl]
         arg_list += ["--max-parallel", str(max_parallel)]
         if budget is not None:
             arg_list += ["--run-budget-usd", str(budget)]

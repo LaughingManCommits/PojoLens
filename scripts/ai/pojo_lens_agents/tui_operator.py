@@ -318,9 +318,11 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         effort = await self.push_screen_wait(EffortSelectScreen(goal))
         if effort is None:
             return
-        ws_mode = await self.push_screen_wait(WorkspaceModeScreen(goal, effort))
-        if ws_mode is None:
+        ws_result = await self.push_screen_wait(WorkspaceModeScreen(goal, effort))
+        if ws_result is None:
             return
+        ws_mode   = ws_result["mode"]
+        ws_source = ws_result.get("source") or ""
         config = await self.push_screen_wait(RunConfigScreen(goal, effort, ws_mode))
         if config is None:
             return
@@ -331,15 +333,16 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         budget_behavior = config.get("budget_behavior",  "warn")
         follow_up       = config.get("follow_up",        "ignore")
         await self.push_screen_wait(PlanRunScreen(wizard_params={
-            "goal":            goal,
-            "effort":          effort,
-            "workspace_mode":  ws_mode,
-            "hitl":            hitl,
-            "max_parallel":    max_parallel,
-            "budget":          budget,
-            "provider":        provider,
-            "budget_behavior": budget_behavior,
-            "follow_up":       follow_up,
+            "goal":             goal,
+            "effort":           effort,
+            "workspace_mode":   ws_mode,
+            "workspace_source": ws_source,
+            "hitl":             hitl,
+            "max_parallel":     max_parallel,
+            "budget":           budget,
+            "provider":         provider,
+            "budget_behavior":  budget_behavior,
+            "follow_up":        follow_up,
         }))
 
 

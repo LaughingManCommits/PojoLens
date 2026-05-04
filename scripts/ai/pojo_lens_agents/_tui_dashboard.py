@@ -73,10 +73,10 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         yield Static("", id="dash-idle-msg")
         yield Rule(id="dash-rule-bot")
         with Horizontal(id="dash-actions"):
-            yield Button("OPEN",   id="btn-dash-open",   disabled=True)
-            yield Button("STOP",   id="btn-dash-stop",   disabled=True)
-            yield Button("PAUSE",  id="btn-dash-pause",  disabled=True)
-            yield Button("DELETE", id="btn-dash-delete", disabled=True)
+            yield Button("OPEN",   id="btn-dash-open",   variant="success", disabled=True)
+            yield Button("STOP",   id="btn-dash-stop",   variant="error",   disabled=True)
+            yield Button("PAUSE",  id="btn-dash-pause",  variant="warning", disabled=True)
+            yield Button("DELETE", id="btn-dash-delete", variant="error",   disabled=True)
 
     def on_mount(self) -> None:
         self.set_interval(2.0, self._poll)

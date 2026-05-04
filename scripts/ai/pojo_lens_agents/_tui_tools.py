@@ -57,8 +57,8 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
         yield RichLog(id="mem-log", markup=True, auto_scroll=True, wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
             yield Button("REFRESH", id="btn-refresh", variant="primary")
-            yield Button("CHECK",   id="btn-check")
-            yield Button("QUERY",   id="btn-query")
+            yield Button("CHECK",   id="btn-check",   variant="success")
+            yield Button("QUERY",   id="btn-query",   variant="success")
             yield Button("BACK",    id="btn-back")
         yield Footer()
 
