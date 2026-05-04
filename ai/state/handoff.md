@@ -3,7 +3,7 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 -> Release Gate.
+3. Follow `TODO.md`: WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP75 -> WP76 -> WP77 -> WP78 -> WP40 -> Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
@@ -13,7 +13,9 @@
 - `2026-05-03`: WP69 is complete; planner is first wizard stage with clarification, staged setup, approve/edit, handoff into run.
 - `2026-05-03`: WP68 is complete; one shared Matrix theme now covers the persistent console, run dashboard, and wizard prompts.
 - `2026-05-03`: WP60, WP50, WP59, WP67, WP58, WP57, WP55 complete.
-- `2026-05-03`: Queue is WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 -> Release Gate.
+- `2026-05-04`: WP78 added — LLM provider plugin system; `LLMProvider` Protocol; `ProviderRegistry`; OpenAI-compatible reference impl; per-agent/task `provider` field; multi-provider rate-limit buckets; TUI provider selector.
+- `2026-05-04`: WP77 added — multi-workspace codebase targeting; per-plan `codebasePath`/`workspaceStrategy`; global `workspace.root`; scratch/copy/repo modes; TUI workspace picker; prune integration.
+- `2026-05-03`: Queue is WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP75 -> WP76 -> WP77 -> WP78 -> WP40 -> Release Gate.
 
 ## Facts
 - `2026-05-03`: `tui_operator.py` is the multi-screen operator TUI; `operator` subcommand launches it; `"operator"` in `KNOWN_COMMANDS`; DiffReviewScreen wired to promote flow; AgentsScreen/SkillsScreen on [A]/[K]; EstimateScreen on [D].

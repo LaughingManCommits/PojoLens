@@ -3,19 +3,30 @@ tui_operator.py — Matrix/cyberpunk multi-screen operator TUI for pojolens-agen
 
 Screens
 -------
-HomeScreen          — main navigation hub with keyboard shortcuts
-GoalInputScreen     — wizard step 1: enter goal
-EffortSelectScreen  — wizard step 2: effort / model profile
-WorkspaceModeScreen — wizard step 3: workspace isolation strategy
-GovernanceScreen    — wizard step 4: governance / budget / HITL
-PlanRunScreen       — wizard step 5: run generation + execution, show output
-SavedPlansScreen    — browse tracked ai/orchestrator/tasks/ + runtime saved-plans/
-PlanDetailsScreen   — inspect a plan file: task graph, agents, policy, actions
-ValidationResultScreen — display validation pass/fail grouped by category
-RunLedgerScreen     — list retained runs, inspect / resume / retry / cleanup
-RunDetailsScreen    — single retained-run summary
-MemoryToolsScreen   — AI memory refresh / check / query
-SettingsScreen      — display current config defaults
+HomeScreen            — main navigation hub with keyboard shortcuts
+GoalInputScreen       — wizard step 1: enter goal
+ClarificationScreen   — wizard step 1b: goal clarification (WP76: AI pending, manual context now)
+EffortSelectScreen    — wizard step 2: effort / model profile
+WorkspaceModeScreen   — wizard step 3: workspace isolation strategy
+GovernanceScreen      — wizard step 4: governance / budget / HITL / follow-up
+PlanRunScreen         — wizard step 5: run generation + execution, show output
+SavedPlansScreen      — browse tracked ai/orchestrator/tasks/ + runtime saved-plans/
+PlanDetailsScreen     — inspect a plan file: task graph, agents, policy, actions
+PlanEditorScreen      — view plan JSON + open in $EDITOR
+RunPlanScreen         — execute a saved plan, stream output
+ValidatePlanScreen    — enter plan path for validation
+ValidateRunScreen     — run validation, display grouped results
+RunLedgerScreen       — list retained runs, inspect / resume / retry / cleanup
+RunDetailsScreen      — single retained-run summary
+ResumeRetryScreen     — resume or retry a retained run
+HitlGateScreen        — HITL approval / abort (WP75: live polling pending)
+MemoryToolsScreen     — AI memory refresh / check / query (with query Input)
+SettingsScreen        — display current config defaults
+DiffReviewScreen      — workspace diff + promote flow
+AgentsScreen          — inspect agent definitions and prompt sizes
+SkillsScreen          — inspect skill registry and file sizes
+EstimateScreen        — cost estimate / dry-run entry
+EstimateResultScreen  — display estimate output
 
 Entry point
 -----------
@@ -129,6 +140,22 @@ _HITL_OPTIONS = [
     ("on-failure", "ON-FAILURE  —  gate only after a failed batch"),
     ("always",     "ALWAYS      —  gate before every task batch (strict)"),
     ("none",       "NONE        —  disable all gates"),
+]
+
+_BUDGET_BEHAVIOR_OPTIONS = [
+    ("warn", "WARN  —  continue but surface warnings when budget exceeded"),
+    ("stop", "STOP  —  block unscheduled batches once budget exceeded  ✓ safe"),
+]
+
+_FOLLOW_UP_OPTIONS = [
+    ("ignore", "IGNORE  —  discard followUpTasks from workers  (default)"),
+    ("inject", "INJECT  —  queue followUpTasks between batches"),
+]
+
+_CLARIF_QUESTIONS = [
+    "What specific files, modules, or components should agents focus on?",
+    "Are there constraints, patterns, or coding standards that must be preserved?",
+    "What is the success criterion — how will you know the task is done correctly?",
 ]
 
 _WORKSPACE_WARN = {
@@ -713,6 +740,180 @@ class GoalInputScreen(Screen):  # type: ignore[type-arg,misc]
         self.dismiss(None)
 
 
+# ── ClarificationScreen ────────────────────────────────────────────────────────
+
+class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
+    """Wizard step 1b: goal clarification loop.
+
+    NOTE (WP76): AI backend not yet wired.  Until then the screen collects
+    manual context that gets appended to the goal string before execution.
+    """
+
+    BINDINGS = [
+        Binding("escape", "skip_all", "Skip",   show=True),
+        Binding("enter",  "next_q",   "Submit", show=False),
+    ]
+
+    CSS = """
+    ClarificationScreen {
+        align: center middle;
+    }
+    #card {
+        width: 82;
+        height: auto;
+        border: heavy $green 30%;
+        background: $bg_panel;
+        padding: 2 3;
+    }
+    #cl-title {
+        color: $cyan;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #cl-wip {
+        color: $amber;
+        margin-bottom: 1;
+    }
+    #cl-goal-box {
+        background: $bg_input;
+        border: solid $green_dim;
+        padding: 0 1;
+        margin-bottom: 1;
+        height: auto;
+    }
+    #cl-goal-label { color: $cyan; }
+    #cl-goal-text  { color: $green_body; }
+    #cl-separator  { color: $green_dim; margin: 1 0; }
+    #cl-q-label {
+        color: $cyan;
+        text-style: bold;
+        margin-bottom: 0;
+    }
+    #cl-q-text {
+        color: $green_body;
+        margin-bottom: 1;
+    }
+    #cl-progress {
+        color: $text_dim;
+        margin-bottom: 1;
+    }
+    #cl-answers {
+        background: $bg_input;
+        border: solid $green_dim;
+        padding: 0 1;
+        height: auto;
+        margin-bottom: 1;
+    }
+    #cl-input {
+        margin-top: 1;
+    }
+    #btns {
+        height: auto;
+        align: right middle;
+        margin-top: 1;
+    }
+    """
+
+    def __init__(self, goal: str) -> None:
+        super().__init__()
+        self._goal        = goal
+        self._q_idx       = 0
+        self._answers: list[tuple[str, str]] = []
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="card"):
+            yield Static(
+                "[ STEP 1b / 5 ]  GOAL CLARIFICATION",
+                id="cl-title",
+            )
+            yield Static(
+                "⚠  AI backend not yet wired (WP76) — "
+                "your answers are appended as context to the goal.",
+                id="cl-wip",
+            )
+            with Container(id="cl-goal-box"):
+                yield Static("GOAL:", id="cl-goal-label")
+                yield Static(self._goal[:160], id="cl-goal-text")
+            yield Rule(id="cl-separator")
+            yield Static("", id="cl-q-label")
+            yield Static("", id="cl-q-text")
+            yield Static("", id="cl-progress")
+            with ScrollableContainer(id="cl-answers"):
+                yield Static("[ no answers yet ]", id="cl-answers-content")
+            yield Input(
+                placeholder="Your answer — or leave blank and press NEXT to skip this question",
+                id="cl-input",
+            )
+            with Horizontal(id="btns"):
+                yield Button("NEXT  →",  id="btn-next",  variant="primary")
+                yield Button("SKIP ALL", id="btn-skip")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = "POJOLENS  //  CLARIFICATION"
+        self.app.sub_title = "GOAL REFINEMENT"
+        self._refresh_question()
+        self.query_one("#cl-input", Input).focus()
+
+    def _refresh_question(self) -> None:
+        total = len(_CLARIF_QUESTIONS)
+        idx   = self._q_idx
+        if idx >= total:
+            return
+        self.query_one("#cl-q-label", Static).update(
+            f"[bold #00e5ff]Question {idx + 1} of {total}:[/]"
+        )
+        self.query_one("#cl-q-text", Static).update(
+            f"[#a0ffa0]{_CLARIF_QUESTIONS[idx]}[/]"
+        )
+        self.query_one("#cl-progress", Static).update(
+            f"[dim]{'▮' * (idx + 1)}{'▯' * (total - idx - 1)}  {idx + 1}/{total}[/]"
+        )
+        self.query_one("#cl-input", Input).value = ""
+
+    def _refresh_answers(self) -> None:
+        if not self._answers:
+            self.query_one("#cl-answers-content", Static).update("[ no answers yet ]")
+            return
+        lines = []
+        for q, a in self._answers:
+            lines.append(f"[dim #00e5ff]Q:[/] [dim]{q[:60]}[/]")
+            lines.append(f"  [#00ff41]A:[/] {a[:120]}")
+        self.query_one("#cl-answers-content", Static).update("\n".join(lines))
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-next":
+            self.action_next_q()
+        elif event.button.id == "btn-skip":
+            self.action_skip_all()
+
+    def on_input_submitted(self, _: Input.Submitted) -> None:
+        self.action_next_q()
+
+    def action_next_q(self) -> None:
+        answer = self.query_one("#cl-input", Input).value.strip()
+        if answer:
+            self._answers.append((_CLARIF_QUESTIONS[self._q_idx], answer))
+            self._refresh_answers()
+        self._q_idx += 1
+        if self._q_idx >= len(_CLARIF_QUESTIONS):
+            self._finish()
+        else:
+            self._refresh_question()
+
+    def _finish(self) -> None:
+        if self._answers:
+            context = "; ".join(a for _, a in self._answers)
+            enhanced = f"{self._goal}. Additional context: {context}"
+        else:
+            enhanced = self._goal
+        self.dismiss(enhanced)
+
+    def action_skip_all(self) -> None:
+        self.dismiss(self._goal)
+
+
 # ── EffortSelectScreen ─────────────────────────────────────────────────────────
 
 class EffortSelectScreen(Screen):  # type: ignore[type-arg,misc]
@@ -919,12 +1120,13 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
         align: center middle;
     }
     #card {
-        width: 80;
+        width: 84;
         height: auto;
-        max-height: 38;
+        max-height: 50;
         border: heavy $green 30%;
         background: $bg_panel;
         padding: 2 3;
+        overflow-y: auto;
     }
     #card-title {
         color: $cyan;
@@ -935,15 +1137,22 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
         color: $cyan;
         margin-top: 1;
     }
-    OptionList {
-        height: 8;
+    .field-hint {
+        color: $text_dim;
         margin-bottom: 0;
     }
+    #hitl-list         { height: 8; margin-bottom: 0; }
+    #budget-behavior-list { height: 4; margin-bottom: 0; }
+    #followup-list     { height: 4; margin-bottom: 0; }
     #budget-input {
         width: 20;
     }
     #parallel-input {
         width: 10;
+    }
+    Rule {
+        color: $green_dim;
+        margin-top: 1;
     }
     #btns {
         height: auto;
@@ -962,15 +1171,39 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
         yield Header()
         with Container(id="card"):
             yield Static(
-                "[ STEP 4 / 5 ]  GOVERNANCE  (optional — press CONTINUE to use defaults)",
+                "[ STEP 4 / 5 ]  GOVERNANCE  (press CONTINUE to accept defaults)",
                 id="card-title",
             )
+            yield Rule(id="gov-rule")
             yield Static("HITL Gate Mode:", classes="field-label")
+            yield Static(
+                "always=every batch · batch=pending-tasks only · on-failure=after fail · none=disabled",
+                classes="field-hint",
+            )
             yield OptionList(
                 *[label for _, label in _HITL_OPTIONS],
                 id="hitl-list",
             )
-            yield Static("Run Budget USD (blank = unlimited):", classes="field-label")
+            yield Static("Budget Behavior:", classes="field-label")
+            yield Static(
+                "warn=surface warning but continue · stop=block batches once limit hit",
+                classes="field-hint",
+            )
+            yield OptionList(
+                *[label for _, label in _BUDGET_BEHAVIOR_OPTIONS],
+                id="budget-behavior-list",
+            )
+            yield Static("Follow-Up Task Behavior:", classes="field-label")
+            yield Static(
+                "ignore=discard worker followUpTasks · inject=queue them between batches",
+                classes="field-hint",
+            )
+            yield OptionList(
+                *[label for _, label in _FOLLOW_UP_OPTIONS],
+                id="followup-list",
+            )
+            yield Rule()
+            yield Static("Run Budget USD  (blank = unlimited):", classes="field-label")
             yield Input(placeholder="e.g.  0.50", id="budget-input")
             yield Static("Max Parallel Tasks:", classes="field-label")
             yield Input(value="2", id="parallel-input")
@@ -980,7 +1213,9 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
         yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one("#hitl-list", OptionList).highlighted = 0
+        self.query_one("#hitl-list",          OptionList).highlighted = 0
+        self.query_one("#budget-behavior-list", OptionList).highlighted = 0
+        self.query_one("#followup-list",       OptionList).highlighted = 0
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-continue":
@@ -991,7 +1226,11 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
     def _submit(self) -> None:
         hitl_idx = int(self.query_one("#hitl-list", OptionList).highlighted or 0)
         hitl_mode, _ = _HITL_OPTIONS[hitl_idx]
-        budget_raw = self.query_one("#budget-input", Input).value.strip()
+        bb_idx = int(self.query_one("#budget-behavior-list", OptionList).highlighted or 0)
+        budget_behavior, _ = _BUDGET_BEHAVIOR_OPTIONS[bb_idx]
+        fu_idx = int(self.query_one("#followup-list", OptionList).highlighted or 0)
+        follow_up, _ = _FOLLOW_UP_OPTIONS[fu_idx]
+        budget_raw   = self.query_one("#budget-input",   Input).value.strip()
         parallel_raw = self.query_one("#parallel-input", Input).value.strip()
         try:
             max_parallel = max(1, int(parallel_raw))
@@ -1001,7 +1240,13 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
             budget = float(budget_raw) if budget_raw else None
         except (ValueError, TypeError):
             budget = None
-        self.dismiss({"hitl": hitl_mode, "max_parallel": max_parallel, "budget": budget})
+        self.dismiss({
+            "hitl":            hitl_mode,
+            "budget_behavior": budget_behavior,
+            "follow_up":       follow_up,
+            "max_parallel":    max_parallel,
+            "budget":          budget,
+        })
 
     def action_cancel(self) -> None:
         self.dismiss(None)
@@ -1063,6 +1308,8 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         max_parallel: int,
         budget: float | None,
         *,
+        budget_behavior: str = "warn",
+        follow_up: str = "ignore",
         handlers: dict[str, Any],
         parse_args_fn: Callable[..., Any],
         runtime_root: str,
@@ -1070,18 +1317,20 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         claude_bin: str,
     ) -> None:
         super().__init__()
-        self._goal = goal
-        self._effort = effort
-        self._workspace_mode = workspace_mode
-        self._hitl = hitl
-        self._max_parallel = max_parallel
-        self._budget = budget
-        self._handlers = handlers
-        self._parse_args_fn = parse_args_fn
-        self._runtime_root = runtime_root
-        self._agents = agents
-        self._claude_bin = claude_bin
-        self._done = False
+        self._goal            = goal
+        self._effort          = effort
+        self._workspace_mode  = workspace_mode
+        self._hitl            = hitl
+        self._max_parallel    = max_parallel
+        self._budget          = budget
+        self._budget_behavior = budget_behavior
+        self._follow_up       = follow_up
+        self._handlers        = handlers
+        self._parse_args_fn   = parse_args_fn
+        self._runtime_root    = runtime_root
+        self._agents          = agents
+        self._claude_bin      = claude_bin
+        self._done            = False
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -1148,6 +1397,10 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         arg_list += ["--max-parallel", str(self._max_parallel)]
         if self._budget is not None:
             arg_list += ["--run-budget-usd", str(self._budget)]
+        if self._budget_behavior and self._budget_behavior != "warn":
+            arg_list += ["--budget-behavior", self._budget_behavior]
+        if self._follow_up and self._follow_up != "ignore":
+            arg_list += ["--follow-up-behavior", self._follow_up]
         if self._agents:
             arg_list += ["--agents", self._agents]
         if self._runtime_root:
@@ -1276,7 +1529,7 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
         margin: 4;
     }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: left middle;
@@ -1416,7 +1669,7 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
     def action_edit(self) -> None:
         path = self._selected_path()
         if path:
-            self.app.notify(f"Edit plan at:\n{path}", title="Edit Plan")
+            self.app.push_screen(PlanEditorScreen(path))  # type: ignore[attr-defined]
 
 
 # ── PlanDetailsScreen ──────────────────────────────────────────────────────────
@@ -1453,7 +1706,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         height: 1fr;
     }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: left middle;
@@ -1549,6 +1802,117 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             self.app.notify(f"Save failed: {exc}", title="Error", severity="error")  # type: ignore[attr-defined]
 
 
+# ── PlanEditorScreen ──────────────────────────────────────────────────────────
+
+class PlanEditorScreen(Screen):  # type: ignore[type-arg,misc]
+    """View plan JSON and optionally open in $EDITOR / VISUAL / notepad."""
+
+    BINDINGS = [
+        Binding("escape", "go_back",      "Back",            show=True),
+        Binding("e",      "open_editor",  "Open in Editor",  show=True),
+        Binding("r",      "reload",       "Reload",          show=True),
+    ]
+
+    CSS = """
+    PlanEditorScreen {
+        background: $bg;
+    }
+    #top-bar {
+        height: auto;
+        background: $bg_panel;
+        border-bottom: heavy $green 25%;
+        padding: 1 2;
+    }
+    #ed-title  { color: $cyan; text-style: bold; }
+    #ed-path   { color: $text_dim; }
+    #ed-status { color: $green; margin-top: 1; }
+    #ed-log    { height: 1fr; }
+    #action-bar {
+        height: 5;
+        background: $bg_input;
+        border-top: solid $green 25%;
+        align: left middle;
+        padding: 0 1;
+    }
+    """
+
+    def __init__(self, plan_path: str) -> None:
+        super().__init__()
+        self._plan_path = plan_path
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="top-bar"):
+            yield Static("[ PLAN EDITOR ]  View / open plan file", id="ed-title")
+            yield Static(self._plan_path, id="ed-path")
+            yield Static(
+                "[ EDITOR ] press [E] to open in $EDITOR  ·  [R] to reload",
+                id="ed-status",
+            )
+        yield RichLog(id="ed-log", markup=True, auto_scroll=False, wrap=True, highlight=False)
+        with Horizontal(id="action-bar"):
+            yield Button("OPEN IN EDITOR", id="btn-editor", variant="primary")
+            yield Button("RELOAD",          id="btn-reload")
+            yield Button("BACK",            id="btn-back")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = "POJOLENS  //  PLAN EDITOR"
+        self.run_worker(self._load, thread=True, name="plan-ed-load")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-editor":
+            self.action_open_editor()
+        elif event.button.id == "btn-reload":
+            self.action_reload()
+        elif event.button.id == "btn-back":
+            self.action_go_back()
+
+    def action_go_back(self) -> None:
+        self.dismiss(None)
+
+    def action_reload(self) -> None:
+        self.query_one("#ed-log", RichLog).clear()
+        self.run_worker(self._load, thread=True, name="plan-ed-reload")
+
+    def action_open_editor(self) -> None:
+        self.run_worker(self._launch_editor, thread=True, name="plan-ed-editor")
+
+    def _log(self, text: str) -> None:
+        self.app.call_from_thread(lambda: self.query_one("#ed-log", RichLog).write(text))
+
+    def _load(self) -> None:
+        plan_data = _load_plan_json(self._plan_path)
+        if plan_data is None:
+            self._log(f"[#ff2244]ERROR: cannot load: {self._plan_path}[/]")
+            return
+        lines = _plan_summary_rich(plan_data)
+        def _write() -> None:
+            log = self.query_one("#ed-log", RichLog)
+            for ln in lines:
+                log.write(ln)
+            log.write("")
+            log.write("[dim #2a5a3a]Press [E] to open in system editor, [R] to reload after edits.[/]")
+        self.app.call_from_thread(_write)
+
+    def _launch_editor(self) -> None:
+        import os
+        import subprocess
+        editor = (
+            os.environ.get("EDITOR")
+            or os.environ.get("VISUAL")
+            or ("notepad" if sys.platform == "win32" else "vi")
+        )
+        self._log(f"[#00e5ff][ SIGNAL ] launching {editor!r} for {self._plan_path}[/]")
+        try:
+            subprocess.run([editor, self._plan_path], check=False)
+            self._log("[#00ff41][ EXIT ] editor closed — press [R] to reload changes[/]")
+        except FileNotFoundError:
+            self._log(f"[#ff2244]editor not found: {editor!r}  — set $EDITOR env var[/]")
+        except Exception as exc:
+            self._log(f"[#ff2244]editor error: {exc}[/]")
+
+
 # ── RunPlanScreen ──────────────────────────────────────────────────────────────
 
 class RunPlanScreen(Screen):  # type: ignore[type-arg,misc]
@@ -1575,7 +1939,7 @@ class RunPlanScreen(Screen):  # type: ignore[type-arg,misc]
         height: 1fr;
     }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: left middle;
@@ -1763,7 +2127,7 @@ class ValidateRunScreen(Screen):  # type: ignore[type-arg,misc]
     #val-path  { color: $text_dim; }
     #val-log   { height: 1fr; }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: right middle;
@@ -1930,7 +2294,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         margin: 4;
     }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: left middle;
@@ -2107,7 +2471,7 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
     #run-ref   { color: $text_dim; }
     #detail-log { height: 1fr; }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: right middle;
@@ -2211,7 +2575,7 @@ class ResumeRetryScreen(Screen):  # type: ignore[type-arg,misc]
     #rr-status { color: $green; margin-top: 1; }
     #rr-log    { height: 1fr; }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: left middle;
@@ -2332,6 +2696,214 @@ class ResumeRetryScreen(Screen):  # type: ignore[type-arg,misc]
         self._log(f"[bold #00ff41]═══ {self._mode.upper()} COMPLETE ═══[/]")
 
 
+# ── HitlGateScreen ────────────────────────────────────────────────────────────
+
+class HitlGateScreen(Screen):  # type: ignore[type-arg,misc]
+    """HITL approval gate — cyberpunk control panel for batch sign-off.
+
+    NOTE (WP75): Live run polling not yet wired.  Gate ID and batch data will
+    be driven from the retained run manifest when WP75 is implemented.
+    """
+
+    BINDINGS = [
+        Binding("escape", "go_back", "Back",    show=True),
+        Binding("a",      "approve", "Approve", show=True),
+        Binding("x",      "abort",   "Abort",   show=True),
+    ]
+
+    CSS = """
+    HitlGateScreen {
+        background: $bg;
+    }
+    #gate-header {
+        height: auto;
+        background: $bg_panel;
+        border-bottom: heavy $amber 40%;
+        padding: 1 2;
+    }
+    #gate-title {
+        color: $amber;
+        text-style: bold;
+    }
+    #gate-id {
+        color: $green_body;
+        margin-top: 1;
+    }
+    #gate-wip {
+        color: $text_dim;
+        margin-top: 0;
+    }
+    #main-split {
+        height: 1fr;
+        layout: horizontal;
+    }
+    #left-panel {
+        width: 1fr;
+        background: $bg_panel;
+        border-right: heavy $green 20%;
+        padding: 1 2;
+    }
+    #right-panel {
+        width: 1fr;
+        background: $bg_panel;
+        padding: 1 2;
+    }
+    #left-panel .panel-title {
+        color: $cyan;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #right-panel .panel-title {
+        color: $cyan;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #batch-log {
+        height: 1fr;
+    }
+    #pending-table {
+        height: 1fr;
+    }
+    #cost-bar {
+        height: 3;
+        background: $bg_input;
+        border-top: solid $green_dim;
+        border-bottom: solid $green_dim;
+        padding: 0 2;
+        align: left middle;
+    }
+    #cost-display {
+        color: $green_body;
+    }
+    #gate-actions {
+        height: 3;
+        background: $bg_input;
+        border-top: heavy $amber 40%;
+        align: left middle;
+        padding: 0 1;
+    }
+    """
+
+    def __init__(self, run_ref: str = "", gate_id: str = "") -> None:
+        super().__init__()
+        self._run_ref = run_ref
+        self._gate_id = gate_id or "GATE-PENDING"
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="gate-header"):
+            yield Static(
+                "[ HITL GATE ]  ⚠  HUMAN APPROVAL REQUIRED  ⚠",
+                id="gate-title",
+            )
+            yield Static("", id="gate-id")
+            yield Static(
+                "WP75: live run polling pending — data above is placeholder until wired",
+                id="gate-wip",
+            )
+        with Horizontal(id="main-split"):
+            with Container(id="left-panel"):
+                yield Static("COMPLETED BATCH SUMMARY", classes="panel-title")
+                yield RichLog(
+                    id="batch-log", markup=True, auto_scroll=False,
+                    wrap=True, highlight=False,
+                )
+            with Container(id="right-panel"):
+                yield Static("PENDING TASKS", classes="panel-title")
+                yield DataTable(id="pending-table")
+        with Container(id="cost-bar"):
+            yield Static("", id="cost-display")
+        with Horizontal(id="gate-actions"):
+            yield Button("[A]  APPROVE",    id="btn-approve", variant="primary")
+            yield Button("[X]  ABORT",      id="btn-abort",   variant="error")
+            yield Button("BACK",            id="btn-back")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title   = "POJOLENS  //  HITL GATE"
+        self.app.sub_title = "AWAITING APPROVAL"
+
+        self.query_one("#gate-id", Static).update(
+            f"[#ffaa00]Gate ID:[/] [bold #00e5ff]{self._gate_id}[/]"
+            + (f"  [dim]·  Run: {self._run_ref}[/]" if self._run_ref else "")
+        )
+        self.query_one("#cost-display", Static).update(
+            "[dim]Cost so far:[/] [#ffaa00]—[/]  "
+            "[dim]·  Stale sentinel check:[/] [#00ff41]OK[/]  "
+            "[dim]·  Live polling: WP75 pending[/]"
+        )
+
+        table = self.query_one("#pending-table", DataTable)
+        table.cursor_type = "row"
+        table.zebra_stripes = True
+        table.add_column("Task ID",  width=22)
+        table.add_column("Status",   width=10)
+        table.add_column("Agent",    width=14)
+
+        log = self.query_one("#batch-log", RichLog)
+        log.write("[dim #2a5a3a][ construct ] connecting to retained run manifest...[/]")
+        log.write("")
+        log.write("[dim]Batch completion data will stream from:[/]")
+        log.write(f"  [#00e5ff]{self._run_ref or '.claude-orchestrator/runs/<run-id>/manifest.json'}[/]")
+        log.write("")
+        log.write("[dim #ffaa00]WP75 will wire:[/]")
+        log.write("  [dim]• polling retained run for pending HITL sentinels[/]")
+        log.write("  [dim]• completed batch task counts and cost[/]")
+        log.write("  [dim]• stale sentinel gateId validation[/]")
+        log.write("  [dim]• approve/abort calling orchestrator handlers[/]")
+        log.write("")
+        log.write("[#00ff41][ OPERATOR ][/] Press [bold #00ff41][A][/] to approve  |  "
+                  "[bold #ff2244][X][/] to abort")
+
+        if self._run_ref:
+            self.run_worker(self._load_gate_data, thread=True, name="hitl-load")
+
+    def _load_gate_data(self) -> None:
+        handlers      = getattr(self.app, "_handlers", {})
+        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        if parse_args_fn is None:
+            return
+        try:
+            args    = parse_args_fn(["status", self._run_ref, "--json"])
+            payload = handlers.get("status", lambda a: {})(args)
+        except Exception:
+            return
+        tasks = list(payload.get("tasks") or [])
+        pending = [t for t in tasks if str(t.get("status") or "") in ("pending", "blocked")]
+        cost    = payload.get("totalCostUsd") or payload.get("total_cost_usd")
+        def _update() -> None:
+            table = self.query_one("#pending-table", DataTable)
+            table.clear()
+            for t in pending[:50]:
+                tid    = str(t.get("taskId") or t.get("id") or "?")
+                status = str(t.get("status") or "?")
+                agent  = str(t.get("agent") or "-")
+                sc     = _status_color(status)
+                table.add_row(tid[:22], Text(status, style=sc) if Text else status, agent[:14])
+            if cost is not None:
+                self.query_one("#cost-display", Static).update(
+                    f"[dim]Cost so far:[/] [bold #ffaa00]${cost:.5f}[/]"
+                )
+        self.app.call_from_thread(_update)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-approve":
+            self.action_approve()
+        elif event.button.id == "btn-abort":
+            self.action_abort()
+        elif event.button.id == "btn-back":
+            self.action_go_back()
+
+    def action_approve(self) -> None:
+        self.dismiss({"decision": "approve", "gate_id": self._gate_id})
+
+    def action_abort(self) -> None:
+        self.dismiss({"decision": "abort", "gate_id": self._gate_id})
+
+    def action_go_back(self) -> None:
+        self.dismiss(None)
+
+
 # ── MemoryToolsScreen ──────────────────────────────────────────────────────────
 
 class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
@@ -2357,9 +2929,18 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
     #mem-title { color: $cyan; text-style: bold; }
     #mem-hint  { color: $text_dim; }
     #mem-desc  { color: $green_body; margin-top: 1; }
+    #query-bar {
+        height: 3;
+        background: $bg_input;
+        border-bottom: solid $green 20%;
+        padding: 0 1;
+        align: left middle;
+    }
+    #query-label { color: $cyan; width: 10; }
+    #query-input { width: 1fr; }
     #mem-log   { height: 1fr; }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: left middle;
@@ -2377,6 +2958,12 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
                 "             ai/state/current-state.md · ai/state/handoff.md\n"
                 "After tracked memory changes: run refresh → check.",
                 id="mem-desc",
+            )
+        with Horizontal(id="query-bar"):
+            yield Static("QUERY: ", id="query-label")
+            yield Input(
+                placeholder="search keywords for query-ai-memory.ps1 ...",
+                id="query-input",
             )
         yield RichLog(id="mem-log", markup=True, auto_scroll=True, wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
@@ -2421,7 +3008,35 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
         self.run_worker(self._run_check, thread=True, name="mem-check")
 
     def action_query_mem(self) -> None:
-        self.app.notify("Run: scripts/ai/query-ai-memory.ps1 <query>", title="Query Memory")  # type: ignore[attr-defined]
+        query = self.query_one("#query-input", Input).value.strip()
+        if not query:
+            self.query_one("#query-input", Input).focus()
+            self._log("[#ffaa00]Enter a search query above then press [Q] or the QUERY button.[/]")
+            return
+        self.run_worker(
+            lambda: self._run_query(query), thread=True, name="mem-query"
+        )
+
+    def _run_query(self, query: str) -> None:
+        self._log(f"[#00e5ff][ SIGNAL ] querying memory: {query!r}...[/]")
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["powershell", "-File", "scripts/ai/query-ai-memory.ps1",
+                 "-Query", query, "-Limit", "10"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            output = (result.stdout or "") + (result.stderr or "")
+            for line in output.splitlines():
+                self._log(line)
+            if result.returncode == 0:
+                self._log("[bold #00ff41]✓ query complete[/]")
+            else:
+                self._log(f"[#ff2244]✗ query exited {result.returncode}[/]")
+        except Exception as exc:
+            self._log(f"[#ff2244]query error: {exc}[/]")
 
     def _run_refresh(self) -> None:
         self._log("[#00e5ff][ SIGNAL ] launching memory refresh...[/]")
@@ -2485,7 +3100,7 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
     #set-hint  { color: $text_dim; }
     #set-log   { height: 1fr; }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: right middle;
@@ -2849,7 +3464,7 @@ class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
     #ag-table { width: 42; border-right: heavy $green 20%; }
     #ag-detail { width: 1fr; }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: right middle;
@@ -3013,7 +3628,7 @@ class SkillsScreen(Screen):  # type: ignore[type-arg,misc]
     #sk-table  { width: 36; border-right: heavy $green 20%; }
     #sk-detail { width: 1fr; }
     #action-bar {
-        height: 3;
+        height: 5;
         background: $bg_input;
         border-top: solid $green 25%;
         align: right middle;
@@ -3243,7 +3858,7 @@ class EstimateResultScreen(Screen):  # type: ignore[type-arg,misc]
     #est-plan  { color: $text_dim; }
     #est-log   { height: 1fr; }
     #action-bar {
-        height: 3; background: $bg_input;
+        height: 5; background: $bg_input;
         border-top: solid $green 25%; align: right middle; padding: 0 2;
     }
     """
@@ -3378,7 +3993,7 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         self._handlers    = handlers
         self._parse_args_fn = parse_args_fn
         self._auto_start_wizard = auto_start_wizard
-        self._logger      = logger or _ErrorLog(Path("error.log"))
+        self._op_logger   = logger or _ErrorLog(Path("error.log"))
 
         # Expose runtime paths as app attributes so screens can read them
         self._runtime_root = str(getattr(args, "runtime_root", DEFAULT_RUNTIME_ROOT) or DEFAULT_RUNTIME_ROOT)
@@ -3387,7 +4002,7 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         self._tasks_dir    = str(DEFAULT_TASKS_DIR)
 
     def on_mount(self) -> None:
-        self._logger.info("OperatorApp mounted — runtime_root=%s", self._runtime_root)
+        self._op_logger.info("OperatorApp mounted — runtime_root=%s", self._runtime_root)
         self.push_screen(HomeScreen())
         if self._auto_start_wizard:
             self.run_worker(self.action_new_plan, thread=False)
@@ -3398,7 +4013,7 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
             if event.worker.state == WorkerState.ERROR:
                 err = event.worker.error
                 tb = "".join(traceback.format_exception(type(err), err, err.__traceback__))
-                self._logger.error(
+                self._op_logger.error(
                     "Worker '%s' failed:\n%s",
                     event.worker.name or repr(event.worker),
                     tb,
@@ -3412,6 +4027,11 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         goal = await self.push_screen_wait(GoalInputScreen())
         if not goal:
             return
+        # ClarificationScreen: collects manual context; AI loop wired in WP76
+        clarified = await self.push_screen_wait(ClarificationScreen(goal))
+        if clarified is None:
+            return
+        goal = clarified
         effort = await self.push_screen_wait(EffortSelectScreen(goal))
         if effort is None:
             return
@@ -3421,9 +4041,11 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         gov = await self.push_screen_wait(GovernanceScreen(goal, effort, ws_mode))
         if gov is None:
             return
-        hitl         = gov.get("hitl", "batch")
-        max_parallel = int(gov.get("max_parallel", 2))
-        budget       = gov.get("budget")
+        hitl            = gov.get("hitl",            "batch")
+        max_parallel    = int(gov.get("max_parallel", 2))
+        budget          = gov.get("budget")
+        budget_behavior = gov.get("budget_behavior",  "warn")
+        follow_up       = gov.get("follow_up",        "ignore")
         await self.push_screen_wait(PlanRunScreen(
             goal=goal,
             effort=effort,
@@ -3431,6 +4053,8 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
             hitl=hitl,
             max_parallel=max_parallel,
             budget=budget,
+            budget_behavior=budget_behavior,
+            follow_up=follow_up,
             handlers=self._handlers,
             parse_args_fn=self._parse_args_fn,
             runtime_root=self._runtime_root,

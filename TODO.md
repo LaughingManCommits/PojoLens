@@ -84,6 +84,8 @@ Execution order is dependency-first, not ticket-number order.
 | WP74| Operator TUI Full Wiring            | Complete | `tui_operator.py` multi-screen Textual console; HomeScreen + 17 screens; DiffReviewScreen, AgentsScreen, SkillsScreen, EstimateScreen/EstimateResultScreen; search filter in SavedPlansScreen; Agents+Skills bindings; EstimateScreen from [D]; DiffReviewScreen from promote; `operator` subcommand wired; 1074 pass |
 | WP75| HITL TUI Live Gate Integration      | Planned  | Wire HitlGateScreen to live run event stream; poll retained run for pending HITL sentinels; approve/abort from TUI; gate id display; cost-so-far; completed batch summary |
 | WP76| Operator TUI Feature Completion     | Planned  | ClarificationScreen (wizard AI clarification loop); LiveRunDashboard push from operator TUI; PlanEditorScreen (not stub); SettingsScreen TPM/RPM/notifications; Extra Tools inspector; Follow-Up Task UI; Validation Intents UI; Output Profiles UI; Prompt Accounting section breakdown |
+| WP77| Multi-Workspace Codebase Targeting  | Planned  | Per-plan `codebasePath` + `workspaceStrategy` (repo/copy/scratch); global `workspace.root` config; `--codebase-path`/`--workspace-dir` CLI flags; auto-created isolated run dirs; TUI workspace picker + settings; prune integration; manifest recording |
+| WP78| LLM Provider Plugin System          | Planned  | `LLMProvider` Protocol contract; plugin discovery via `pojolens-agents.toml`; per-agent/task `provider` field; OpenAI-compatible reference impl; cost/token/rate-limit adapter; TUI provider selector; backward-compat Anthropic SDK + subprocess built-ins |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
 
@@ -906,6 +908,137 @@ Inspector surfaces:
 - [ ] Output Profiles UI — show `default` vs `lean` per task; explain lean recommendation for docs/read-only tasks
 - [ ] Follow-Up Task UI — show emitted `followUpTasks`, conditionField/conditionValue, injection accepted/skipped/rejected events
 - [ ] Prompt Accounting panel — section-level breakdown (system prompt, role prompt, skill stack, dependency context, shared context, task prompt); warn/block on oversized prompts
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+
+---
+
+## WP77: Multi-Workspace Codebase Targeting
+
+**Priority:** Medium → **Planned**
+
+**Goal:** Let each plan declare the codebase it operates on and configure a global workspace root where the orchestrator creates isolated per-run work environments. Operators can point the orchestrator at any folder — an existing project, a different repo entirely, or nothing at all (build a new app from scratch) — like Claude Code's working-directory model or Codex's per-task sandbox.
+
+**Concepts:**
+
+- **`codebasePath`** (per-plan) — the source code the plan's agents read and modify. Null = agents start with an empty folder and build from scratch.
+- **`workspaceStrategy`** (per-plan) — how the run workspace is prepared:
+  - `"repo"` — agents work directly inside `codebasePath`; current default behaviour.
+  - `"copy"` — `codebasePath` is copied into a fresh `workspace_root/{plan-slug}/{run-id}/` dir; agents operate on the copy; safe for destructive tasks.
+  - `"scratch"` — empty dir under `workspace_root`; `codebasePath` ignored; agents generate a new project.
+- **`workspace.root`** (global config) — base directory where all agent run environments are created. Default `~/.pojolens/workspaces/`.
+
+**Tasks:**
+
+Schema / plan JSON:
+- [ ] `codebasePath: str | null` optional field in plan JSON — absolute path to source code; null triggers scratch mode
+- [ ] `workspaceStrategy: "repo" | "copy" | "scratch"` field in plan JSON; default `"repo"` for backward compat
+- [ ] Pydantic validators: `copy`/`scratch` require a writable `workspace.root`; `repo` with null `codebasePath` raises `PlanValidationError`
+
+Global config (`pojolens-agents.toml`):
+- [ ] `[workspace]` section: `root` (path, default `~/.pojolens/workspaces/`), `strategy` (default `"repo"`)
+- [ ] CLI `run`/`wizard`/`resume` pick up `workspace.root` + `workspace.strategy` from config; CLI flags override
+
+Orchestrator:
+- [ ] `--codebase-path <path>` flag on `run`/`wizard`/`resume` — overrides `codebasePath` from plan
+- [ ] `--workspace-dir <path>` flag — explicit workspace dir; skips auto-creation under `workspace_root`
+- [ ] `--workspace-strategy <repo|copy|scratch>` flag — overrides plan field
+- [ ] Auto-create `workspace_root/{plan-slug}/{run-id}/` and populate per strategy before first batch dispatch
+- [ ] Resolve effective `repo_root` from the prepared workspace dir before task dispatch (replaces current global `--repo-root`)
+- [ ] `codebasePath`, `workspaceDir`, `workspaceStrategy` written to run manifest
+
+Lifecycle:
+- [ ] `prune-runs` removes workspace dirs for evicted runs (strategy `copy`/`scratch` only; never `repo`)
+- [ ] Workspace dir path surfaced in `status` output and `inventory` per-run record
+
+TUI:
+- [ ] `WorkspaceModeScreen` — extend beyond mode toggle: add `codebasePath` Input with filesystem hint; show resolved workspace dir preview
+- [ ] `SettingsScreen` — `workspace.root` display + editable Input; persists to `pojolens-agents.toml`
+- [ ] `PlanDetailsScreen` — show `codebasePath` + `workspaceStrategy` for each saved plan
+- [ ] New project flow: if `workspaceStrategy = "scratch"`, skip codebase picker and show "New project — agents will create a fresh workspace"
+
+Tests:
+- [ ] Workspace dir creation for each strategy variant
+- [ ] `copy` strategy populates workspace from `codebasePath`
+- [ ] `scratch` strategy starts with empty dir
+- [ ] `--codebase-path` CLI flag overrides plan field
+- [ ] `--workspace-dir` skips auto-creation
+- [ ] Manifest records all three workspace fields
+- [ ] `prune-runs` removes copy/scratch dirs, leaves repo dirs untouched
+- [ ] Pydantic validators reject invalid strategy/path combos
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+
+---
+
+## WP78: LLM Provider Plugin System
+
+**Priority:** Medium → **Planned**
+
+**Goal:** Replace the hardwired Anthropic-only provider layer with an open plugin contract so operators can drop in any LLM backend — OpenAI, Codex, Gemini, local Ollama, or a custom wrapper — by writing a single Python class and registering it in config. Existing Anthropic SDK and subprocess-Claude paths become built-in plugins with zero behaviour change.
+
+**Concepts:**
+
+- **`LLMProvider` Protocol** — the contract every plugin must satisfy: `complete()` for single-shot calls, `stream()` for token-streamed calls, `map_usage()` to normalise token counts to the internal usage dict shape, `rate_limit_meta()` to return TPM/RPM ceiling for the rate-limit bucket.
+- **Plugin discovery** — plugins declared in `pojolens-agents.toml` under `[providers]`; each entry names a Python import path and optional config block. Built-ins (`anthropic-sdk`, `subprocess-claude`) always available without config.
+- **Per-agent/per-task `provider` field** — agents and tasks declare `"provider": "<plugin-id>"` in their JSON; orchestrator resolves to the registered plugin at dispatch time. Omitting the field falls back to the global default provider.
+- **Cost/token adapter** — each plugin supplies `model_pricing()` returning `{input_cost_per_1k, output_cost_per_1k}` so the existing pre-flight estimator and OTEL cost attributes work without change.
+- **OpenAI-compatible reference impl** — ships as `pojo_lens_agents.providers.openai_compat`; covers OpenAI, Azure OpenAI, Codex, and any API with the `/v1/chat/completions` shape; configured with `base_url` + `api_key` + `model`.
+
+**Tasks:**
+
+Contract (`provider_plugin.py`):
+- [ ] `LLMProvider` typing `Protocol` with `complete(prompt, system, tools, max_tokens, **kw) -> ProviderResult`, `stream(...)` async generator, `map_usage(raw) -> dict`, `rate_limit_meta() -> RateLimitMeta`, `model_pricing() -> ModelPricing`
+- [ ] `ProviderResult` dataclass: `text`, `usage`, `provider_id`, `model`, `error`
+- [ ] `RateLimitMeta` dataclass: `tpm_limit`, `rpm_limit` (both optional; `None` = no limit known)
+- [ ] `ModelPricing` dataclass: `input_per_1k_usd`, `output_per_1k_usd`
+- [ ] `ProviderPluginError` exception hierarchy: `ProviderConfigError`, `ProviderAuthError`, `ProviderRateLimitError`, `ProviderTimeoutError`
+
+Registry (`provider_registry.py`):
+- [ ] `ProviderRegistry` — singleton; `register(id, cls, config)`, `get(id) -> LLMProvider`, `list_ids() -> list[str]`
+- [ ] Auto-registers built-ins at import: `"anthropic-sdk"` → existing `sdk_provider` logic; `"subprocess-claude"` → existing subprocess path
+- [ ] `load_from_config(toml_path)` — reads `[providers.*]` sections; resolves `plugin_class` via `importlib.import_module`; calls `register()`
+- [ ] Raises `ProviderConfigError` on missing class, missing required config keys, or duplicate id
+
+Config (`pojolens-agents.toml`):
+- [ ] `[providers]` section: `default = "anthropic-sdk"` (built-in default)
+- [ ] Per-plugin block: `[providers.my-codex]`; `plugin_class = "my_package.MyCodexProvider"`; arbitrary sub-keys forwarded as `config` dict to plugin constructor
+- [ ] `[providers.openai]` reference block: `plugin_class = "pojo_lens_agents.providers.openai_compat.OpenAICompatProvider"`; `base_url`, `api_key_env`, `model`
+
+Built-in plugins:
+- [ ] `providers/anthropic_sdk.py` — refactor existing `sdk_provider.py` logic into `AnthropicSdkProvider` class implementing `LLMProvider`; `sdk_provider.py` becomes thin re-export shim for backward compat
+- [ ] `providers/subprocess_claude.py` — refactor existing subprocess path from `provider.py` into `SubprocessClaudeProvider`; `provider.py` becomes thin shim
+- [ ] `providers/openai_compat.py` — `OpenAICompatProvider`; uses `openai` package (optional dep, import-guarded); `complete()` maps to `chat.completions.create()`; `stream()` uses streaming variant; `map_usage()` maps OpenAI usage fields; pricing table for common OpenAI models
+
+Plan / agent JSON:
+- [ ] `provider: str | null` optional field on agent JSON — selects plugin id; null = global default
+- [ ] `provider: str | null` optional field on task JSON — overrides agent-level provider for this task only
+- [ ] Pydantic validator: referenced provider id must be registered; unknown id raises `PlanValidationError`
+- [ ] `effectiveProvider` recorded in task manifest record alongside `model`
+
+Orchestrator integration:
+- [ ] `provider_worker.py` resolves plugin via registry before dispatch; passes `ProviderResult` back through existing result pipeline
+- [ ] Rate-limit bucket uses `plugin.rate_limit_meta()` to seed TPM/RPM ceilings per provider (multi-provider runs get separate buckets keyed by provider id)
+- [ ] Pre-flight estimator calls `plugin.model_pricing()` instead of hardwired table
+- [ ] OTEL span `llm.provider` attribute added alongside existing `llm.model`
+
+TUI:
+- [ ] `SettingsScreen` — provider list: id, class, model, pricing, rate-limit ceilings; per-provider test-connection button
+- [ ] `GovernanceScreen` / wizard — provider selector OptionList (defaults to global default; per-plan override)
+- [ ] `AgentsScreen` — show effective provider per agent/task
+
+Tests:
+- [ ] `LLMProvider` protocol conformance check helper (used by all plugin tests)
+- [ ] `ProviderRegistry` register/get/list/duplicate-id/unknown-id
+- [ ] `load_from_config` with valid and invalid toml blocks
+- [ ] `AnthropicSdkProvider` wraps existing sdk tests without behaviour change
+- [ ] `SubprocessClaudeProvider` wraps existing subprocess tests
+- [ ] `OpenAICompatProvider` unit tests with `httpx` mock (no real API calls)
+- [ ] Per-task provider override resolves correctly in dispatch
+- [ ] Separate rate-limit buckets per provider id
+- [ ] Pre-flight estimator uses plugin pricing
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

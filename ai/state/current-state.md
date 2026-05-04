@@ -25,4 +25,4 @@
 - No active orchestrator risks beyond the remaining roadmap queue.
 
 ## Next
-- `2026-05-03`: Roadmap order is WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 -> Release Gate.
+- `2026-05-04`: Roadmap order is WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP75 -> WP76 -> WP77 -> WP78 -> WP40 -> Release Gate.
