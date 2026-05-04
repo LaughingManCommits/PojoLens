@@ -144,6 +144,7 @@ from pojo_lens_agents._tui_diff import DiffReviewScreen  # noqa: F401
 from pojo_lens_agents._tui_inspect import (  # noqa: F401
     AgentsScreen,
     SkillsScreen,
+    PlanInspectScreen,
     ExtraToolsScreen,
     ValidationIntentsScreen,
     OutputProfilesScreen,

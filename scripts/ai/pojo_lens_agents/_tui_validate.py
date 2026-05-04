@@ -12,7 +12,7 @@ try:
     from textual.binding import Binding
     from textual.containers import Container, Horizontal
     from textual.reactive import reactive
-    from textual.screen import Screen
+    from textual.screen import ModalScreen, Screen
     from textual.widgets import Button, Footer, Header, Input, RichLog, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
@@ -269,13 +269,12 @@ class RunPlanScreen(Screen):  # type: ignore[type-arg,misc]
 
 # ── ValidatePlanScreen / ValidateRunScreen ─────────────────────────────────────
 
-class ValidatePlanScreen(Screen):  # type: ignore[type-arg,misc]
-    """Enter a plan path and validate it."""
+class ValidatePlanScreen(ModalScreen):  # type: ignore[type-arg,misc]
+    """Modal: enter a plan path, dismiss with path string or None."""
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
 
     def compose(self) -> ComposeResult:
-        yield Header()
         with Container(id="card"):
             yield Static("[ VALIDATE ]  Enter plan file path", id="card-title")
             yield Input(
@@ -285,7 +284,6 @@ class ValidatePlanScreen(Screen):  # type: ignore[type-arg,misc]
             with Horizontal(id="btns"):
                 yield Button("VALIDATE →", id="btn-validate", variant="primary")
                 yield Button("CANCEL",     id="btn-cancel")
-        yield Footer()
 
     def on_mount(self) -> None:
         self.query_one("#plan-path-input", Input).focus()
@@ -294,14 +292,14 @@ class ValidatePlanScreen(Screen):  # type: ignore[type-arg,misc]
         if event.button.id == "btn-validate":
             path = self.query_one("#plan-path-input", Input).value.strip()
             if path:
-                self.app.push_screen(ValidateRunScreen(path))  # type: ignore[attr-defined]
+                self.dismiss(path)
         elif event.button.id == "btn-cancel":
             self.action_go_back()
 
     def on_input_submitted(self, _: Input.Submitted) -> None:
         path = self.query_one("#plan-path-input", Input).value.strip()
         if path:
-            self.app.push_screen(ValidateRunScreen(path))  # type: ignore[attr-defined]
+            self.dismiss(path)
 
     def action_go_back(self) -> None:
         self.dismiss(None)

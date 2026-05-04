@@ -22,6 +22,14 @@ except ImportError as exc:  # pragma: no cover
 from pojo_lens_agents._tui_helpers import _status_color
 
 
+def _fmt_tok(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n / 1_000:.1f}K"
+    return str(n)
+
+
 def _manifest_run_state(data: dict[str, Any]) -> str:
     phases = [e.get("phase", "") for e in (data.get("events") or [])]
     if "run-finished" in phases:
@@ -64,6 +72,7 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             yield Static("", id="dash-status")
             yield Static("", id="dash-progress")
             yield Static("", id="dash-cost")
+            yield Static("", id="dash-tokens")
             yield Static("", id="dash-elapsed")
         yield Rule(id="dash-rule-mid")
         yield Static("[ RECENT ACTIVITY ]", id="dash-activity-title")
@@ -119,6 +128,7 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         total = len(manifests)
         completed = failed = running = 0
         total_cost = 0.0
+        total_inp = total_out = 0
         for mp in manifests:
             try:
                 d = json.loads(mp.read_text(encoding="utf-8"))
@@ -130,9 +140,16 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
                 else:
                     failed += 1
                 total_cost += _manifest_cost(d)
+                ut = d.get("usageTotals") or {}
+                total_inp += int(ut.get("inputTokens", 0) or 0)
+                total_out += int(ut.get("outputTokens", 0) or 0)
             except Exception:
                 pass
         cost_str = f"${total_cost:.4f}" if total_cost else "—"
+        tok_str = (
+            f"  [dim]Tok:[/] [#00e5ff]↓{_fmt_tok(total_inp)}[/] [#a0ffa0]↑{_fmt_tok(total_out)}[/]"
+            if (total_inp or total_out) else ""
+        )
         try:
             self.query_one("#dash-stats-box", Static).update(
                 f"[dim]Runs:[/] [#a0ffa0]{total}[/]"
@@ -140,6 +157,7 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
                 f"  [#ff2244]✗{failed}[/]"
                 f"  [#ffaa00]{running}▸[/]"
                 f"   [dim]Total:[/] [#ffaa00]{cost_str}[/]"
+                f"{tok_str}"
             )
         except Exception:
             pass
@@ -164,7 +182,7 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
 
     def _show_idle(self) -> None:
         for wid in ("#dash-run-id", "#dash-status", "#dash-progress",
-                    "#dash-cost", "#dash-elapsed"):
+                    "#dash-cost", "#dash-tokens", "#dash-elapsed"):
             try:
                 self.query_one(wid, Static).update("")
             except Exception:
@@ -196,6 +214,9 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         )
 
         cost = _manifest_cost(data)
+        ut   = data.get("usageTotals") or {}
+        inp  = int(ut.get("inputTokens", 0) or 0)
+        out  = int(ut.get("outputTokens", 0) or 0)
         start = events[0].get("ts") if events else None
         sc    = _status_color(state)
 
@@ -205,9 +226,15 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         elapsed_str = ""
         if start:
             try:
-                t0  = datetime.datetime.fromisoformat(str(start))
-                now = datetime.datetime.now(t0.tzinfo)
-                secs = int((now - t0).total_seconds())
+                t0 = datetime.datetime.fromisoformat(str(start))
+                finished_event = next(
+                    (e for e in reversed(events) if e.get("phase") == "run-finished"), None
+                )
+                if finished_event and finished_event.get("ts"):
+                    t1 = datetime.datetime.fromisoformat(str(finished_event["ts"]))
+                else:
+                    t1 = datetime.datetime.now(t0.tzinfo)
+                secs = int((t1 - t0).total_seconds())
                 elapsed_str = f"{secs // 3600:02d}:{(secs % 3600) // 60:02d}:{secs % 60:02d}"
             except Exception:
                 pass
@@ -226,6 +253,13 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             self.query_one("#dash-cost", Static).update(
                 f"[#00e5ff]Cost :[/] [#ffaa00]{cost_str}[/]"
             )
+            if inp or out:
+                self.query_one("#dash-tokens", Static).update(
+                    f"[#00e5ff]Tokens:[/] [#00e5ff]↓{_fmt_tok(inp)}[/] in"
+                    f"  [#a0ffa0]↑{_fmt_tok(out)}[/] out"
+                )
+            else:
+                self.query_one("#dash-tokens", Static).update("")
             self.query_one("#dash-elapsed", Static).update(
                 f"[#00e5ff]Time :[/] {elapsed_str}" if elapsed_str else ""
             )

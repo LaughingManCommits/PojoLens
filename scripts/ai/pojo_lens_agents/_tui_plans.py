@@ -322,6 +322,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("i",      "val_intents",  "Intents",       show=True),
         Binding("o",      "out_profiles", "Profiles",      show=True),
         Binding("p",      "prompt_acct",  "Prompt",        show=True),
+        Binding("f",      "follow_up",    "Follow-up",     show=True),
     ]
 
     def __init__(self, plan_path: str, *, mode: str = "view") -> None:
@@ -341,6 +342,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Button("DRY RUN",       id="btn-dryrun")
             yield Button("SAVE COPY",     id="btn-save")
             yield Button("TOOLS [T]",     id="btn-tools")
+            yield Button("FOLLOW-UP [F]", id="btn-followup")
             yield Button("BACK",          id="btn-back")
         yield Footer()
 
@@ -368,7 +370,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             log.write("")
             log.write(
                 "[dim #2a5a3a]Actions: [A] Approve+Run  [V] Validate  [D] Dry Run  "
-                "[S] Save  [T] Tools  [I] Intents  [O] Profiles  [P] Prompt  [Esc] Back[/]"
+                "[S] Save  [T] Tools  [I] Intents  [O] Profiles  [P] Prompt  [F] Follow-up  [Esc] Back[/]"
             )
         self.app.call_from_thread(_write)
 
@@ -383,6 +385,8 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             self.action_save_plan()
         elif event.button.id == "btn-tools":
             self.action_extra_tools()
+        elif event.button.id == "btn-followup":
+            self.action_follow_up()
         elif event.button.id == "btn-back":
             self.action_go_back()
 
@@ -418,20 +422,24 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             self.app.notify(f"Save failed: {exc}", title="Error", severity="error")  # type: ignore[attr-defined]
 
     def action_extra_tools(self) -> None:
-        from pojo_lens_agents._tui_inspect import ExtraToolsScreen
-        self.app.push_screen(ExtraToolsScreen(self._plan_path))  # type: ignore[attr-defined]
+        from pojo_lens_agents._tui_inspect import PlanInspectScreen
+        self.app.push_screen(PlanInspectScreen(self._plan_path, mode="tools"))  # type: ignore[attr-defined]
 
     def action_val_intents(self) -> None:
-        from pojo_lens_agents._tui_inspect import ValidationIntentsScreen
-        self.app.push_screen(ValidationIntentsScreen(self._plan_path))  # type: ignore[attr-defined]
+        from pojo_lens_agents._tui_inspect import PlanInspectScreen
+        self.app.push_screen(PlanInspectScreen(self._plan_path, mode="intents"))  # type: ignore[attr-defined]
 
     def action_out_profiles(self) -> None:
-        from pojo_lens_agents._tui_inspect import OutputProfilesScreen
-        self.app.push_screen(OutputProfilesScreen(self._plan_path))  # type: ignore[attr-defined]
+        from pojo_lens_agents._tui_inspect import PlanInspectScreen
+        self.app.push_screen(PlanInspectScreen(self._plan_path, mode="profiles"))  # type: ignore[attr-defined]
 
     def action_prompt_acct(self) -> None:
-        from pojo_lens_agents._tui_inspect import PromptAccountingScreen
-        self.app.push_screen(PromptAccountingScreen(self._plan_path))  # type: ignore[attr-defined]
+        from pojo_lens_agents._tui_inspect import PlanInspectScreen
+        self.app.push_screen(PlanInspectScreen(self._plan_path, mode="prompt"))  # type: ignore[attr-defined]
+
+    def action_follow_up(self) -> None:
+        from pojo_lens_agents._tui_inspect import PlanInspectScreen
+        self.app.push_screen(PlanInspectScreen(self._plan_path, mode="followup"))  # type: ignore[attr-defined]
 
 
 # ── PlanEditorScreen ──────────────────────────────────────────────────────────

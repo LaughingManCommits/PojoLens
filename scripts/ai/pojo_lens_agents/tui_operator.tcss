@@ -461,8 +461,8 @@ PlanDetailsScreen {
 #details-log {
     height: 1fr;
 }
-#action-bar {
-    height: 5;
+PlanDetailsScreen #action-bar {
+    height: 7;
     background: $bg_input;
     border-top: solid $green 25%;
     align: left middle;
@@ -516,16 +516,19 @@ RunPlanScreen {
 }
 
 /* ── ValidatePlanScreen ──────────────────────────────────────────────────── */
-ValidatePlanScreen { align: center middle; }
-#card {
+ValidatePlanScreen {
+    align: center middle;
+    background: $bg 60%;
+}
+ValidatePlanScreen #card {
     width: 76;
     height: auto;
     border: heavy $green 30%;
     background: $bg_panel;
     padding: 2 3;
 }
-#card-title { color: $cyan; text-style: bold; margin-bottom: 1; }
-#btns { height: auto; align: right middle; margin-top: 1; }
+ValidatePlanScreen #card-title { color: $cyan; text-style: bold; margin-bottom: 1; }
+ValidatePlanScreen #btns { height: auto; align: right middle; margin-top: 1; }
 
 /* ── ValidateRunScreen ───────────────────────────────────────────────────── */
 ValidateRunScreen {
@@ -752,8 +755,15 @@ DiffReviewScreen { background: $bg; }
 #diff-title  { color: $cyan; text-style: bold; }
 #diff-ref    { color: $text_dim; }
 #diff-status { color: $green; margin-top: 1; }
+#diff-stats  {
+    height: 1;
+    background: $bg_panel;
+    color: $green_body;
+    padding: 0 2;
+    border-bottom: solid $green_dim;
+}
 #split-view  { height: 1fr; layout: horizontal; }
-#file-list   { width: 38; border-right: heavy $green 20%; }
+#file-list   { width: 42; border-right: heavy $green 20%; }
 #diff-log    { width: 1fr; }
 #action-bar  {
     height: 3;
@@ -798,6 +808,50 @@ SkillsScreen { background: $bg; }
 #sk-table  { width: 36; border-right: heavy $green 20%; }
 #sk-detail { width: 1fr; }
 #action-bar {
+    height: 5;
+    background: $bg_input;
+    border-top: solid $green 25%;
+    align: right middle;
+    padding: 0 2;
+}
+
+/* ── PlanInspectScreen ───────────────────────────────────────────────────── */
+PlanInspectScreen { background: $bg; }
+PlanInspectScreen #top-bar {
+    height: auto;
+    background: $bg_panel;
+    border-bottom: heavy $green 25%;
+    padding: 1 2;
+}
+PlanInspectScreen #insp-title { color: $cyan; text-style: bold; }
+PlanInspectScreen #insp-path  { color: $text_dim; }
+PlanInspectScreen #mode-tabs  {
+    height: 3;
+    background: $bg_input;
+    border-bottom: solid $green_dim 25%;
+    align: left middle;
+    padding: 0 1;
+}
+PlanInspectScreen #mode-tabs Button {
+    min-width: 14;
+    margin: 0 1;
+}
+PlanInspectScreen .tab-active {
+    background: $green_dim;
+    color: $bg;
+    text-style: bold;
+    border: solid $green 60%;
+}
+PlanInspectScreen #insp-split {
+    height: 1fr;
+    layout: horizontal;
+}
+PlanInspectScreen #insp-table {
+    width: 42;
+    border-right: heavy $green 20%;
+}
+PlanInspectScreen #insp-log { width: 1fr; }
+PlanInspectScreen #action-bar {
     height: 5;
     background: $bg_input;
     border-top: solid $green 25%;

@@ -175,9 +175,11 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         from pojo_lens_agents._tui_ledger import RunLedgerScreen
         self.app.push_screen(RunLedgerScreen(mode="ledger"))  # type: ignore[attr-defined]
 
-    def action_validate(self) -> None:
-        from pojo_lens_agents._tui_validate import ValidatePlanScreen
-        self.app.push_screen(ValidatePlanScreen())  # type: ignore[attr-defined]
+    async def action_validate(self) -> None:
+        from pojo_lens_agents._tui_validate import ValidatePlanScreen, ValidateRunScreen
+        path = await self.app.push_screen_wait(ValidatePlanScreen())  # type: ignore[attr-defined]
+        if path:
+            self.app.push_screen(ValidateRunScreen(path))  # type: ignore[attr-defined]
 
     def action_dry_run(self) -> None:
         from pojo_lens_agents._tui_estimate import EstimateScreen
@@ -212,7 +214,7 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
             "s": self.action_saved_plans,
             "r": self.action_runs,
             "l": self.action_ledger,
-            "v": self.action_validate,
+            "v": lambda: self.app.run_worker(self.action_validate()),  # type: ignore[attr-defined]
             "d": self.action_dry_run,
             "p": self.action_promote,
             "a": self.action_agents,
