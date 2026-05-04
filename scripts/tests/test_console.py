@@ -604,6 +604,15 @@ class KnownCommandsTest(unittest.TestCase):
         result = preprocess_argv(["console", "--runtime-root", "/tmp"])
         self.assertEqual(result, ["console", "--runtime-root", "/tmp"])
 
+    def test_schedule_in_known_commands(self):
+        from ai.pojo_lens_agents.wizard import KNOWN_COMMANDS
+        self.assertIn("schedule", KNOWN_COMMANDS)
+
+    def test_preprocess_argv_passes_schedule_through(self):
+        from ai.pojo_lens_agents.wizard import preprocess_argv
+        result = preprocess_argv(["schedule", "start", "plan.json", "--once"])
+        self.assertEqual(result, ["schedule", "start", "plan.json", "--once"])
+
 
 if __name__ == "__main__":
     unittest.main()

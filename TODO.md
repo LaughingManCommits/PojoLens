@@ -76,7 +76,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP70| HITL Gate Correctness                | Complete | `always` fires every batch; stale sentinel gateId validation; 18 new regression tests; 949 pass |
 | WP63| Worker Tool Registry                 | Complete | `ExtraToolDef` dataclass + Pydantic validation; `extraTools` in agent/task JSON; `effective_task_tools` task-overrides-agent merge; shell/script execution via `execute_extra_tool`; collision + traversal guards; 27 regression tests; 976 pass |
 | WP64| Conditional Task Routing             | Complete | `conditionField`/`conditionValue` predicate on followUpTask proposals; case-insensitive substring match against emitter record fields; skipped tasks emit `task-injection-skipped`; Pydantic mutual-requirement validator; 17 regression tests; 993 pass |
-| WP65| Scheduled and Event-Triggered Runs  | Planned | Add `schedule` subcommand to trigger a plan on a cron expression or file-watch pattern, wired through the existing run machinery with retained run output |
+| WP65| Scheduled and Event-Triggered Runs  | Complete | `schedule.py` with cron (apscheduler), file-watch (watchdog), and --once modes; `schedule start/stop/status` subcommands; PID/log/status-file lifecycle; apscheduler+watchdog optional extras; `schedule` in KNOWN_COMMANDS; 38 regression tests; 1112 pass |
 | WP66| Agent Shared Context File           | Complete | `write_shared_context` 5th base tool; `shared-context.jsonl` per-run scratchpad; prompt section injection; `sharedContextTags` filter; `sharedContextPath` in manifest; 24 regression tests; 1017 pass |
 | WP71| Generated Plan Cleanup              | Complete | `prune_generated_plans` in `runtime_admin.py` wired into `prune_runs`; default 30-day/20-count eviction; slug collision warning in `wizard_command`; `generatedPlanCollision` payload; 16 regression tests; 1033 pass |
 | WP72| Orchestrator Core Coverage          | Complete | `_assert_otel_endpoint` in `orchestrator_app.py` validates http/https before run start; `test_orchestrator_app.py` 21 tests (OTEL validation, wizard deps keys, json-flag interactive suppression, dispatch error propagation); Rate limiting section in README; advisory invariant in SYSTEM-SPEC; 1054 pass |
@@ -699,7 +699,7 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 
 ---
 
-## WP65: Scheduled and Event-Triggered Runs
+## WP65: Scheduled and Event-Triggered Runs ✅ 2026-05-04
 
 **Priority:** Low
 
@@ -710,12 +710,14 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - Simplest viable shape: a `schedule` subcommand backed by a background daemon (or a one-shot `at`-style invocation) that reads a cron expression or `--on-change <glob>` file-watch pattern and fires `run_plan` when triggered. The daemon writes its PID to `.claude-orchestrator/schedule.pid` and logs to `.claude-orchestrator/schedule.log`.
 - This does not require external infrastructure — Python's `schedule` library (or `apscheduler`) for cron; `watchdog` for file change. Both are optional dependencies.
 
+**Decision:** Complete. `schedule.py` with `start_schedule`/`stop_schedule`/`get_schedule_status`; cron loop via apscheduler (optional), file-watch loop via watchdog (optional), `--once` one-shot mode; PID/log/status-file lifecycle with atomic writes; dep guards with install hints; `schedule start/stop/status` subcommands in CLI; `schedule_command` wired into `_build_handlers`; `schedule` in `KNOWN_COMMANDS`; `schedule = ["apscheduler>=3,<4", "watchdog>=3"]` extras in `pyproject.toml`; 38 regression tests in `test_schedule.py`; 5 dispatch tests in `test_orchestrator_app.py`; 2 KNOWN_COMMANDS tests in `test_console.py`; 1112 pass.
+
 **Tasks:**
-- [ ] Add `schedule` subcommand to CLI: `pojolens-agents schedule <plan> --cron "0 2 * * *"` (nightly) or `--on-change "src/**/*.java"` (file watch); `--once` for one-shot deferred run.
-- [ ] Add `schedule.py` in `pojo_lens_agents`; implement cron loop (via `apscheduler>=3`) and file-watch loop (via `watchdog>=3`); both trigger `run_plan` and write outcome to `schedule.log`.
-- [ ] Add `schedule stop` to kill the daemon via PID file; `schedule status` to report next-run time and last-run outcome.
-- [ ] Add `apscheduler` and `watchdog` as optional deps under `[schedule]` extras in `pyproject.toml`; degrade gracefully when not installed.
-- [ ] Add regression coverage for cron expression parsing, file-watch pattern matching, and daemon start/stop lifecycle (mock clock and file events).
+- [x] Add `schedule` subcommand to CLI: `pojolens-agents schedule <plan> --cron "0 2 * * *"` (nightly) or `--on-change "src/**/*.java"` (file watch); `--once` for one-shot deferred run.
+- [x] Add `schedule.py` in `pojo_lens_agents`; implement cron loop (via `apscheduler>=3`) and file-watch loop (via `watchdog>=3`); both trigger `run_plan` and write outcome to `schedule.log`.
+- [x] Add `schedule stop` to kill the daemon via PID file; `schedule status` to report next-run time and last-run outcome.
+- [x] Add `apscheduler` and `watchdog` as optional deps under `[schedule]` extras in `pyproject.toml`; degrade gracefully when not installed.
+- [x] Add regression coverage for cron expression parsing, file-watch pattern matching, and daemon start/stop lifecycle (mock clock and file events).
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

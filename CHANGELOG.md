@@ -11,6 +11,17 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Scheduled and event-triggered runs** (WP65) - added `pojo_lens_agents.schedule`
+  with `start_schedule` (cron via `apscheduler>=3`, file-watch via `watchdog>=3`,
+  or `--once` one-shot), `stop_schedule` (SIGTERM via PID file), and
+  `get_schedule_status`; atomic JSON status file; append-only schedule log;
+  dep guards with `pip install 'pojolens-agents[schedule]'` hints; `schedule
+  start/stop/status` subcommands wired into the CLI and `_build_handlers`;
+  `schedule` added to `KNOWN_COMMANDS`; `schedule` optional extras group in
+  `pyproject.toml`; 38 regression tests in `test_schedule.py`; 5 dispatch
+  tests in `test_orchestrator_app.py`; 2 KNOWN_COMMANDS tests in
+  `test_console.py`; 1112 tests pass.
+
 - **Persistent operator console** - added `pojo_lens_agents.console` with a
   `pojolens-agents console` session mode that stays alive until `/exit`;
   supports `/help`, `/jobs`, `/focus [job-id]`, and `/clear` meta-commands;

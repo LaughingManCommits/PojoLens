@@ -1133,6 +1133,78 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_provider_bin_arg(operator_parser)
     _add_verbose_arg(operator_parser)
 
+    schedule_parser = subparsers.add_parser(
+        "schedule",
+        help="Trigger a plan on a cron schedule or file-watch pattern (runs in foreground).",
+    )
+    schedule_sub = schedule_parser.add_subparsers(dest="schedule_command", required=True)
+
+    sched_start = schedule_sub.add_parser(
+        "start",
+        help="Start the scheduler (blocks; run in background shell or detached process).",
+    )
+    sched_start.add_argument("task_plan", help="Path to the task-plan JSON file to execute.")
+    _sched_trigger = sched_start.add_mutually_exclusive_group(required=True)
+    _sched_trigger.add_argument(
+        "--cron",
+        default="",
+        metavar="EXPR",
+        help="Cron expression, e.g. \"0 2 * * *\" for nightly 02:00 UTC. Requires apscheduler.",
+    )
+    _sched_trigger.add_argument(
+        "--on-change",
+        default="",
+        dest="on_change",
+        metavar="GLOB",
+        help="File-watch glob pattern, e.g. \"src/**/*.java\". Requires watchdog.",
+    )
+    _sched_trigger.add_argument(
+        "--once",
+        action="store_true",
+        help="Run the plan immediately once and exit (one-shot mode).",
+    )
+    sched_start.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        dest="runtime_root",
+        help="Runtime root for run manifests and schedule state files.",
+    )
+    sched_start.add_argument(
+        "--agents",
+        default=str(DEFAULT_AGENTS_PATH),
+        help="Path to the tracked agents JSON file.",
+    )
+    _add_max_parallel_arg(sched_start)
+    _add_provider_bin_arg(sched_start)
+    _add_verbose_arg(sched_start)
+
+    sched_stop = schedule_sub.add_parser(
+        "stop",
+        help="Stop the running scheduler daemon by sending SIGTERM to its PID.",
+    )
+    sched_stop.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        dest="runtime_root",
+        help="Runtime root where schedule.pid is located.",
+    )
+
+    sched_status = schedule_sub.add_parser(
+        "status",
+        help="Report scheduler running state and last-run outcome.",
+    )
+    sched_status.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        dest="runtime_root",
+        help="Runtime root where schedule-status.json is located.",
+    )
+    sched_status.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit status as JSON.",
+    )
+
     config_path_hint = _pre_parse_config_path(raw_argv)
     try:
         from pojo_lens_agents.config_loader import load_config

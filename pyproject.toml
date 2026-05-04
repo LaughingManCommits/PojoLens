@@ -17,6 +17,7 @@ otel = [
     "opentelemetry-exporter-otlp-proto-http>=1.28.0,<2",
 ]
 notifications = ["plyer>=2.0"]
+schedule = ["apscheduler>=3,<4", "watchdog>=3"]
 
 [project.scripts]
 pojolens-agents = "pojo_lens_agents.cli:main"

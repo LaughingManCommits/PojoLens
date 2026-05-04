@@ -343,5 +343,49 @@ class DispatchMainErrorPropagationTest(unittest.TestCase):
         self.assertEqual(EXIT_ERROR, code)
 
 
+# ---------------------------------------------------------------------------
+# schedule_command dispatch
+# ---------------------------------------------------------------------------
+
+class ScheduleCommandDispatchTest(unittest.TestCase):
+    """schedule_command delegates to start_schedule / stop_schedule / get_schedule_status."""
+
+    def _cmd(self):
+        from pojo_lens_agents.orchestrator_app import schedule_command
+        return schedule_command
+
+    def _args(self, sub, **kwargs):
+        import argparse
+        ns = argparse.Namespace(schedule_command=sub, runtime_root=".rt", **kwargs)
+        return ns
+
+    def test_start_delegates_to_start_schedule(self):
+        with mock.patch("pojo_lens_agents.schedule.start_schedule", return_value={"status": "completed"}) as m:
+            result = self._cmd()(self._args("start"))
+        m.assert_called_once()
+        assert result == {"status": "completed"}
+
+    def test_stop_delegates_to_stop_schedule(self):
+        with mock.patch("pojo_lens_agents.schedule.stop_schedule", return_value={"status": "stopped"}) as m:
+            result = self._cmd()(self._args("stop"))
+        m.assert_called_once_with(".rt")
+        assert result == {"status": "stopped"}
+
+    def test_status_delegates_to_get_schedule_status(self):
+        with mock.patch("pojo_lens_agents.schedule.get_schedule_status", return_value={"running": False}) as m:
+            result = self._cmd()(self._args("status"))
+        m.assert_called_once_with(".rt")
+        assert result["running"] is False
+
+    def test_unknown_subcommand_raises(self):
+        from pojo_lens_agents.orchestrator_contracts import OrchestratorError
+        with self.assertRaises(OrchestratorError):
+            self._cmd()(self._args("bogus"))
+
+    def test_schedule_in_build_handlers(self):
+        from pojo_lens_agents.orchestrator_app import _build_handlers
+        assert "schedule" in _build_handlers()
+
+
 if __name__ == "__main__":
     unittest.main()

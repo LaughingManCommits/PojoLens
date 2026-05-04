@@ -51,6 +51,7 @@ KNOWN_COMMANDS = {
     "validate-run",
     "summarize-ledger",
     "wizard",
+    "schedule",
 }
 
 

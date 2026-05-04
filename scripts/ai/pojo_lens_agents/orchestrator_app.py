@@ -1500,6 +1500,19 @@ def wizard_command(args: argparse.Namespace) -> dict[str, Any]:
     )
 
 
+def schedule_command(args: Any) -> dict[str, Any]:
+    from pojo_lens_agents.schedule import get_schedule_status, start_schedule, stop_schedule
+    sub = str(getattr(args, "schedule_command", "") or "")
+    runtime_root = str(getattr(args, "runtime_root", DEFAULT_RUNTIME_ROOT))
+    if sub == "start":
+        return start_schedule(args)
+    if sub == "stop":
+        return stop_schedule(runtime_root)
+    if sub == "status":
+        return get_schedule_status(runtime_root)
+    raise OrchestratorError(f"Unknown schedule subcommand: {sub!r}")
+
+
 def _build_handlers() -> dict[str, Any]:
     return {
         'validate': validate_command,
@@ -1522,6 +1535,7 @@ def _build_handlers() -> dict[str, Any]:
         'summarize-ledger': summarize_ledger,
         'config': config_command,
         'wizard': wizard_command,
+        'schedule': schedule_command,
     }
 
 
