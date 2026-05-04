@@ -36,38 +36,6 @@ class MemoryToolsScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("q", "query_mem",  "Query",   show=True),
     ]
 
-    CSS = """
-    MemoryToolsScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #mem-title { color: $cyan; text-style: bold; }
-    #mem-hint  { color: $text_dim; }
-    #mem-desc  { color: $green_body; margin-top: 1; }
-    #query-bar {
-        height: 3;
-        background: $bg_input;
-        border-bottom: solid $green 20%;
-        padding: 0 1;
-        align: left middle;
-    }
-    #query-label { color: $cyan; width: 10; }
-    #query-input { width: 1fr; }
-    #mem-log   { height: 1fr; }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: left middle;
-        padding: 0 1;
-    }
-    """
-
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="top-bar"):
@@ -205,28 +173,6 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
     """Display current configuration defaults."""
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
-
-    CSS = """
-    SettingsScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #set-title { color: $cyan; text-style: bold; }
-    #set-hint  { color: $text_dim; }
-    #set-log   { height: 1fr; }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: right middle;
-        padding: 0 2;
-    }
-    """
 
     def compose(self) -> ComposeResult:
         yield Header()

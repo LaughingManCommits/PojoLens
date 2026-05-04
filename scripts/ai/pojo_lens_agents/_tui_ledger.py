@@ -46,33 +46,6 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("p",      "promote_run","Promote", show=True),
     ]
 
-    CSS = """
-    RunLedgerScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #screen-title { color: $cyan; text-style: bold; }
-    #screen-hint  { color: $text_dim; }
-    #runs-table   { height: 1fr; }
-    #empty-notice {
-        color: $text_dim;
-        text-align: center;
-        margin: 4;
-    }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: left middle;
-        padding: 0 1;
-    }
-    """
-
     def __init__(self, *, mode: str = "runs") -> None:
         super().__init__()
         self._mode = mode
@@ -229,28 +202,6 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
 
-    CSS = """
-    RunDetailsScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #run-title { color: $cyan; text-style: bold; }
-    #run-ref   { color: $text_dim; }
-    #detail-log { height: 1fr; }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: right middle;
-        padding: 0 2;
-    }
-    """
-
     def __init__(self, run_ref: str) -> None:
         super().__init__()
         self._run_ref = run_ref
@@ -331,29 +282,6 @@ class ResumeRetryScreen(Screen):  # type: ignore[type-arg,misc]
     """Resume, retry, or promote a retained run."""
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
-
-    CSS = """
-    ResumeRetryScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #rr-title  { color: $cyan; text-style: bold; }
-    #rr-ref    { color: $text_dim; }
-    #rr-status { color: $green; margin-top: 1; }
-    #rr-log    { height: 1fr; }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: left middle;
-        padding: 0 1;
-    }
-    """
 
     _op_status: reactive[str] = reactive("ready")
 

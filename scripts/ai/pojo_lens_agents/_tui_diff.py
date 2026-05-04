@@ -32,29 +32,6 @@ class DiffReviewScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("c",      "coord_validate", "Coord. Val.",   show=True),
     ]
 
-    CSS = """
-    DiffReviewScreen { background: $bg; }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #diff-title  { color: $cyan; text-style: bold; }
-    #diff-ref    { color: $text_dim; }
-    #diff-status { color: $green; margin-top: 1; }
-    #split-view  { height: 1fr; layout: horizontal; }
-    #file-list   { width: 38; border-right: heavy $green 20%; }
-    #diff-log    { width: 1fr; }
-    #action-bar  {
-        height: 3;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: left middle;
-        padding: 0 1;
-    }
-    """
-
     _diff_status: reactive[str] = reactive("loading diff...")
 
     def __init__(self, run_ref: str) -> None:

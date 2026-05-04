@@ -41,31 +41,6 @@ class RunPlanScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("escape", "go_back", "Back", show=True),
     ]
 
-    CSS = """
-    RunPlanScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #run-title { color: $cyan; text-style: bold; }
-    #run-plan  { color: $text_dim; }
-    #run-status { color: $green; margin-top: 1; }
-    #run-log {
-        height: 1fr;
-    }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: left middle;
-        padding: 0 1;
-    }
-    """
-
     _run_status: reactive[str] = reactive("[ CONSTRUCT ] initializing run...")
 
     def __init__(self, plan_path: str, *, dry_run: bool = False) -> None:
@@ -181,19 +156,6 @@ class ValidatePlanScreen(Screen):  # type: ignore[type-arg,misc]
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
 
-    CSS = """
-    ValidatePlanScreen { align: center middle; }
-    #card {
-        width: 76;
-        height: auto;
-        border: heavy $green 30%;
-        background: $bg_panel;
-        padding: 2 3;
-    }
-    #card-title { color: $cyan; text-style: bold; margin-bottom: 1; }
-    #btns { height: auto; align: right middle; margin-top: 1; }
-    """
-
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="card"):
@@ -231,28 +193,6 @@ class ValidateRunScreen(Screen):  # type: ignore[type-arg,misc]
     """Run validation on a plan file, display grouped results."""
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
-
-    CSS = """
-    ValidateRunScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #val-title { color: $cyan; text-style: bold; }
-    #val-path  { color: $text_dim; }
-    #val-log   { height: 1fr; }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: right middle;
-        padding: 0 2;
-    }
-    """
 
     def __init__(self, plan_path: str) -> None:
         super().__init__()

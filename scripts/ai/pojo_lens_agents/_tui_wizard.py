@@ -37,38 +37,6 @@ class GoalInputScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("escape", "cancel", "Back", show=True),
     ]
 
-    CSS = """
-    GoalInputScreen {
-        align: center middle;
-    }
-    #card {
-        width: 76;
-        height: auto;
-        border: heavy $green 30%;
-        background: $bg_panel;
-        padding: 2 3;
-    }
-    #card-title {
-        color: $cyan;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    #desc {
-        color: $green_body;
-        margin-bottom: 1;
-    }
-    #hint {
-        color: $text_dim;
-        margin-top: 1;
-        margin-bottom: 1;
-    }
-    #btns {
-        height: auto;
-        align: right middle;
-        margin-top: 1;
-    }
-    """
-
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="card"):
@@ -132,66 +100,6 @@ class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("escape", "skip_all", "Skip",   show=True),
         Binding("enter",  "next_q",   "Submit", show=False),
     ]
-
-    CSS = """
-    ClarificationScreen {
-        align: center middle;
-    }
-    #card {
-        width: 82;
-        height: auto;
-        border: heavy $green 30%;
-        background: $bg_panel;
-        padding: 2 3;
-    }
-    #cl-title {
-        color: $cyan;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    #cl-wip {
-        color: $amber;
-        margin-bottom: 1;
-    }
-    #cl-goal-box {
-        background: $bg_input;
-        border: solid $green_dim;
-        padding: 0 1;
-        margin-bottom: 1;
-        height: auto;
-    }
-    #cl-goal-label { color: $cyan; }
-    #cl-goal-text  { color: $green_body; }
-    #cl-separator  { color: $green_dim; margin: 1 0; }
-    #cl-q-label {
-        color: $cyan;
-        text-style: bold;
-        margin-bottom: 0;
-    }
-    #cl-q-text {
-        color: $green_body;
-        margin-bottom: 1;
-    }
-    #cl-progress {
-        color: $text_dim;
-        margin-bottom: 1;
-    }
-    #cl-answers {
-        background: $bg_input;
-        border: solid $green_dim;
-        padding: 0 1;
-        height: auto;
-        margin-bottom: 1;
-    }
-    #cl-input {
-        margin-top: 1;
-    }
-    #btns {
-        height: auto;
-        align: right middle;
-        margin-top: 1;
-    }
-    """
 
     def __init__(self, goal: str) -> None:
         super().__init__()
@@ -303,42 +211,6 @@ class EffortSelectScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("enter",  "submit", "Select", show=True),
     ]
 
-    CSS = """
-    EffortSelectScreen {
-        align: center middle;
-    }
-    #card {
-        width: 72;
-        height: auto;
-        border: heavy $green 30%;
-        background: $bg_panel;
-        padding: 2 3;
-    }
-    #card-title {
-        color: $cyan;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    #desc {
-        color: $green_body;
-        margin-bottom: 1;
-    }
-    OptionList {
-        height: 7;
-        margin-bottom: 1;
-    }
-    #cost-note {
-        color: $amber;
-        margin-top: 1;
-        margin-bottom: 1;
-    }
-    #btns {
-        height: auto;
-        align: right middle;
-        margin-top: 1;
-    }
-    """
-
     def __init__(self, goal: str) -> None:
         super().__init__()
         self._goal = goal
@@ -395,42 +267,6 @@ class WorkspaceModeScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("escape", "cancel", "Back", show=True),
         Binding("enter",  "submit", "Select", show=True),
     ]
-
-    CSS = """
-    WorkspaceModeScreen {
-        align: center middle;
-    }
-    #card {
-        width: 76;
-        height: auto;
-        border: heavy $green 30%;
-        background: $bg_panel;
-        padding: 2 3;
-    }
-    #card-title {
-        color: $cyan;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    #desc {
-        color: $green_body;
-        margin-bottom: 1;
-    }
-    OptionList {
-        height: 7;
-        margin-bottom: 1;
-    }
-    #ws-warning {
-        color: $amber;
-        margin-top: 1;
-        margin-bottom: 1;
-    }
-    #btns {
-        height: auto;
-        align: right middle;
-        margin-top: 1;
-    }
-    """
 
     def __init__(self, goal: str, effort: str) -> None:
         super().__init__()
@@ -493,52 +329,6 @@ class GovernanceScreen(Screen):  # type: ignore[type-arg,misc]
     BINDINGS = [
         Binding("escape", "cancel", "Back", show=True),
     ]
-
-    CSS = """
-    GovernanceScreen {
-        align: center middle;
-    }
-    #card {
-        width: 84;
-        height: auto;
-        max-height: 50;
-        border: heavy $green 30%;
-        background: $bg_panel;
-        padding: 2 3;
-        overflow-y: auto;
-    }
-    #card-title {
-        color: $cyan;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    .field-label {
-        color: $cyan;
-        margin-top: 1;
-    }
-    .field-hint {
-        color: $text_dim;
-        margin-bottom: 0;
-    }
-    #hitl-list         { height: 8; margin-bottom: 0; }
-    #budget-behavior-list { height: 4; margin-bottom: 0; }
-    #followup-list     { height: 4; margin-bottom: 0; }
-    #budget-input {
-        width: 20;
-    }
-    #parallel-input {
-        width: 10;
-    }
-    Rule {
-        color: $green_dim;
-        margin-top: 1;
-    }
-    #btns {
-        height: auto;
-        align: right middle;
-        margin-top: 2;
-    }
-    """
 
     def __init__(self, goal: str, effort: str, workspace_mode: str) -> None:
         super().__init__()

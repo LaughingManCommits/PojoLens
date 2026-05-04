@@ -50,49 +50,6 @@ class SavedPlansScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("e", "action_edit",     "Edit",     show=True),
     ]
 
-    CSS = """
-    SavedPlansScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #screen-title {
-        color: $cyan;
-        text-style: bold;
-    }
-    #screen-hint {
-        color: $text_dim;
-    }
-    #search-bar {
-        height: 3;
-        background: $bg_input;
-        border-bottom: solid $green 20%;
-        padding: 0 1;
-    }
-    #search-input {
-        width: 1fr;
-    }
-    #plans-table {
-        height: 1fr;
-    }
-    #empty-notice {
-        color: $text_dim;
-        text-align: center;
-        margin: 4;
-    }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: left middle;
-        padding: 0 1;
-    }
-    """
-
     def __init__(self) -> None:
         super().__init__()
         self._previews: list[Any] = []
@@ -241,35 +198,6 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("s", "save_plan",      "Save",          show=True),
     ]
 
-    CSS = """
-    PlanDetailsScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #screen-title {
-        color: $cyan;
-        text-style: bold;
-    }
-    #plan-path {
-        color: $text_dim;
-    }
-    #details-log {
-        height: 1fr;
-    }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: left middle;
-        padding: 0 1;
-    }
-    """
-
     def __init__(self, plan_path: str, *, mode: str = "view") -> None:
         super().__init__()
         self._plan_path = plan_path
@@ -371,29 +299,6 @@ class PlanEditorScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("e",      "open_editor",  "Open in Editor",  show=True),
         Binding("r",      "reload",       "Reload",          show=True),
     ]
-
-    CSS = """
-    PlanEditorScreen {
-        background: $bg;
-    }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #ed-title  { color: $cyan; text-style: bold; }
-    #ed-path   { color: $text_dim; }
-    #ed-status { color: $green; margin-top: 1; }
-    #ed-log    { height: 1fr; }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: left middle;
-        padding: 0 1;
-    }
-    """
 
     def __init__(self, plan_path: str) -> None:
         super().__init__()

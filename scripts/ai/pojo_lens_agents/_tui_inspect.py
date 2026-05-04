@@ -35,28 +35,6 @@ class AgentsScreen(Screen):  # type: ignore[type-arg,misc]
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
 
-    CSS = """
-    AgentsScreen { background: $bg; }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #ag-title { color: $cyan; text-style: bold; }
-    #ag-path  { color: $text_dim; }
-    #split    { height: 1fr; layout: horizontal; }
-    #ag-table { width: 42; border-right: heavy $green 20%; }
-    #ag-detail { width: 1fr; }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: right middle;
-        padding: 0 2;
-    }
-    """
-
     _BASE_TOOLS = frozenset({
         "read_file", "write_file", "str_replace_based_edit_tool",
         "bash", "write_shared_context",
@@ -198,28 +176,6 @@ class SkillsScreen(Screen):  # type: ignore[type-arg,misc]
     """Inspect the skill registry from skills/registry.json."""
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
-
-    CSS = """
-    SkillsScreen { background: $bg; }
-    #top-bar {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #sk-title { color: $cyan; text-style: bold; }
-    #sk-path  { color: $text_dim; }
-    #split    { height: 1fr; layout: horizontal; }
-    #sk-table  { width: 36; border-right: heavy $green 20%; }
-    #sk-detail { width: 1fr; }
-    #action-bar {
-        height: 5;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: right middle;
-        padding: 0 2;
-    }
-    """
 
     _WARN_BYTES  = 6 * 1024
     _ERROR_BYTES = 8 * 1024

@@ -31,42 +31,6 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("escape", "dismiss_screen", "Back / Stop", show=True),
     ]
 
-    CSS = """
-    PlanRunScreen {
-        background: $bg;
-    }
-    #header-strip {
-        height: auto;
-        background: $bg_panel;
-        border-bottom: heavy $green 25%;
-        padding: 1 2;
-    }
-    #run-title {
-        color: $cyan;
-        text-style: bold;
-    }
-    #run-params {
-        color: $text_dim;
-        margin-top: 1;
-    }
-    #status-line {
-        color: $green;
-        margin-top: 1;
-    }
-    #log {
-        height: 1fr;
-        background: $bg;
-        padding: 0 1;
-    }
-    #bottom-bar {
-        height: 3;
-        background: $bg_input;
-        border-top: solid $green 25%;
-        align: right middle;
-        padding: 0 2;
-    }
-    """
-
     _status: reactive[str] = reactive("initializing...")
 
     def __init__(

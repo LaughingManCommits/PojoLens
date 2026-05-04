@@ -36,20 +36,6 @@ class EstimateScreen(Screen):  # type: ignore[type-arg,misc]
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
 
-    CSS = """
-    EstimateScreen { align: center middle; }
-    #card {
-        width: 80; height: auto;
-        border: heavy $green 30%;
-        background: $bg_panel;
-        padding: 2 3;
-    }
-    #card-title { color: $cyan; text-style: bold; margin-bottom: 1; }
-    #mode-list  { height: 5; margin-bottom: 1; }
-    .field-label { color: $cyan; margin-top: 1; }
-    #btns { height: auto; align: right middle; margin-top: 1; }
-    """
-
     _MODES = [
         ("estimate", "ESTIMATE  — token/cost ranges without a retained run  (fast)"),
         ("dry-run",  "DRY RUN   — tighter prompt-assembly estimate, no retained run"),
@@ -105,21 +91,6 @@ class EstimateResultScreen(Screen):  # type: ignore[type-arg,misc]
     """Display output from --estimate or --dry-run."""
 
     BINDINGS = [Binding("escape", "go_back", "Back", show=True)]
-
-    CSS = """
-    EstimateResultScreen { background: $bg; }
-    #top-bar {
-        height: auto; background: $bg_panel;
-        border-bottom: heavy $green 25%; padding: 1 2;
-    }
-    #est-title { color: $cyan; text-style: bold; }
-    #est-plan  { color: $text_dim; }
-    #est-log   { height: 1fr; }
-    #action-bar {
-        height: 5; background: $bg_input;
-        border-top: solid $green 25%; align: right middle; padding: 0 2;
-    }
-    """
 
     def __init__(self, plan_path: str, *, mode: str = "estimate") -> None:
         super().__init__()

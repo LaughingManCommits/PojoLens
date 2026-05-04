@@ -66,6 +66,8 @@ _WORKSPACE_WARN = {
 
 
 # ── Shared CSS ────────────────────────────────────────────────────────────────
+# NOTE: canonical source is tui_operator.tcss — this string is kept for
+# external callers that import _SHARED_CSS directly.
 
 _SHARED_CSS = """
 Screen {

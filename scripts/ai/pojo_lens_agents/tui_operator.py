@@ -173,7 +173,7 @@ class _ErrorLog:
 class OperatorApp(App):  # type: ignore[type-arg,misc]
     """Main multi-screen operator console."""
 
-    CSS = _SHARED_CSS
+    CSS_PATH = [Path(__file__).parent / "tui_operator.tcss"]
 
     TITLE    = "POJOLENS  //  OPERATOR CONSOLE"
     SUB_TITLE = "MISSION CONTROL"
