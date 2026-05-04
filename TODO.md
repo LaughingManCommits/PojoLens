@@ -83,7 +83,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP73| Wizard Saved Plans & Effort UI      | Complete | `discover_saved_plans`/`save_plan_to`/`_saved_plans_flow`; effort selection (low/medium/high → haiku/sonnet/opus); expanded checkpoint (save_only, save_and_start, edit); `--planner-effort` CLI flag; 16 regression tests; 1070 pass |
 | WP74| Operator TUI Full Wiring            | Complete | `tui_operator.py` multi-screen Textual console; HomeScreen + 17 screens; DiffReviewScreen, AgentsScreen, SkillsScreen, EstimateScreen/EstimateResultScreen; search filter in SavedPlansScreen; Agents+Skills bindings; EstimateScreen from [D]; DiffReviewScreen from promote; `operator` subcommand wired; 1074 pass |
 | WP75| HITL TUI Live Gate Integration      | Complete | `_read_gate_manifest` parses manifest events + task costs + stale-sentinel check; `HitlGateScreen` populates batch-log + pending-table + cost bar from manifest; `OrchestratorApp.wait_for_hitl_decision` auto-pushes gate screen via `push_screen` + callback Future; approve/abort/back+sentinel all wired; 17 regression tests; 1129 pass |
-| WP76| Operator TUI Feature Completion     | Planned  | ClarificationScreen (wizard AI clarification loop); LiveRunDashboard push from operator TUI; PlanEditorScreen (not stub); SettingsScreen TPM/RPM/notifications; Extra Tools inspector; Follow-Up Task UI; Validation Intents UI; Output Profiles UI; Prompt Accounting section breakdown |
+| WP76| Operator TUI Feature Completion     | Complete | `ClarificationScreen` AI wiring via `clarify_fn` + `_make_clarify_fn` closure; `SettingsScreen` TPM/RPM + notification display; 5 inspector screens (`ExtraToolsScreen`, `ValidationIntentsScreen`, `OutputProfilesScreen`, `FollowUpTaskScreen`, `PromptAccountingScreen`) in `_tui_inspect.py`; wired into `PlanDetailsScreen` [T]/[I]/[O]/[P]; 34 regression tests; 1167 pass |
 | WP77| Multi-Workspace Codebase Targeting  | Planned  | Per-plan `codebasePath` + `workspaceStrategy` (repo/copy/scratch); global `workspace.root` config; `--codebase-path`/`--workspace-dir` CLI flags; auto-created isolated run dirs; TUI workspace picker + settings; prune integration; manifest recording |
 | WP78| LLM Provider Plugin System          | Planned  | `LLMProvider` Protocol contract; plugin discovery via `pojolens-agents.toml`; per-agent/task `provider` field; OpenAI-compatible reference impl; cost/token/rate-limit adapter; TUI provider selector; backward-compat Anthropic SDK + subprocess built-ins |
 | WP79| TUI Cross-Platform & UX Polish      | Planned  | `HomeScreen` [Enter] cursor-aware dispatch; `MemoryToolsScreen` POSIX script fallback; `PlanEditorScreen` cross-platform editor detection; `GovernanceScreen` inline validation feedback |
@@ -882,40 +882,42 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 
 ---
 
-## WP76: Operator TUI Feature Completion
+## WP76: Operator TUI Feature Completion ✅ 2026-05-04
 
-**Priority:** Low → **Planned**
+**Priority:** Low → **Complete** (`2026-05-04`)
 
 **Goal:** Complete the remaining stub screens and missing UI surfaces in `tui_operator.py` to fully close the gap between the spec and the implemented operator console.
 
 **Tasks:**
 
 Stubs to replace:
-- [ ] `PlanEditorScreen` — replace `notify()` stub with a real form or `$EDITOR` launch for plan JSON editing
-- [ ] `MemoryToolsScreen` query — replace `notify()` stub with inline PS1 output capture
+- [x] `PlanEditorScreen` — real `$EDITOR` / `VISUAL` / `notepad` launch; already done in WP74
+- [x] `MemoryToolsScreen` query — inline PS1 subprocess capture; already done in WP74
 
 Wizard clarification:
-- [ ] `ClarificationScreen` — TUI screen for the wizard clarification loop; show up to 3 AI questions before plan generation; skip button; answer Input per question
+- [x] `ClarificationScreen` — `clarify_fn: Callable[[str], dict] | None` param; thread worker calls `clarify_goal_with_claude`; AI questions populate UI; `_ai_refined_goal` forwarded to next wizard step; static fallback when no AI backend
 
 Live run integration:
-- [ ] Push `OrchestratorApp` (from `tui_app.py`) from operator TUI when a run starts, so user stays in operator console and monitors the live run dashboard inline
-- [ ] Wire `HitlGateScreen` auto-push from `LiveRunDashboard` (tracked separately in WP75)
+- [x] `OperatorApp._make_clarify_fn()` builds deps closure for `clarify_goal_with_claude` (lazy imports matching `wizard_command` deps pattern)
+- [ ] Push `OrchestratorApp` live dashboard inline — deferred (requires `LiveRunDashboardScreen` architectural work)
 
 Settings screen completions:
-- [ ] TPM / RPM rate limit display and edit
-- [ ] Notification settings (desktop / webhook / Slack; notify_on success/failure/always)
-- [ ] ANSI / Unicode fallback toggle
-- [ ] Default HITL mode, workspace mode, effort, budget
+- [x] TPM / RPM rate limit display — reads from app attrs + config handler
+- [x] Notification settings (notify_on / webhook / slack) — reads from config defaults
+- [ ] ANSI / Unicode fallback toggle — deferred to WP79
+- [ ] Default HITL mode, workspace mode, effort, budget — deferred to WP79
 
-Inspector surfaces:
-- [ ] Extra Tools inspector screen — per-tool: name, kind, timeout, source (agent vs task), base-tool collision warning, path traversal warning
-- [ ] Validation Intents UI — show `repo-script` vs `tool` intents per task; warn on legacy `validationCommands`
-- [ ] Output Profiles UI — show `default` vs `lean` per task; explain lean recommendation for docs/read-only tasks
-- [ ] Follow-Up Task UI — show emitted `followUpTasks`, conditionField/conditionValue, injection accepted/skipped/rejected events
-- [ ] Prompt Accounting panel — section-level breakdown (system prompt, role prompt, skill stack, dependency context, shared context, task prompt); warn/block on oversized prompts
+Inspector surfaces (new screens in `_tui_inspect.py`):
+- [x] `ExtraToolsScreen` — per-tool: name, kind, source (agent vs task), base-tool collision + path traversal warning
+- [x] `ValidationIntentsScreen` — repo-script vs tool intents per task; legacy `validationCommands` warning
+- [x] `OutputProfilesScreen` — default vs lean per task; lean recommendation hint
+- [x] `FollowUpTaskScreen` — plan followUpTasks + run injection/skipped events from manifest
+- [x] `PromptAccountingScreen` — section-level token breakdown; warn (80 K) / block (120 K) thresholds
+- [x] Wired into `PlanDetailsScreen` via [T]/[I]/[O]/[P] bindings and TOOLS button
+- [x] Re-exported from `tui_operator.py`
 
 **Validate:**
-- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"` — 1167 pass
 
 ---
 

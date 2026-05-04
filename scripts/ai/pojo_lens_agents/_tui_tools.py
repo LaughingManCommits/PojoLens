@@ -229,6 +229,63 @@ class SettingsScreen(Screen):  # type: ignore[type-arg,misc]
             self._log("  [dim](mapping unavailable)[/]")
 
         self._log("")
+        self._log("[bold #00e5ff]═══ Rate Limits ═══[/]")
+        tpm = str(getattr(self.app, "_tpm_limit", None) or "-")
+        rpm = str(getattr(self.app, "_rpm_limit", None) or "-")
+        self._log(f"  [#00e5ff]TPM limit:[/] {tpm}  [dim](tokens per minute; - = unlimited)[/]")
+        self._log(f"  [#00e5ff]RPM limit:[/] {rpm}  [dim](requests per minute; - = unlimited)[/]")
+        if parse_args_fn is not None and "config" in handlers:
+            try:
+                import io as _cio
+                _a = parse_args_fn(["config", "show", "--json"])
+                _buf = _cio.StringIO()
+                _old = sys.stdout
+                sys.stdout = _buf  # type: ignore[assignment]
+                try:
+                    _cfg = handlers["config"](_a) or {}
+                except Exception:
+                    _cfg = {}
+                finally:
+                    sys.stdout = _old
+                _defaults = _cfg.get("defaults") or {}
+                if isinstance(_defaults, dict):
+                    _tpm_cfg = _defaults.get("tpm_limit") or _defaults.get("tpmLimit")
+                    _rpm_cfg = _defaults.get("rpm_limit") or _defaults.get("rpmLimit")
+                    if _tpm_cfg:
+                        self._log(f"  [dim #00e5ff]Config TPM:[/] {_tpm_cfg}")
+                    if _rpm_cfg:
+                        self._log(f"  [dim #00e5ff]Config RPM:[/] {_rpm_cfg}")
+            except Exception:
+                pass
+
+        self._log("")
+        self._log("[bold #00e5ff]═══ Notification Defaults ═══[/]")
+        if parse_args_fn is not None and "config" in handlers:
+            try:
+                import io as _nio
+                _a2 = parse_args_fn(["config", "show", "--json"])
+                _buf2 = _nio.StringIO()
+                _old2 = sys.stdout
+                sys.stdout = _buf2  # type: ignore[assignment]
+                try:
+                    _cfg2 = handlers["config"](_a2) or {}
+                except Exception:
+                    _cfg2 = {}
+                finally:
+                    sys.stdout = _old2
+                _def2 = (_cfg2.get("defaults") or {}) if isinstance(_cfg2, dict) else {}
+                _notify_on  = _def2.get("notify_on")  or _def2.get("notifyOn")  or "-"
+                _webhook    = _def2.get("webhook")     or _def2.get("notifyWebhook") or "-"
+                _slack_ch   = _def2.get("slack_channel") or _def2.get("slackChannel") or "-"
+                self._log(f"  [#00e5ff]notify_on:[/] {_notify_on}  [dim](never/failure/success/always)[/]")
+                self._log(f"  [#00e5ff]webhook  :[/] {_webhook}")
+                self._log(f"  [#00e5ff]slack    :[/] {_slack_ch}")
+            except Exception:
+                self._log("  [dim](notification config unavailable)[/]")
+        else:
+            self._log("  [dim](config handler not available)[/]")
+
+        self._log("")
         self._log("[bold #00e5ff]═══ Config File ═══[/]")
         if parse_args_fn is not None and "config" in handlers:
             try:

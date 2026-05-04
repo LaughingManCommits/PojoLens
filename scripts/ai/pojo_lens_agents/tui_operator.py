@@ -139,7 +139,15 @@ from pojo_lens_agents._tui_ledger import (  # noqa: F401
 from pojo_lens_agents._tui_gate import HitlGateScreen  # noqa: F401
 from pojo_lens_agents._tui_tools import MemoryToolsScreen, SettingsScreen  # noqa: F401
 from pojo_lens_agents._tui_diff import DiffReviewScreen  # noqa: F401
-from pojo_lens_agents._tui_inspect import AgentsScreen, SkillsScreen  # noqa: F401
+from pojo_lens_agents._tui_inspect import (  # noqa: F401
+    AgentsScreen,
+    SkillsScreen,
+    ExtraToolsScreen,
+    ValidationIntentsScreen,
+    OutputProfilesScreen,
+    FollowUpTaskScreen,
+    PromptAccountingScreen,
+)
 from pojo_lens_agents._tui_estimate import EstimateScreen, EstimateResultScreen  # noqa: F401
 
 
@@ -226,6 +234,58 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
 
     # ── Wizard flow: n → goal → effort → workspace → governance → run ──────────
 
+    def _make_clarify_fn(self) -> Any:
+        """Build a thread-safe closure that calls clarify_goal_with_claude."""
+        import argparse as _ap
+        runtime_root = self._runtime_root
+        agents_path  = self._agents
+        claude_bin   = self._claude_bin
+
+        def _clarify(goal: str) -> dict[str, Any]:
+            from pojo_lens_agents.wizard import (
+                clarify_goal_with_claude,
+                _EFFORT_MODEL_MAP,
+                _DEFAULT_PLANNER_EFFORT,
+            )
+            from pojo_lens_agents.orchestrator_app import (
+                ROOT,
+                load_agents,
+                claude_command,
+                agent_payload_for_claude,
+                run_process,
+                extract_json_payload,
+                ensure_provider_available,
+            )
+            try:
+                from pojo_lens_agents.sdk_provider import detect_provider_mode
+                _provider_mode = detect_provider_mode()
+            except Exception:
+                _provider_mode = "subprocess"
+            _model, _effort_val = _EFFORT_MODEL_MAP.get(
+                _DEFAULT_PLANNER_EFFORT, ("claude-haiku-4-5-20251001", "low")
+            )
+            _args = _ap.Namespace(
+                runtime_root=runtime_root,
+                agents=agents_path,
+                claude_bin=claude_bin,
+                planner_agent="planner",
+            )
+            _deps: dict[str, Any] = {
+                "root": ROOT,
+                "load_agents": load_agents,
+                "ensure_claude_available": lambda b: ensure_provider_available(b, _provider_mode),
+                "claude_command": claude_command,
+                "agent_payload_for_claude": agent_payload_for_claude,
+                "run_subprocess": run_process,
+                "extract_json_payload": extract_json_payload,
+            }
+            return clarify_goal_with_claude(
+                goal, [], args=_args, deps=_deps,
+                planner_model=_model, planner_effort_val=_effort_val,
+            )
+
+        return _clarify
+
     async def action_new_plan(self) -> None:
         from pojo_lens_agents._tui_wizard import (
             GoalInputScreen,
@@ -239,8 +299,8 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         goal = await self.push_screen_wait(GoalInputScreen())
         if not goal:
             return
-        # ClarificationScreen: collects manual context; AI loop wired in WP76
-        clarified = await self.push_screen_wait(ClarificationScreen(goal))
+        clarify_fn = self._make_clarify_fn()
+        clarified = await self.push_screen_wait(ClarificationScreen(goal, clarify_fn=clarify_fn))
         if clarified is None:
             return
         goal = clarified

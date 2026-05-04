@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 TEXTUAL_IMPORT_ERROR: Exception | None = None
 
@@ -92,8 +92,9 @@ class GoalInputScreen(Screen):  # type: ignore[type-arg,misc]
 class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
     """Wizard step 1b: goal clarification loop.
 
-    NOTE (WP76): AI backend not yet wired.  Until then the screen collects
-    manual context that gets appended to the goal string before execution.
+    When `clarify_fn` is provided, an AI call generates up to 3 context-aware
+    questions plus a refinedGoal.  Without it, three static fallback questions
+    are used so the screen always works without a running model.
     """
 
     BINDINGS = [
@@ -101,11 +102,22 @@ class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("enter",  "next_q",   "Submit", show=False),
     ]
 
-    def __init__(self, goal: str) -> None:
+    def __init__(
+        self,
+        goal: str,
+        clarify_fn: Callable[[str], dict[str, Any]] | None = None,
+    ) -> None:
         super().__init__()
-        self._goal        = goal
-        self._q_idx       = 0
+        self._goal             = goal
+        self._clarify_fn       = clarify_fn
+        self._q_idx            = 0
         self._answers: list[tuple[str, str]] = []
+        self._ai_questions: list[str] = []
+        self._ai_refined_goal: str = ""
+
+    @property
+    def _questions(self) -> list[str]:
+        return self._ai_questions if self._ai_questions else list(_CLARIF_QUESTIONS)
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -115,8 +127,9 @@ class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
                 id="cl-title",
             )
             yield Static(
-                "⚠  AI backend not yet wired (WP76) — "
-                "your answers are appended as context to the goal.",
+                "[#00e5ff][ AI ][/] Generating context-aware questions…"
+                if self._clarify_fn else
+                "[dim]Using standard questions — no AI backend configured.[/]",
                 id="cl-wip",
             )
             with Container(id="cl-goal-box"):
@@ -140,19 +153,52 @@ class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
     def on_mount(self) -> None:
         self.app.title = "POJOLENS  //  CLARIFICATION"
         self.app.sub_title = "GOAL REFINEMENT"
+        if self._clarify_fn is not None:
+            fn = self._clarify_fn
+            goal = self._goal
+            self.run_worker(lambda: self._run_ai_clarify(fn, goal), thread=True, name="cl-ai")
         self._refresh_question()
         self.query_one("#cl-input", Input).focus()
 
+    def _run_ai_clarify(self, fn: Callable[[str], dict[str, Any]], goal: str) -> None:
+        try:
+            result = fn(goal)
+        except Exception as exc:
+            self.app.call_from_thread(
+                lambda: self.query_one("#cl-wip", Static).update(
+                    f"[#ffaa00]AI clarification failed: {exc} — using standard questions[/]"
+                )
+            )
+            return
+        questions = [str(q) for q in (result.get("questions") or []) if q][:3]
+        refined   = str(result.get("refinedGoal") or "").strip()
+        self._ai_questions    = questions if questions else []
+        self._ai_refined_goal = refined or goal
+
+        def _update() -> None:
+            self.query_one("#cl-wip", Static).update(
+                "[#00ff41][ AI ][/] Questions generated."
+                if questions else
+                "[dim]AI returned no questions — using standard questions.[/]"
+            )
+            if refined and refined != goal:
+                self.query_one("#cl-goal-text", Static).update(refined[:160])
+            self._q_idx = 0
+            self._refresh_question()
+
+        self.app.call_from_thread(_update)
+
     def _refresh_question(self) -> None:
-        total = len(_CLARIF_QUESTIONS)
+        qs    = self._questions
+        total = len(qs)
         idx   = self._q_idx
-        if idx >= total:
+        if idx >= total or not qs:
             return
         self.query_one("#cl-q-label", Static).update(
             f"[bold #00e5ff]Question {idx + 1} of {total}:[/]"
         )
         self.query_one("#cl-q-text", Static).update(
-            f"[#a0ffa0]{_CLARIF_QUESTIONS[idx]}[/]"
+            f"[#a0ffa0]{qs[idx]}[/]"
         )
         self.query_one("#cl-progress", Static).update(
             f"[dim]{'▮' * (idx + 1)}{'▯' * (total - idx - 1)}  {idx + 1}/{total}[/]"
@@ -179,26 +225,28 @@ class ClarificationScreen(Screen):  # type: ignore[type-arg,misc]
         self.action_next_q()
 
     def action_next_q(self) -> None:
+        qs = self._questions
         answer = self.query_one("#cl-input", Input).value.strip()
-        if answer:
-            self._answers.append((_CLARIF_QUESTIONS[self._q_idx], answer))
+        if answer and self._q_idx < len(qs):
+            self._answers.append((qs[self._q_idx], answer))
             self._refresh_answers()
         self._q_idx += 1
-        if self._q_idx >= len(_CLARIF_QUESTIONS):
+        if self._q_idx >= len(qs):
             self._finish()
         else:
             self._refresh_question()
 
     def _finish(self) -> None:
+        base = self._ai_refined_goal or self._goal
         if self._answers:
-            context = "; ".join(a for _, a in self._answers)
-            enhanced = f"{self._goal}. Additional context: {context}"
+            context  = "; ".join(a for _, a in self._answers)
+            enhanced = f"{base}. Additional context: {context}"
         else:
-            enhanced = self._goal
+            enhanced = base
         self.dismiss(enhanced)
 
     def action_skip_all(self) -> None:
-        self.dismiss(self._goal)
+        self.dismiss(self._ai_refined_goal or self._goal)
 
 
 # ── EffortSelectScreen ─────────────────────────────────────────────────────────

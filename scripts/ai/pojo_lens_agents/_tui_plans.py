@@ -191,11 +191,15 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
     """Inspect a plan and choose an action: run, validate, dry-run, save, back."""
 
     BINDINGS = [
-        Binding("escape", "go_back", "Back", show=True),
-        Binding("a", "approve_run",    "Approve + Run", show=True),
-        Binding("v", "validate_plan",  "Validate",      show=True),
-        Binding("d", "dry_run_plan",   "Dry Run",       show=True),
-        Binding("s", "save_plan",      "Save",          show=True),
+        Binding("escape", "go_back",      "Back",          show=True),
+        Binding("a",      "approve_run",  "Approve + Run", show=True),
+        Binding("v",      "validate_plan","Validate",      show=True),
+        Binding("d",      "dry_run_plan", "Dry Run",       show=True),
+        Binding("s",      "save_plan",    "Save",          show=True),
+        Binding("t",      "extra_tools",  "Tools",         show=True),
+        Binding("i",      "val_intents",  "Intents",       show=True),
+        Binding("o",      "out_profiles", "Profiles",      show=True),
+        Binding("p",      "prompt_acct",  "Prompt",        show=True),
     ]
 
     def __init__(self, plan_path: str, *, mode: str = "view") -> None:
@@ -210,10 +214,11 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Static(self._plan_path, id="plan-path")
         yield RichLog(id="details-log", markup=True, auto_scroll=False, wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
-            yield Button("APPROVE + RUN", id="btn-run", variant="primary")
+            yield Button("APPROVE + RUN", id="btn-run",      variant="primary")
             yield Button("VALIDATE",      id="btn-validate")
             yield Button("DRY RUN",       id="btn-dryrun")
             yield Button("SAVE COPY",     id="btn-save")
+            yield Button("TOOLS [T]",     id="btn-tools")
             yield Button("BACK",          id="btn-back")
         yield Footer()
 
@@ -240,8 +245,8 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
                 log.write(ln)
             log.write("")
             log.write(
-                "[dim #2a5a3a]Actions: [A] Approve+Run  [V] Validate  "
-                "[D] Dry Run  [S] Save Copy  [Esc] Back[/]"
+                "[dim #2a5a3a]Actions: [A] Approve+Run  [V] Validate  [D] Dry Run  "
+                "[S] Save  [T] Tools  [I] Intents  [O] Profiles  [P] Prompt  [Esc] Back[/]"
             )
         self.app.call_from_thread(_write)
 
@@ -254,6 +259,8 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             self.action_dry_run_plan()
         elif event.button.id == "btn-save":
             self.action_save_plan()
+        elif event.button.id == "btn-tools":
+            self.action_extra_tools()
         elif event.button.id == "btn-back":
             self.action_go_back()
 
@@ -287,6 +294,22 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             self.app.notify(f"Saved to:\n{dest}", title="Plan Saved")  # type: ignore[attr-defined]
         except Exception as exc:
             self.app.notify(f"Save failed: {exc}", title="Error", severity="error")  # type: ignore[attr-defined]
+
+    def action_extra_tools(self) -> None:
+        from pojo_lens_agents._tui_inspect import ExtraToolsScreen
+        self.app.push_screen(ExtraToolsScreen(self._plan_path))  # type: ignore[attr-defined]
+
+    def action_val_intents(self) -> None:
+        from pojo_lens_agents._tui_inspect import ValidationIntentsScreen
+        self.app.push_screen(ValidationIntentsScreen(self._plan_path))  # type: ignore[attr-defined]
+
+    def action_out_profiles(self) -> None:
+        from pojo_lens_agents._tui_inspect import OutputProfilesScreen
+        self.app.push_screen(OutputProfilesScreen(self._plan_path))  # type: ignore[attr-defined]
+
+    def action_prompt_acct(self) -> None:
+        from pojo_lens_agents._tui_inspect import PromptAccountingScreen
+        self.app.push_screen(PromptAccountingScreen(self._plan_path))  # type: ignore[attr-defined]
 
 
 # ── PlanEditorScreen ──────────────────────────────────────────────────────────

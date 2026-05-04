@@ -3,10 +3,11 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP76 -> WP77 -> WP78 -> WP79 -> WP40 -> Release Gate.
+3. Follow `TODO.md`: WP77 -> WP78 -> WP79 -> WP40 -> Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-04`: WP76 is complete; `ClarificationScreen` AI backend wired (`clarify_fn` param + `_make_clarify_fn` closure in `OperatorApp`); `SettingsScreen` TPM/RPM + notifications; 5 inspector screens in `_tui_inspect.py`; `PlanDetailsScreen` [T]/[I]/[O]/[P] bindings; 34 tests; 1167 pass.
 - `2026-05-04`: WP75 is complete; `_read_gate_manifest` + gate screen live data; `OrchestratorApp` auto-pushes `HitlGateScreen` via `push_screen`+Future; approve/abort/back+sentinel wired; 17 tests; 1129 pass.
 - `2026-05-04`: WP65 is complete; `schedule.py` (cron/watchdog/--once); `schedule start/stop/status`; PID/log/status-file lifecycle; `schedule` in KNOWN_COMMANDS; 38+7 regression tests; 1112 pass.
 - `2026-05-03`: WP74 is complete; `tui_operator.py` multi-screen Textual operator console — 17 screens, AgentsScreen, SkillsScreen, DiffReviewScreen, EstimateScreen, search filter in SavedPlansScreen, `operator` subcommand; 1074 pass.
@@ -18,9 +19,11 @@
 - `2026-05-04`: WP79 added — TUI cross-platform & UX polish; `HomeScreen` cursor-aware [Enter]; `MemoryToolsScreen` POSIX fallback; `PlanEditorScreen` cross-platform editor; `GovernanceScreen` inline validation.
 - `2026-05-04`: WP78 added — LLM provider plugin system; `LLMProvider` Protocol; `ProviderRegistry`; OpenAI-compatible reference impl; per-agent/task `provider` field; multi-provider rate-limit buckets; TUI provider selector.
 - `2026-05-04`: WP77 added — multi-workspace codebase targeting; per-plan `codebasePath`/`workspaceStrategy`; global `workspace.root`; scratch/copy/repo modes; TUI workspace picker; prune integration.
-- `2026-05-04`: Queue is WP76 -> WP77 -> WP78 -> WP79 -> WP40 -> Release Gate.
+- `2026-05-04`: Queue is WP77 -> WP78 -> WP79 -> WP40 -> Release Gate.
 
 ## Facts
+- `2026-05-04`: `ClarificationScreen` takes optional `clarify_fn: Callable[[str], dict] | None`; `OperatorApp._make_clarify_fn()` builds the closure; `_ai_questions`/`_ai_refined_goal` fields; static `_CLARIF_QUESTIONS` fallback when no AI.
+- `2026-05-04`: Inspector screens in `_tui_inspect.py`: `ExtraToolsScreen`, `ValidationIntentsScreen`, `OutputProfilesScreen`, `FollowUpTaskScreen`, `PromptAccountingScreen`; all wired into `PlanDetailsScreen` [T]/[I]/[O]/[P]; re-exported from `tui_operator.py`.
 - `2026-05-03`: `tui_operator.py` is the multi-screen operator TUI; `operator` subcommand launches it; `"operator"` in `KNOWN_COMMANDS`; DiffReviewScreen wired to promote flow; AgentsScreen/SkillsScreen on [A]/[K]; EstimateScreen on [D].
 - `2026-05-03`: `console.py` owns session state and shared routing (`DispatchRoute`/`route_line`).
 - `2026-05-03`: `tui_console.py` owns all Textual UI; `tui_app.py` owns the run dashboard and `textual_is_available`; `wizard.py` is pure logic.
