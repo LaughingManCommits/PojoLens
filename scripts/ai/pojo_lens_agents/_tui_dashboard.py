@@ -74,34 +74,36 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         self._last_data: dict[str, Any] = {}       # last manifest data (for task page nav)
 
     def compose(self) -> ComposeResult:
-        with Horizontal(id="dash-header"):
-            yield Static("[ DASHBOARD ]", id="dash-title")
-            yield Static("", id="dash-active-badge")
-        yield Static("", id="dash-stats-box")
-        yield Rule(id="dash-rule-top")
-        yield Static("[ RUNS ]", id="dash-runs-label")
-        yield DataTable(id="dash-runs-table", cursor_type="row", zebra_stripes=True)
-        with Horizontal(id="dash-page-bar"):
-            yield Button("◀", id="btn-dash-pg-prev", disabled=True)
-            yield Static("—", id="dash-page-label")
-            yield Button("▶", id="btn-dash-pg-next", disabled=True)
-        yield Rule(id="dash-rule-nav")
-        with Vertical(id="dash-stats"):
-            yield Static("", id="dash-run-id")
-            yield Static("", id="dash-status")
-            yield Static("", id="dash-progress")
-            yield Static("", id="dash-cost")
-            yield Static("", id="dash-tokens")
-            yield Static("", id="dash-elapsed")
-        yield Rule(id="dash-rule-mid")
-        yield Static("[ TASKS ]", id="dash-tasks-title")
-        yield DataTable(id="dash-task-table", cursor_type="none", zebra_stripes=True)
-        with Horizontal(id="dash-task-page-bar"):
-            yield Button("◀", id="btn-dash-tpg-prev", disabled=True)
-            yield Static("—", id="dash-task-page-label")
-            yield Button("▶", id="btn-dash-tpg-next", disabled=True)
-        yield Static("", id="dash-idle-msg")
-        yield Rule(id="dash-rule-bot")
+        # Scrollable content area fills remaining height; actions pinned at bottom.
+        with Vertical(id="dash-scroll"):
+            with Horizontal(id="dash-header"):
+                yield Static("[ DASHBOARD ]", id="dash-title")
+                yield Static("", id="dash-active-badge")
+            yield Static("", id="dash-stats-box")
+            yield Rule(id="dash-rule-top")
+            yield Static("[ RUNS ]", id="dash-runs-label")
+            yield DataTable(id="dash-runs-table", cursor_type="row", zebra_stripes=True)
+            with Horizontal(id="dash-page-bar"):
+                yield Button("◀", id="btn-dash-pg-prev", disabled=True)
+                yield Static("—", id="dash-page-label")
+                yield Button("▶", id="btn-dash-pg-next", disabled=True)
+            yield Rule(id="dash-rule-nav")
+            with Vertical(id="dash-stats"):
+                yield Static("", id="dash-run-id")
+                yield Static("", id="dash-status")
+                yield Static("", id="dash-progress")
+                yield Static("", id="dash-cost")
+                yield Static("", id="dash-tokens")
+                yield Static("", id="dash-elapsed")
+            yield Rule(id="dash-rule-mid")
+            yield Static("[ TASKS ]", id="dash-tasks-title")
+            yield DataTable(id="dash-task-table", cursor_type="none", zebra_stripes=True)
+            with Horizontal(id="dash-task-page-bar"):
+                yield Button("◀", id="btn-dash-tpg-prev", disabled=True)
+                yield Static("—", id="dash-task-page-label")
+                yield Button("▶", id="btn-dash-tpg-next", disabled=True)
+            yield Static("", id="dash-idle-msg")
+        # Actions bar always visible at bottom, outside the scroll area.
         with Horizontal(id="dash-actions"):
             yield Button("OPEN",   id="btn-dash-open",   variant="success", disabled=True)
             yield Button("STOP",   id="btn-dash-stop",   variant="error",   disabled=True)

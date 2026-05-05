@@ -7,10 +7,10 @@ TEXTUAL_IMPORT_ERROR: Exception | None = None
 try:
     from textual.app import ComposeResult
     from textual.binding import Binding
-    from textual.containers import Container, Horizontal, ScrollableContainer
+    from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
     from textual.reactive import reactive
     from textual.screen import Screen
-    from textual.widgets import Footer, Header, Static
+    from textual.widgets import Button, Footer, Header, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
     Screen = object  # type: ignore[assignment,misc]
@@ -35,6 +35,7 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("m",     "memory",         "Memory",      show=False),
         Binding("c",     "settings",       "Config",      show=False),
         Binding("q",     "quit_app",       "Quit",        show=False),
+        Binding("z",     "toggle_nav",     "Nav",         show=False),
         Binding("up",    "cursor_up",      "Up",          show=False),
         Binding("down",  "cursor_down",    "Down",        show=False),
         Binding("enter", "activate_item",  "Select",      show=False),
@@ -58,6 +59,7 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
     _NAV_ITEMS: list[str] = [key for key, label, _ in _MENU_ITEMS if label is not None]
 
     _cursor: reactive[int] = reactive(0)  # type: ignore[assignment]
+    _nav_collapsed: reactive[bool] = reactive(False)  # type: ignore[assignment]
 
     DEFAULT_CSS = """
     HomeScreen .menu-row--selected .menu-label {
@@ -73,28 +75,32 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Horizontal(id="home-main"):
-            with ScrollableContainer(id="nav-panel"):
-                with Container(id="banner-box"):
-                    yield Static(_BANNER_ART, id="banner-art")
-                    yield Static(
-                        "// AI MULTI-AGENT OPERATOR CONSOLE  //  MISSION CONTROL",
-                        id="tagline",
-                    )
-                with Container(id="menu-box"):
-                    yield Static("[ MAIN NAVIGATION ]", id="menu-title")
-                    _nav_idx = 0
-                    for key, label, desc in self._MENU_ITEMS:
-                        if label is None:
-                            yield Static("─" * 40, classes="menu-divider")
-                        else:
-                            with Horizontal(
-                                classes="menu-row",
-                                id=f"menu-row-{_nav_idx}",
-                            ):
-                                yield Static(f"[{key.upper()}]", classes="menu-key")
-                                yield Static(label, classes="menu-label")
-                                yield Static(desc, classes="menu-desc")
-                            _nav_idx += 1
+            with Vertical(id="nav-panel"):
+                with Horizontal(id="nav-hdr"):
+                    yield Static("[ NAV ]", id="nav-hdr-title")
+                    yield Button("<", id="btn-nav-toggle")
+                with ScrollableContainer(id="nav-scroll"):
+                    with Container(id="banner-box"):
+                        yield Static(_BANNER_ART, id="banner-art")
+                        yield Static(
+                            "// AI MULTI-AGENT OPERATOR CONSOLE  //  MISSION CONTROL",
+                            id="tagline",
+                        )
+                    with Container(id="menu-box"):
+                        yield Static("[ MAIN NAVIGATION ]", id="menu-title")
+                        _nav_idx = 0
+                        for key, label, desc in self._MENU_ITEMS:
+                            if label is None:
+                                yield Static("─" * 40, classes="menu-divider")
+                            else:
+                                with Horizontal(
+                                    classes="menu-row",
+                                    id=f"menu-row-{_nav_idx}",
+                                ):
+                                    yield Static(f"[{key.upper()}]", classes="menu-key")
+                                    yield Static(label, classes="menu-label")
+                                    yield Static(desc, classes="menu-desc")
+                                _nav_idx += 1
             with Container(id="dashboard-panel"):
                 yield DashboardWidget(id="dashboard")
         yield Static("", id="status-bar")
@@ -150,6 +156,24 @@ class HomeScreen(Screen):  # type: ignore[type-arg,misc]
 
     def action_cursor_down(self) -> None:
         self._cursor = min(len(self._NAV_ITEMS) - 1, self._cursor + 1)  # type: ignore[assignment]
+
+    def watch__nav_collapsed(self, collapsed: bool) -> None:
+        if collapsed:
+            self.add_class("nav-collapsed")
+        else:
+            self.remove_class("nav-collapsed")
+        try:
+            btn = self.query_one("#btn-nav-toggle", Button)
+            btn.label = ">" if collapsed else "<"
+        except Exception:
+            pass
+
+    def action_toggle_nav(self) -> None:
+        self._nav_collapsed = not self._nav_collapsed  # type: ignore[assignment]
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-nav-toggle":
+            self.action_toggle_nav()
 
     # ── Actions ────────────────────────────────────────────────────────────────
 

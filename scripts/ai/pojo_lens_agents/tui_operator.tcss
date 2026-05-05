@@ -1165,6 +1165,39 @@ HomeScreen { background: $bg; }
     width: 62;
     min-width: 48;
     border-right: heavy $green 20%;
+    layout: vertical;
+}
+
+#nav-hdr {
+    height: 3;
+    background: $bg_input;
+    border-bottom: solid $green_dim;
+    align: left middle;
+    padding: 0 1;
+}
+
+#nav-hdr-title {
+    width: 1fr;
+    color: $cyan;
+    text-style: bold;
+}
+
+#btn-nav-toggle {
+    height: 1;
+    min-width: 5;
+    width: 5;
+    background: $cyan;
+    color: $bg;
+    border: none;
+    margin: 0;
+    padding: 0 1;
+    text-style: bold;
+}
+#btn-nav-toggle:hover { background: $green; }
+
+#nav-scroll {
+    height: 1fr;
+    overflow-y: auto;
 }
 
 #banner-box {
@@ -1212,6 +1245,25 @@ HomeScreen { background: $bg; }
     border-top: solid $green_dim;
 }
 
+/* ── Nav collapsed state ─────────────────────────────────────────────────── */
+HomeScreen.nav-collapsed #nav-panel {
+    width: 10;
+    min-width: 10;
+}
+HomeScreen.nav-collapsed #nav-hdr-title { display: none; }
+HomeScreen.nav-collapsed #banner-box    { display: none; }
+HomeScreen.nav-collapsed #menu-title    { display: none; }
+HomeScreen.nav-collapsed .menu-label    { display: none; }
+HomeScreen.nav-collapsed .menu-desc     { display: none; }
+HomeScreen.nav-collapsed .menu-divider  { display: none; }
+HomeScreen.nav-collapsed #menu-box {
+    padding: 0 1;
+    border: heavy $green 20%;
+}
+HomeScreen.nav-collapsed .menu-key {
+    width: auto;
+}
+
 /* ── DashboardWidget ─────────────────────────────────────────────────────── */
 #dashboard-panel {
     width: 1fr;
@@ -1222,8 +1274,15 @@ DashboardWidget {
     width: 1fr;
     height: 1fr;
     background: $bg_panel;
-    padding: 1 2;
-    border-left: solid $green_dim;
+    padding: 0;
+    layout: vertical;
+}
+
+/* Scrollable content: takes all height above the pinned action bar */
+#dash-scroll {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 1 2 0 2;
 }
 
 #dash-header {
@@ -1244,13 +1303,11 @@ DashboardWidget {
 #dash-stats-box {
     height: 1;
     color: $green_body;
-    margin-bottom: 0;
 }
 
-#dash-rule-top  { color: $green_dim; margin-bottom: 0; }
-#dash-rule-nav  { color: $green_dim; margin-top: 0; margin-bottom: 1; }
-#dash-rule-mid  { color: $green_dim; margin-top: 1; margin-bottom: 1; }
-#dash-rule-bot  { color: $green_dim; margin-top: 1; margin-bottom: 0; }
+#dash-rule-top  { color: $green_dim; margin: 0; }
+#dash-rule-nav  { color: $green_dim; margin: 0; }
+#dash-rule-mid  { color: $green_dim; margin: 0; }
 
 /* ── Upper panel: runs list ── */
 #dash-runs-label {
@@ -1261,7 +1318,6 @@ DashboardWidget {
 }
 #dash-runs-table {
     height: auto;
-    max-height: 12;
     border: solid $cyan 25%;
     margin-bottom: 0;
 }
@@ -1276,7 +1332,7 @@ DashboardWidget {
     color: $cyan;
 }
 #btn-dash-pg-prev, #btn-dash-pg-next {
-    min-width: 5;
+    min-width: 4;
     background: $bg_panel;
     color: $cyan;
     border: solid $cyan 40%;
@@ -1289,25 +1345,25 @@ DashboardWidget {
 /* ── Lower panel: detail view ── */
 #dash-stats {
     height: auto;
-    margin-bottom: 1;
+    margin-top: 1;
 }
 
 #dash-run-id   { color: $green_body; }
-#dash-status   { margin-top: 1; }
-#dash-progress { margin-top: 1; }
-#dash-cost     { margin-top: 1; }
-#dash-tokens   { margin-top: 1; }
-#dash-elapsed  { margin-top: 1; }
+#dash-status   { }
+#dash-progress { }
+#dash-cost     { }
+#dash-tokens   { }
+#dash-elapsed  { }
 
 #dash-tasks-title {
     color: $cyan;
     text-style: bold;
+    margin-top: 1;
     margin-bottom: 0;
 }
 
 #dash-task-table {
     height: auto;
-    max-height: 10;
     border: solid $cyan 25%;
     margin-bottom: 0;
 }
@@ -1315,7 +1371,6 @@ DashboardWidget {
     height: 3;
     align: center middle;
     padding: 0;
-    margin-bottom: 1;
 }
 #dash-task-page-label {
     width: 1fr;
@@ -1323,7 +1378,7 @@ DashboardWidget {
     color: $cyan;
 }
 #btn-dash-tpg-prev, #btn-dash-tpg-next {
-    min-width: 5;
+    min-width: 4;
     background: $bg_panel;
     color: $cyan;
     border: solid $cyan 40%;
@@ -1336,16 +1391,19 @@ DashboardWidget {
 #dash-idle-msg {
     color: $text_dim;
     text-align: center;
-    margin-top: 2;
+    margin-top: 1;
 }
 
+/* Pinned action bar — always visible regardless of scroll position */
 #dash-actions {
     height: auto;
-    padding: 0;
-    margin-top: 0;
+    padding: 0 1 1 1;
+    background: $bg_input;
+    border-top: solid $green 20%;
+    align: left middle;
 }
 
-/* Dashboard action buttons — colors come from variant classes (-success/-error/-warning) */
+/* Dashboard action buttons */
 #btn-dash-open, #btn-dash-stop, #btn-dash-pause, #btn-dash-delete {
-    min-width: 10;
+    min-width: 8;
 }
