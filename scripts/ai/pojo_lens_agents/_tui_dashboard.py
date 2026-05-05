@@ -13,7 +13,7 @@ try:
     from textual.containers import Horizontal, Vertical
     from textual.reactive import reactive
     from textual.widget import Widget
-    from textual.widgets import Button, RichLog, Rule, Static
+    from textual.widgets import Button, DataTable, Rule, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
     Widget = object  # type: ignore[assignment,misc]
@@ -39,25 +39,52 @@ def _manifest_cost(data: dict[str, Any]) -> float:
     return cost
 
 
+_TASK_ICONS = {
+    "completed": "✓", "failed": "✗", "running": "⟳",
+    "skipped": "⊘",  "reused": "⊕",  "pending": "○",
+}
+
+_RUN_ICONS = {"completed": "✓", "running": "⟳", "unknown": "✗"}
+
+
 class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
-    """Live dashboard — paginate through all runs; shows aggregate stats."""
+    """Live dashboard — paginated runs list (upper) + per-run detail panel (lower).
 
-    _run_state: reactive[str]           = reactive("idle")
-    _run_dir:   reactive[Path | None]   = reactive(None)  # type: ignore[type-arg]
-    _run_index: reactive[int]           = reactive(0)
+    page_size controls how many run rows appear per page (default 5).
+    Click a row or use keyboard to select a run; detail panel updates below.
+    """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    _run_state: reactive[str]         = reactive("idle")
+    _run_dir:   reactive[Path | None] = reactive(None)  # type: ignore[type-arg]
+
+    def __init__(self, *args: Any, page_size: int = 5, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self._page_size          = page_size
         self._manifests: list[Path] = []
+        self._selected_idx       = 0    # index in _manifests shown in detail
+        self._page_index         = 0    # current page (0 = newest runs)
+        self._rendered_page      = -1   # last built page (avoids full rebuild on update)
+        self._rendered_count     = -1   # last built manifest count
+        self._last_run_path: Path | None = None
+        self._cached_plan_path   = ""
+        self._cached_plan_tasks: dict[str, dict[str, Any]] = {}
+        self._ordered_tasks: list[str] = []        # task IDs for current run (plan order)
+        self._task_page_index    = 0               # current task page
+        self._task_rendered_page = -1              # last built task page
+        self._last_data: dict[str, Any] = {}       # last manifest data (for task page nav)
 
     def compose(self) -> ComposeResult:
-        yield Static("[ DASHBOARD ]", id="dash-title")
+        with Horizontal(id="dash-header"):
+            yield Static("[ DASHBOARD ]", id="dash-title")
+            yield Static("", id="dash-active-badge")
         yield Static("", id="dash-stats-box")
         yield Rule(id="dash-rule-top")
-        with Horizontal(id="dash-nav"):
-            yield Button("◀", id="btn-run-prev", variant="default", disabled=True)
-            yield Static("", id="dash-run-nav")
-            yield Button("▶", id="btn-run-next", variant="default", disabled=True)
+        yield Static("[ RUNS ]", id="dash-runs-label")
+        yield DataTable(id="dash-runs-table", cursor_type="row", zebra_stripes=True)
+        with Horizontal(id="dash-page-bar"):
+            yield Button("◀", id="btn-dash-pg-prev", disabled=True)
+            yield Static("—", id="dash-page-label")
+            yield Button("▶", id="btn-dash-pg-next", disabled=True)
         yield Rule(id="dash-rule-nav")
         with Vertical(id="dash-stats"):
             yield Static("", id="dash-run-id")
@@ -67,9 +94,12 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             yield Static("", id="dash-tokens")
             yield Static("", id="dash-elapsed")
         yield Rule(id="dash-rule-mid")
-        yield Static("[ RECENT ACTIVITY ]", id="dash-activity-title")
-        yield RichLog(id="dash-log", markup=True, auto_scroll=True,
-                      max_lines=40, wrap=True, highlight=False)
+        yield Static("[ TASKS ]", id="dash-tasks-title")
+        yield DataTable(id="dash-task-table", cursor_type="none", zebra_stripes=True)
+        with Horizontal(id="dash-task-page-bar"):
+            yield Button("◀", id="btn-dash-tpg-prev", disabled=True)
+            yield Static("—", id="dash-task-page-label")
+            yield Button("▶", id="btn-dash-tpg-next", disabled=True)
         yield Static("", id="dash-idle-msg")
         yield Rule(id="dash-rule-bot")
         with Horizontal(id="dash-actions"):
@@ -79,12 +109,31 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             yield Button("DELETE", id="btn-dash-delete", variant="error",   disabled=True)
 
     def on_mount(self) -> None:
-        self.set_interval(2.0, self._poll)
+        rtable = self.query_one("#dash-runs-table", DataTable)
+        rtable.add_column("RUN",    key="run",    width=22)
+        rtable.add_column("STATUS", key="status", width=11)
+        rtable.add_column("TASKS",  key="tasks",  width=7)
+        rtable.add_column("COST",   key="cost",   width=9)
+        table = self.query_one("#dash-task-table", DataTable)
+        table.add_column("TASK",   key="task",   width=22)
+        table.add_column("AGENT",  key="agent",  width=12)
+        table.add_column("STATUS", key="status", width=12)
+        table.add_column("COST",   key="cost",   width=9)
+        self.set_interval(1.0, self._poll)
         self._show_idle()
 
     # ── polling ────────────────────────────────────────────────────────────────
 
     def _poll(self) -> None:
+        active_runs  = getattr(self.app, "_active_runs", {})
+        active_count = sum(1 for r in active_runs.values() if r.get("status") == "running")
+        try:
+            self.query_one("#dash-active-badge", Static).update(
+                f"[bold #00ff41]● {active_count} ACTIVE[/]" if active_count else ""
+            )
+        except Exception:
+            pass
+
         runtime_root = Path(str(getattr(self.app, "_runtime_root", ".claude-orchestrator")))
         runs_dir = runtime_root / "runs"
         if not runs_dir.exists():
@@ -100,20 +149,93 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             self._show_idle()
             return
 
-        # Rebuild aggregate stats when list size changes
-        if len(manifests) != len(self._manifests):
-            self._manifests = manifests
-            self._update_stats_box(manifests)
-
+        prev_count = len(self._manifests)
         self._manifests = manifests
-        idx = max(0, min(int(self._run_index), len(manifests) - 1))
-        self._run_index = idx  # type: ignore[assignment]
+        if len(manifests) != prev_count or active_count > 0:
+            self._update_stats_box(manifests)
+            if len(manifests) > prev_count:
+                self._selected_idx = 0
+                self._page_index   = 0
 
+        self._render_runs_page()
+
+        sel = max(0, min(self._selected_idx, len(manifests) - 1))
+        self._selected_idx = sel
         try:
-            data = json.loads(manifests[idx].read_text(encoding="utf-8"))
-            self._update_display(data, manifests[idx].parent)
+            data = json.loads(manifests[sel].read_text(encoding="utf-8"))
+            self._update_display(data, manifests[sel].parent)
         except Exception:
             self._show_idle()
+
+    # ── runs list (upper panel) ────────────────────────────────────────────────
+
+    def _render_runs_page(self) -> None:
+        try:
+            table = self.query_one("#dash-runs-table", DataTable)
+        except Exception:
+            return
+        n   = len(self._manifests)
+        ps  = self._page_size
+        pg  = self._page_index
+        start       = pg * ps
+        end         = min(start + ps, n)
+        total_pages = max(1, (n + ps - 1) // ps)
+
+        need_rebuild = (pg != self._rendered_page or n != self._rendered_count)
+        if need_rebuild:
+            table.clear()
+            self._rendered_page  = pg
+            self._rendered_count = n
+
+        for i in range(start, end):
+            mp = self._manifests[i]
+            try:
+                d = json.loads(mp.read_text(encoding="utf-8"))
+            except Exception:
+                d = {}
+            state   = _manifest_run_state(d)
+            events  = list(d.get("events") or [])
+            td      = d.get("tasks") or {}
+            total   = len(td) or int((d.get("topology") or {}).get("taskCount", 0))
+            done    = sum(
+                1 for e in events
+                if e.get("phase") == "task-finished"
+                and e.get("status") in {"completed", "skipped", "reused"}
+            )
+            cost    = _manifest_cost(d)
+            run_id  = str(d.get("runId") or mp.parent.name)
+            icon    = _RUN_ICONS.get(state, "✗")
+            stat_s  = f"{icon} {state[:9]}"
+            tasks_s = f"{done}/{total}" if total else "—"
+            cost_s  = f"${cost:.4f}" if cost else "—"
+            key     = str(i)
+            if need_rebuild:
+                table.add_row(run_id[-22:], stat_s, tasks_s, cost_s, key=key)
+            else:
+                try:
+                    table.update_cell(key, "status", stat_s,  update_width=False)
+                    table.update_cell(key, "tasks",  tasks_s, update_width=False)
+                    table.update_cell(key, "cost",   cost_s,  update_width=False)
+                except Exception:
+                    pass
+
+        if need_rebuild:
+            sel_in_page = self._selected_idx - start
+            if 0 <= sel_in_page < (end - start):
+                try:
+                    table.move_cursor(row=sel_in_page)
+                except Exception:
+                    pass
+
+        try:
+            a, b = start + 1, end
+            self.query_one("#dash-page-label", Static).update(
+                f"Page [bold]{pg + 1}[/bold]/{total_pages}  ({a}–{b} of {n})"
+            )
+            self.query_one("#btn-dash-pg-prev", Button).disabled = pg <= 0
+            self.query_one("#btn-dash-pg-next", Button).disabled = pg >= total_pages - 1
+        except Exception:
+            pass
 
     # ── aggregate stats box ────────────────────────────────────────────────────
 
@@ -155,22 +277,6 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         except Exception:
             pass
 
-    # ── run nav bar ────────────────────────────────────────────────────────────
-
-    def _update_nav_bar(self, idx: int, manifests: list[Path]) -> None:
-        n = len(manifests)
-        if n == 0:
-            return
-        label = f"Run [bold]{idx + 1}[/bold] / {n}"
-        if idx == 0:
-            label += "  [#00ff41][latest][/]"
-        try:
-            self.query_one("#dash-run-nav", Static).update(label)
-            self.query_one("#btn-run-prev", Button).disabled = idx >= n - 1
-            self.query_one("#btn-run-next", Button).disabled = idx <= 0
-        except Exception:
-            pass
-
     # ── display ────────────────────────────────────────────────────────────────
 
     def _show_idle(self) -> None:
@@ -184,12 +290,37 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             self.query_one("#dash-idle-msg", Static).update(
                 "[dim #2a5a3a][ IDLE ]  No run data yet — press [N] to start a plan[/]"
             )
-            self.query_one("#dash-run-nav", Static).update("—")
-            self.query_one("#btn-run-prev", Button).disabled = True
-            self.query_one("#btn-run-next", Button).disabled = True
+            self.query_one("#dash-page-label", Static).update("—")
+            self.query_one("#btn-dash-pg-prev", Button).disabled = True
+            self.query_one("#btn-dash-pg-next", Button).disabled = True
         except Exception:
             pass
-        self._run_dir = None  # type: ignore[assignment]
+        try:
+            self.query_one("#dash-task-table", DataTable).clear()
+        except Exception:
+            pass
+        try:
+            self.query_one("#dash-runs-table", DataTable).clear()
+        except Exception:
+            pass
+        try:
+            self.query_one("#dash-task-page-label", Static).update("—")
+            self.query_one("#btn-dash-tpg-prev", Button).disabled = True
+            self.query_one("#btn-dash-tpg-next", Button).disabled = True
+        except Exception:
+            pass
+        self._run_dir          = None   # type: ignore[assignment]
+        self._last_run_path    = None
+        self._cached_plan_path = ""
+        self._cached_plan_tasks = {}
+        self._ordered_tasks    = []
+        self._selected_idx     = 0
+        self._page_index       = 0
+        self._rendered_page    = -1
+        self._rendered_count   = -1
+        self._task_page_index    = 0
+        self._task_rendered_page = -1
+        self._last_data          = {}
         self._set_action_buttons("idle", None)
 
     def _update_display(self, data: dict[str, Any], run_path: Path) -> None:
@@ -262,55 +393,128 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
 
         self._run_dir   = run_path   # type: ignore[assignment]
         self._run_state = state      # type: ignore[assignment]
+        self._last_data = data
         self._set_action_buttons(state, run_path)
-        self._update_nav_bar(int(self._run_index), self._manifests)
+        self._update_task_table(data, run_path)
+
+    def _update_task_table(self, data: dict[str, Any], run_path: Path) -> None:
+        tasks_dict = data.get("tasks") or {}
+
+        run_changed = run_path != self._last_run_path
+        if run_changed:
+            try:
+                self.query_one("#dash-task-table", DataTable).clear()
+            except Exception:
+                pass
+            self._last_run_path      = run_path
+            self._cached_plan_path   = ""
+            self._cached_plan_tasks  = {}
+            self._task_page_index    = 0
+            self._task_rendered_page = -1
+
+        plan_path = str(data.get("planPath") or data.get("plan_path") or "")
+        if plan_path and plan_path != self._cached_plan_path:
+            self._cached_plan_path = plan_path
+            try:
+                pdata = json.loads(Path(plan_path).read_text(encoding="utf-8"))
+                self._cached_plan_tasks = {
+                    str(pt.get("id") or ""): pt
+                    for pt in (pdata.get("tasks") or [])
+                }
+            except Exception:
+                self._cached_plan_tasks = {}
+
+        ordered: list[str] = list(self._cached_plan_tasks.keys()) if self._cached_plan_tasks else []
+        for tid in tasks_dict:
+            if tid and tid not in self._cached_plan_tasks:
+                ordered.append(tid)
+
+        if ordered != self._ordered_tasks or run_changed:
+            self._ordered_tasks      = ordered
+            self._task_rendered_page = -1
+
+        self._render_task_page(tasks_dict)
+
+    def _render_task_page(self, tasks_dict: dict[str, Any]) -> None:
+        try:
+            table = self.query_one("#dash-task-table", DataTable)
+        except Exception:
+            return
+        ordered = self._ordered_tasks
+        n   = len(ordered)
+        ps  = self._page_size
+        pg  = self._task_page_index
+        start       = pg * ps
+        end         = min(start + ps, n)
+        total_pages = max(1, (n + ps - 1) // ps) if n > 0 else 1
+
+        need_rebuild = (pg != self._task_rendered_page)
+        if need_rebuild:
+            table.clear()
+            self._task_rendered_page = pg
+
+        for tid in ordered[start:end]:
+            t_data  = tasks_dict.get(tid) or {}
+            pt      = self._cached_plan_tasks.get(tid) or {}
+            status  = str(t_data.get("status") or "pending")
+            t_cost  = t_data.get("costUsd") or t_data.get("cost_usd")
+            cost_s  = f"${float(t_cost):.4f}" if t_cost is not None else "—"
+            icon    = _TASK_ICONS.get(status, "○")
+            stat_s  = f"{icon} {status[:9]}"
+            agent   = str(pt.get("agent") or t_data.get("agent") or "—")[:12]
+            title   = str(pt.get("title") or tid)[:22]
+            if need_rebuild:
+                table.add_row(title, agent, stat_s, cost_s, key=tid)
+            else:
+                try:
+                    table.update_cell(tid, "status", stat_s, update_width=False)
+                    table.update_cell(tid, "cost",   cost_s, update_width=False)
+                except Exception:
+                    pass
 
         try:
-            log = self.query_one("#dash-log", RichLog)
-            log.clear()
-            task_events = [
-                e for e in events
-                if e.get("phase") in {"task-started", "task-finished", "batch-ready", "run-finished"}
-            ]
-            for e in task_events[-20:]:
-                phase  = str(e.get("phase", ""))
-                tid    = str(e.get("taskId", ""))
-                status = str(e.get("status") or "")
-                ts_raw = str(e.get("ts", ""))
-                ts_str = ts_raw[11:19] if len(ts_raw) >= 19 else ""
-                esc    = _status_color(status) if status else "#00e5ff"
-
-                if phase == "run-finished":
-                    log.write(f"[dim]{ts_str}[/]  [bold {esc}]RUN {state.upper()}[/]")
-                elif phase == "batch-ready":
-                    batch_ids = e.get("taskIds") or []
-                    log.write(
-                        f"[dim]{ts_str}[/]  [#00e5ff]BATCH[/] "
-                        f"[dim]{', '.join(batch_ids[:3])}[/]"
-                    )
-                elif tid:
-                    icon  = "✓" if status == "completed" else ("✗" if status == "failed" else "▸")
-                    title = str((tasks_dict.get(tid) or {}).get("title") or tid)[:36]
-                    log.write(
-                        f"[dim]{ts_str}[/]  [{esc}]{icon}[/] "
-                        f"[dim]{tid[:20]}[/] {title}  [{esc}]{status}[/]"
-                    )
-            if not task_events:
-                log.write("[dim #2a5a3a]Waiting for first task to start...[/]")
+            a = start + 1 if n > 0 else 0
+            lbl = f"Page [bold]{pg + 1}[/bold]/{total_pages}  ({a}–{end} of {n})" if n > 0 else "—"
+            self.query_one("#dash-task-page-label", Static).update(lbl)
+            self.query_one("#btn-dash-tpg-prev", Button).disabled = pg <= 0
+            self.query_one("#btn-dash-tpg-next", Button).disabled = pg >= total_pages - 1 or n == 0
         except Exception:
             pass
 
-    # ── run navigation ─────────────────────────────────────────────────────────
+    def _navigate_task_page(self, delta: int) -> None:
+        n = len(self._ordered_tasks)
+        if n == 0:
+            return
+        total_pages = max(1, (n + self._page_size - 1) // self._page_size)
+        new_page = max(0, min(self._task_page_index + delta, total_pages - 1))
+        if new_page != self._task_page_index:
+            self._task_page_index    = new_page
+            self._task_rendered_page = -1
+            tasks_dict = (self._last_data or {}).get("tasks") or {}
+            self._render_task_page(tasks_dict)
 
-    def _navigate_run(self, delta: int) -> None:
+    # ── page navigation ────────────────────────────────────────────────────────
+
+    def _navigate_page(self, delta: int) -> None:
         n = len(self._manifests)
         if n == 0:
             return
-        new_idx = max(0, min(int(self._run_index) + delta, n - 1))
-        self._run_index = new_idx  # type: ignore[assignment]
+        total_pages = max(1, (n + self._page_size - 1) // self._page_size)
+        new_page = max(0, min(self._page_index + delta, total_pages - 1))
+        if new_page != self._page_index:
+            self._page_index    = new_page
+            self._rendered_page = -1  # force full rebuild
+            self._render_runs_page()
+
+    def on_data_table_row_selected(self, event: "DataTable.RowSelected") -> None:
+        if getattr(event.data_table, "id", None) != "dash-runs-table":
+            return
         try:
-            data = json.loads(self._manifests[new_idx].read_text(encoding="utf-8"))
-            self._update_display(data, self._manifests[new_idx].parent)
+            idx = int(str(event.row_key.value))
+            if 0 <= idx < len(self._manifests):
+                self._selected_idx = idx
+                data = json.loads(self._manifests[idx].read_text(encoding="utf-8"))
+                self._update_display(data, self._manifests[idx].parent)
         except Exception:
             pass
 
@@ -331,10 +535,14 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
 
     def on_button_pressed(self, event: "Button.Pressed") -> None:
         btn_id = event.button.id
-        if btn_id == "btn-run-prev":
-            self._navigate_run(+1)      # older
-        elif btn_id == "btn-run-next":
-            self._navigate_run(-1)      # newer
+        if btn_id == "btn-dash-pg-prev":
+            self._navigate_page(-1)   # newer page (lower index)
+        elif btn_id == "btn-dash-pg-next":
+            self._navigate_page(+1)   # older page (higher index)
+        elif btn_id == "btn-dash-tpg-prev":
+            self._navigate_task_page(-1)
+        elif btn_id == "btn-dash-tpg-next":
+            self._navigate_task_page(+1)
         elif btn_id == "btn-dash-open":
             self._do_open()
         elif btn_id == "btn-dash-stop":
@@ -381,16 +589,18 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             return
         try:
             shutil.rmtree(run_path, ignore_errors=True)
-            self._run_dir = None  # type: ignore[assignment]
-            # remove from cached list and go to next
-            self._manifests = [m for m in self._manifests if m.parent != run_path]
+            self._run_dir    = None  # type: ignore[assignment]
+            self._manifests  = [m for m in self._manifests if m.parent != run_path]
+            self._rendered_page  = -1
+            self._rendered_count = -1
             if self._manifests:
-                new_idx = min(int(self._run_index), len(self._manifests) - 1)
-                self._run_index = new_idx  # type: ignore[assignment]
+                new_idx = min(self._selected_idx, len(self._manifests) - 1)
+                self._selected_idx = new_idx
                 try:
                     data = json.loads(self._manifests[new_idx].read_text(encoding="utf-8"))
                     self._update_display(data, self._manifests[new_idx].parent)
                     self._update_stats_box(self._manifests)
+                    self._render_runs_page()
                     return
                 except Exception:
                     pass

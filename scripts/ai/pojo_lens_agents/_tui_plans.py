@@ -325,6 +325,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("o",      "out_profiles", "Profiles",      show=True),
         Binding("p",      "prompt_acct",  "Prompt",        show=True),
         Binding("f",      "follow_up",    "Follow-up",     show=True),
+        Binding("h",      "view_runs",    "History",       show=True),
     ]
 
     def __init__(self, plan_path: str) -> None:
@@ -342,8 +343,9 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Button("VALIDATE",      id="btn-validate", variant="success")
             yield Button("DRY RUN",       id="btn-dryrun",   variant="warning")
             yield Button("SAVE COPY",     id="btn-save",     variant="warning")
-            yield Button("TOOLS",     id="btn-tools",     variant="success")
-            yield Button("FOLLOW-UP", id="btn-followup",  variant="success")
+            yield Button("TOOLS",         id="btn-tools",    variant="success")
+            yield Button("FOLLOW-UP",     id="btn-followup", variant="success")
+            yield Button("HISTORY",       id="btn-runs",     variant="success")
             yield Button("BACK",          id="btn-back")
         yield Footer()
 
@@ -368,7 +370,7 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             log.write("")
             log.write(
                 "[dim #2a5a3a]Actions: [A] Approve+Run  [V] Validate  [D] Dry Run  "
-                "[S] Save  [T] Tools  [I] Intents  [O] Profiles  [P] Prompt  [F] Follow-up  [Esc] Back[/]"
+                "[S] Save  [T] Tools  [I] Intents  [O] Profiles  [P] Prompt  [F] Follow-up  [H] History  [Esc] Back[/]"
             )
         self.app.call_from_thread(_write)
 
@@ -385,6 +387,8 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             self.action_extra_tools()
         elif event.button.id == "btn-followup":
             self.action_follow_up()
+        elif event.button.id == "btn-runs":
+            self.action_view_runs()
         elif event.button.id == "btn-back":
             self.action_go_back()
 
@@ -439,6 +443,10 @@ class PlanDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         from pojo_lens_agents._tui_inspect import PlanInspectScreen
         run_dir = self._find_most_recent_run()
         self.app.push_screen(PlanInspectScreen(self._plan_path, mode="followup", run_dir=run_dir))  # type: ignore[attr-defined]
+
+    def action_view_runs(self) -> None:
+        from pojo_lens_agents._tui_ledger import RunLedgerScreen
+        self.app.push_screen(RunLedgerScreen(plan_filter=self._plan_path))  # type: ignore[attr-defined]
 
     def _find_most_recent_run(self) -> str:
         """Find the most recent run dir that used this plan file."""

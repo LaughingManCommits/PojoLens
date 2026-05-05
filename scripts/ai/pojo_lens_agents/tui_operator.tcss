@@ -435,7 +435,10 @@ RunConfigScreen #card {
     background: $bg_panel;
     padding: 2 3;
 }
-#provider-list { height: 6; margin-bottom: 0; }
+#provider-list        { height: 7; margin-bottom: 1; }
+#hitl-list            { height: 7; margin-bottom: 1; }
+#budget-behavior-list { height: 7; margin-bottom: 1; }
+#followup-list        { height: 7; margin-bottom: 1; }
 #prov-config-note { color: $text_dim; height: auto; }
 #prov-meta { color: $text_dim; height: auto; }
 #gov-title { color: $cyan; text-style: bold; margin-top: 1; }
@@ -480,7 +483,12 @@ PlanRunScreen #top-bar {
 #run-prog-label { color: $text_dim; width: auto; }
 #run-prog-bar   { color: $green;    width: 1fr;  }
 #run-prog-cost  { color: $amber;    width: auto; }
-#run-log { height: 1fr; }
+#run-task-table {
+    height: 12;
+    border: solid $cyan 30%;
+    margin: 0 1 0 1;
+}
+#run-log { height: 1fr; min-height: 4; }
 PlanRunScreen #action-bar {
     height: 5;
     background: $bg_input;
@@ -623,7 +631,8 @@ TaskEditModal {
 }
 TaskEditModal #modal-card {
     width: 84;
-    height: 88%;
+    min-height: 44;
+    max-height: 92%;
     layout: vertical;
     border: heavy $green 30%;
     background: $bg_panel;
@@ -754,7 +763,8 @@ RunDetailsScreen {
 }
 RunDetailsScreen #run-title      { color: $cyan; text-style: bold; }
 RunDetailsScreen #run-ref        { color: $text_dim; }
-RunDetailsScreen #run-status-line { color: $green; margin-top: 1; }
+RunDetailsScreen #run-status-line { color: $green;      margin-top: 1; }
+RunDetailsScreen #run-plan-line   { color: $green_body; margin-top: 1; }
 RunDetailsScreen #detail-split {
     height: 1fr;
 }
@@ -987,7 +997,7 @@ AgentsScreen { background: $bg; }
     height: 3;
     background: $bg_input;
     border-bottom: solid $green_dim;
-    align: left middle;
+    align: center middle;
     padding: 0 1;
 }
 #ag-page-label {
@@ -1023,7 +1033,7 @@ SkillsScreen { background: $bg; }
     height: 3;
     background: $bg_input;
     border-bottom: solid $green_dim;
-    align: left middle;
+    align: center middle;
     padding: 0 1;
 }
 #sk-page-label {
@@ -1078,6 +1088,11 @@ TaskEditModal .set-label {
     color: $text_dim;
     margin-top: 1;
     margin-bottom: 0;
+}
+AgentEditScreen #set-form,
+SkillEditScreen #set-form {
+    height: 1fr;
+    padding: 1 3;
 }
 
 /* ── PlanInspectScreen ───────────────────────────────────────────────────── */
@@ -1211,11 +1226,19 @@ DashboardWidget {
     border-left: solid $green_dim;
 }
 
+#dash-header {
+    height: 1;
+    margin-bottom: 1;
+}
 #dash-title {
     color: $cyan;
     text-style: bold;
-    text-align: center;
-    margin-bottom: 1;
+    width: 1fr;
+}
+#dash-active-badge {
+    width: auto;
+    color: $green;
+    text-align: right;
 }
 
 #dash-stats-box {
@@ -1223,31 +1246,47 @@ DashboardWidget {
     color: $green_body;
     margin-bottom: 0;
 }
-#dash-nav {
+
+#dash-rule-top  { color: $green_dim; margin-bottom: 0; }
+#dash-rule-nav  { color: $green_dim; margin-top: 0; margin-bottom: 1; }
+#dash-rule-mid  { color: $green_dim; margin-top: 1; margin-bottom: 1; }
+#dash-rule-bot  { color: $green_dim; margin-top: 1; margin-bottom: 0; }
+
+/* ── Upper panel: runs list ── */
+#dash-runs-label {
+    color: $cyan;
+    text-style: bold;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+#dash-runs-table {
+    height: auto;
+    max-height: 12;
+    border: solid $cyan 25%;
+    margin-bottom: 0;
+}
+#dash-page-bar {
     height: 3;
     align: center middle;
     padding: 0;
 }
-#dash-run-nav {
+#dash-page-label {
     width: 1fr;
     text-align: center;
     color: $cyan;
 }
-#btn-run-prev, #btn-run-next {
+#btn-dash-pg-prev, #btn-dash-pg-next {
     min-width: 5;
     background: $bg_panel;
     color: $cyan;
     border: solid $cyan 40%;
 }
-#btn-run-prev:disabled, #btn-run-next:disabled {
+#btn-dash-pg-prev:disabled, #btn-dash-pg-next:disabled {
     color: $text_dim;
     border: solid $text_dim 20%;
 }
-#dash-rule-top  { color: $green_dim; margin-bottom: 1; }
-#dash-rule-nav  { color: $green_dim; margin-top: 0; margin-bottom: 1; }
-#dash-rule-mid  { color: $green_dim; margin-top: 1; margin-bottom: 1; }
-#dash-rule-bot  { color: $green_dim; margin-top: 1; margin-bottom: 0; }
 
+/* ── Lower panel: detail view ── */
 #dash-stats {
     height: auto;
     margin-bottom: 1;
@@ -1257,19 +1296,41 @@ DashboardWidget {
 #dash-status   { margin-top: 1; }
 #dash-progress { margin-top: 1; }
 #dash-cost     { margin-top: 1; }
+#dash-tokens   { margin-top: 1; }
 #dash-elapsed  { margin-top: 1; }
 
-#dash-activity-title {
+#dash-tasks-title {
     color: $cyan;
     text-style: bold;
-    margin-bottom: 1;
+    margin-bottom: 0;
 }
 
-#dash-log {
-    height: 1fr;
-    background: $bg;
-    border: solid $green_dim;
-    padding: 0 1;
+#dash-task-table {
+    height: auto;
+    max-height: 10;
+    border: solid $cyan 25%;
+    margin-bottom: 0;
+}
+#dash-task-page-bar {
+    height: 3;
+    align: center middle;
+    padding: 0;
+    margin-bottom: 1;
+}
+#dash-task-page-label {
+    width: 1fr;
+    text-align: center;
+    color: $cyan;
+}
+#btn-dash-tpg-prev, #btn-dash-tpg-next {
+    min-width: 5;
+    background: $bg_panel;
+    color: $cyan;
+    border: solid $cyan 40%;
+}
+#btn-dash-tpg-prev:disabled, #btn-dash-tpg-next:disabled {
+    color: $text_dim;
+    border: solid $text_dim 20%;
 }
 
 #dash-idle-msg {

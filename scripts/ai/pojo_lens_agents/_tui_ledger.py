@@ -63,21 +63,25 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         Binding("y",      "retry_run",  "Retry",   show=True),
         Binding("p",      "promote_run","Promote", show=True),
         Binding("g",      "gate_run",   "Gate",    show=True),
-        Binding("l",      "tab_ledger", "Ledger",  show=True),
     ]
 
-    def __init__(self, *, mode: str = "runs") -> None:
+    def __init__(self, *, mode: str = "runs", plan_filter: str | None = None) -> None:
         super().__init__()
-        self._mode = mode
+        self._mode        = mode
+        self._plan_filter = plan_filter  # path or name of plan to scope runs to
         self._entries: list[dict[str, Any]] = []
 
     def compose(self) -> ComposeResult:
         yield Header()
-        label = {
-            "runs":    "[ RUNS ]  Retained run history",
-            "ledger":  "[ LEDGER ]  Run ledger summary",
-            "promote": "[ PROMOTE ]  Select run to review / promote",
-        }.get(self._mode, "[ RUNS ]")
+        if self._plan_filter:
+            plan_stem = Path(self._plan_filter).stem
+            label = f"[ RUNS ]  {plan_stem}"
+        else:
+            label = {
+                "runs":    "[ RUNS ]  Retained run history",
+                "ledger":  "[ LEDGER ]  Run ledger summary",
+                "promote": "[ PROMOTE ]  Select run to review / promote",
+            }.get(self._mode, "[ RUNS ]")
         with Container(id="top-bar"):
             yield Static(label, id="screen-title")
             yield Static(
@@ -92,7 +96,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
             yield Button("RETRY",   id="btn-retry",                      disabled=True)
             yield Button("PROMOTE", id="btn-promote", variant="warning", disabled=True)
             yield Button("GATE",    id="btn-gate",                       disabled=True)
-            yield Button("LEDGER",  id="btn-ledger",  variant="success")
+            yield Button("PLAN",    id="btn-plan",    variant="success", disabled=True)
             yield Button("BACK",    id="btn-back")
         yield Footer()
 
@@ -142,6 +146,8 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                         "_outputTokens":int(ut.get("outputTokens", 0) or 0),
                         "_duration":    _calc_run_duration(data),
                         "_runDir":      str(mp.parent),
+                        "planPath":     str(data.get("planPath") or ""),
+                        "planName":     Path(str(data.get("planPath") or "")).name,
                     }
                 except Exception:
                     pass
@@ -160,6 +166,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                         entries.append({
                             "runId":      run_id,
                             "planName":   Path(str(data.get("planPath") or "")).name,
+                            "planPath":   str(data.get("planPath") or ""),
                             "status":     _manifest_state(data),
                             "totalTasks": len(data.get("tasks") or {}),
                             "startedAt":  events[0].get("ts") if events else "",
@@ -188,10 +195,30 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
     def _populate_table(self) -> None:
         table = self.query_one("#runs-table", DataTable)
         table.clear()
+        entries = self._entries
+        if self._plan_filter:
+            plan_name = Path(self._plan_filter).name.lower()   # e.g. "my-plan.json"
+            plan_stem = Path(self._plan_filter).stem.lower()   # e.g. "my-plan"
+            def _matches(e: dict) -> bool:
+                e_name = str(e.get("planName") or e.get("plan_name") or "").lower()
+                e_path = str(e.get("planPath") or e.get("plan_path") or "").lower()
+                return (
+                    e_name == plan_name
+                    or e_name == plan_stem
+                    or (e_path and (e_path == self._plan_filter.lower()
+                                    or e_path.endswith("/" + plan_name)
+                                    or e_path.endswith("\\" + plan_name)))
+                )
+            entries = [e for e in entries if _matches(e)]
+            self._entries = entries
         if not self._entries:
-            self.query_one("#empty-notice", Static).update(
+            msg = (
+                f"[dim #2a5a3a][ trace ] no runs found for plan: {Path(self._plan_filter).stem}[/]"
+                if self._plan_filter else
                 "[dim #2a5a3a][ trace ] no retained runs found in runtime root[/]"
             )
+            self.query_one("#empty-notice", Static).update(msg)
+            self._update_ledger_hint()
             return
         self.query_one("#empty-notice", Static).update("")
         for entry in self._entries[:200]:
@@ -223,6 +250,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         # Reflect first row's status in buttons immediately
         if self._entries:
             self._set_action_buttons(self._entries[0])
+        self._update_ledger_hint()
 
     def _selected_run_id(self) -> str | None:
         table = self.query_one("#runs-table", DataTable)
@@ -266,12 +294,15 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
         blocked   = status in {"blocked", "hitl-pending", "pending-approval"}
         unknown   = status in {"unknown", ""}
         resumable = paused or (unknown and not running)
+        plan_path   = str(entry.get("planPath") or entry.get("plan_path") or "")
+        plan_exists = bool(plan_path) and Path(plan_path).exists()
         try:
-            self.query_one("#btn-open", Button).disabled = False
+            self.query_one("#btn-open",    Button).disabled = False
             self.query_one("#btn-resume",  Button).disabled = not resumable
             self.query_one("#btn-retry",   Button).disabled = not (failed or completed)
             self.query_one("#btn-promote", Button).disabled = not completed
             self.query_one("#btn-gate",    Button).disabled = not blocked
+            self.query_one("#btn-plan",    Button).disabled = not plan_exists
         except Exception:
             pass
 
@@ -286,20 +317,56 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
             self.action_promote_run()
         elif event.button.id == "btn-gate":
             self.action_gate_run()
-        elif event.button.id == "btn-ledger":
-            self.action_tab_ledger()
+        elif event.button.id == "btn-plan":
+            self.action_open_plan()
         elif event.button.id == "btn-back":
             self.action_go_back()
 
     def action_go_back(self) -> None:
         self.dismiss(None)
 
-    def action_tab_ledger(self) -> None:
-        self._mode = "ledger"
+    def action_open_plan(self) -> None:
+        table = self.query_one("#runs-table", DataTable)
+        row   = table.cursor_row
+        if row < 0 or row >= len(self._entries):
+            self.app.notify("Select a run first.", title="No Run")  # type: ignore[attr-defined]
+            return
+        plan_path = str(self._entries[row].get("planPath") or self._entries[row].get("plan_path") or "")
+        if plan_path and Path(plan_path).exists():
+            from pojo_lens_agents._tui_plans import PlanDetailsScreen
+            self.app.push_screen(PlanDetailsScreen(plan_path))  # type: ignore[attr-defined]
+        else:
+            self.app.notify("Plan file not found.", title="No Plan", severity="warning")  # type: ignore[attr-defined]
+
+    def _update_ledger_hint(self) -> None:
+        if not self._entries:
+            try:
+                self.query_one("#screen-hint", Static).update(
+                    "[I] Inspect  [R] Resume  [Y] Retry  [P] Promote  [G] Gate  [Esc] Back"
+                )
+            except Exception:
+                pass
+            return
+        total_cost  = sum(float(e.get("_cost") or 0.0) for e in self._entries)
+        total_inp   = sum(int(e.get("_inputTokens",  0) or 0) for e in self._entries)
+        total_out   = sum(int(e.get("_outputTokens", 0) or 0) for e in self._entries)
+        n_completed = sum(1 for e in self._entries
+                         if "completed" in str(e.get("status") or "").lower())
+        n_failed    = sum(1 for e in self._entries
+                         if str(e.get("status") or "").lower() in {"failed", "error"})
         try:
-            self.query_one("#screen-title", Static).update("[ LEDGER ]  Run ledger summary")
+            self.query_one("#screen-hint", Static).update(
+                f"[bold #00e5ff]{len(self._entries)}[/] runs  ·  "
+                f"[#00ff41]✓ {n_completed}[/]  [#ff2244]✗ {n_failed}[/]  ·  "
+                f"cost [#ffaa00]${total_cost:.4f}[/]  ·  "
+                f"↓{_fmt_tok(total_inp)} ↑{_fmt_tok(total_out)}  ·  "
+                f"[dim][I] Inspect  [R] Resume  [Y] Retry  [P] Promote  [G] Gate[/]"
+            )
         except Exception:
             pass
+
+    def action_inspect_run(self) -> None:
+        self.action_open_run()
 
     def action_open_run(self) -> None:
         run_dir = self._selected_run_dir()
@@ -354,7 +421,8 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
 
     def __init__(self, run_ref: str) -> None:
         super().__init__()
-        self._run_ref = run_ref
+        self._run_ref   = run_ref
+        self._plan_path = ""
         self._file_diffs: dict[str, list[str]] = {}
         self._tasks_data: dict[str, Any] = {}
 
@@ -364,6 +432,7 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Static("[ RUN DETAILS ]", id="run-title")
             yield Static(self._run_ref, id="run-ref")
             yield Static("", id="run-status-line")
+            yield Static("", id="run-plan-line")
         with Horizontal(id="detail-split"):
             with Vertical(id="detail-left"):
                 yield Static("[ TASKS ]", id="tasks-title")
@@ -381,6 +450,7 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             yield Button("RESUME",  id="btn-resume",  variant="primary", disabled=True)
             yield Button("RETRY",   id="btn-retry",                       disabled=True)
             yield Button("PROMOTE", id="btn-promote", variant="warning",  disabled=True)
+            yield Button("PLAN",    id="btn-plan",    variant="success",  disabled=True)
             yield Button("BACK",    id="btn-back")
         yield Footer()
 
@@ -389,11 +459,12 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         t = self.query_one("#tasks-table", DataTable)
         t.cursor_type = "row"
         t.zebra_stripes = True
-        t.add_column("Task",   key="tid",    width=20)
-        t.add_column("Title",  key="title",  width=24)
+        t.add_column("Task",   key="tid",    width=18)
+        t.add_column("Agent",  key="agent",  width=12)
+        t.add_column("Title",  key="title",  width=20)
         t.add_column("Status", key="status", width=11)
         t.add_column("Cost",   key="cost",   width=9)
-        t.add_column("Tokens", key="tokens", width=14)
+        t.add_column("Tokens", key="tokens", width=13)
         d = self.query_one("#diff-file-list", DataTable)
         d.cursor_type = "row"
         d.add_column("File", key="file", width=28)
@@ -516,16 +587,30 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             return
 
         run_id        = str(data.get("runId") or run_path.name)
-        plan_path     = str(data.get("planPath") or "—")
+        plan_path     = str(data.get("planPath") or "")
         workspace_dir = str(data.get("workspacesDir") or data.get("workspaceDir") or data.get("workspace_dir") or "")
         ws_mode       = str(data.get("workspaceMode") or data.get("workspace_mode") or data.get("runConfig", {}).get("workspaceMode") or "")
-        events        = list(data.get("events") or [])
-        tasks_dict = data.get("tasks") or {}
+        self._plan_path = plan_path
+        events     = list(data.get("events") or [])
+        tasks_dict = data.get("tasks") or {}   # manifest results: tid → result
         ut         = data.get("usageTotals") or {}
         inp        = int(ut.get("inputTokens",  0) or 0)
         out        = int(ut.get("outputTokens", 0) or 0)
         cost       = float(ut.get("totalCostUsd", 0.0) or 0.0)
 
+        # ── Load plan file — primary source for task/agent definitions ──────────
+        plan_exists   = bool(plan_path) and Path(plan_path).exists()
+        plan_name     = Path(plan_path).stem if plan_path else ""
+        plan_tasks: list[dict] = []
+        if plan_exists:
+            try:
+                pdata      = json.loads(Path(plan_path).read_text(encoding="utf-8"))
+                plan_name  = str(pdata.get("name") or pdata.get("planName") or plan_name)
+                plan_tasks = list(pdata.get("tasks") or [])
+            except Exception:
+                pass
+
+        # ── Run state ────────────────────────────────────────────────────────────
         phases = [e.get("phase", "") for e in events]
         if "run-finished" in phases:
             task_statuses = {str(t.get("status") or "") for t in tasks_dict.values() if t}
@@ -563,18 +648,61 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         unknown   = state in {"unknown", ""}
         resumable = paused or (unknown and not running)
 
+        # ── Build task rows — plan tasks are primary; manifest results overlay ──
+        # Agents come from plan task definitions (authoritative)
+        self._tasks_data = {}
+        task_rows: list[tuple] = []
+
+        if plan_tasks:
+            agents = sorted({str(pt.get("agent") or "") for pt in plan_tasks if pt.get("agent")})
+            for pt in plan_tasks:
+                tid    = str(pt.get("id") or "")
+                agent  = str(pt.get("agent") or "—")[:12]
+                title  = str(pt.get("title") or tid)[:20]
+                t_data = (tasks_dict.get(tid) or {})
+                self._tasks_data[tid[:20]] = t_data
+                status = str(t_data.get("status") or "pending")
+                t_ut   = t_data.get("usageTotals") or {}
+                t_cost = float(t_data.get("costUsd") or t_ut.get("totalCostUsd") or 0.0)
+                t_inp  = int(t_ut.get("inputTokens",  0) or 0)
+                t_out  = int(t_ut.get("outputTokens", 0) or 0)
+                t_sc   = _status_color(status)
+                c_s    = f"${t_cost:.4f}" if t_cost else "—"
+                k_s    = f"↓{_fmt_tok(t_inp)}↑{_fmt_tok(t_out)}" if (t_inp or t_out) else "—"
+                task_rows.append((tid[:18], agent, title, status, t_sc, c_s, k_s))
+        else:
+            # No plan file — fall back to manifest task results
+            agents = sorted({str(t.get("agent") or "") for t in tasks_dict.values()
+                             if t and t.get("agent")})
+            for tid, t_data in tasks_dict.items():
+                t_data = t_data or {}
+                self._tasks_data[tid[:20]] = t_data
+                agent  = str(t_data.get("agent") or "—")[:12]
+                title  = str(t_data.get("title") or tid)[:20]
+                status = str(t_data.get("status") or "—")
+                t_ut   = t_data.get("usageTotals") or {}
+                t_cost = float(t_data.get("costUsd") or t_ut.get("totalCostUsd") or 0.0)
+                t_inp  = int(t_ut.get("inputTokens",  0) or 0)
+                t_out  = int(t_ut.get("outputTokens", 0) or 0)
+                t_sc   = _status_color(status)
+                c_s    = f"${t_cost:.4f}" if t_cost else "—"
+                k_s    = f"↓{_fmt_tok(t_inp)}↑{_fmt_tok(t_out)}" if (t_inp or t_out) else "—"
+                task_rows.append((tid[:18], agent, title, status, t_sc, c_s, k_s))
+
+        agents_str_rich = "  ·  ".join(f"[#a0ffa0]{a}[/]" for a in agents) if agents else "[dim]—[/]"
+
         def _fill_header() -> None:
             try:
-                self.query_one("#run-ref", Static).update(
-                    f"[dim]{run_id}[/]  ·  [dim]{plan_path[-50:]}[/]"
+                display_name = plan_name or Path(plan_path).stem if plan_path else run_id
+                self.query_one("#run-title", Static).update(
+                    f"[ {display_name.upper()} ]"
                 )
+                self.query_one("#run-ref", Static).update(f"[dim]{run_id}[/]")
                 ws_line = ""
                 if ws_mode:
                     ws_line += f"  [dim]Mode:[/] [#00e5ff]{ws_mode}[/]"
                 if workspace_dir:
                     ws_line += f"  [dim]Workspace:[/] [dim #a0ffa0]{workspace_dir[-60:]}[/]"
-                elif ws_mode == "repo":
-                    ws_line += "  [dim]Workspace:[/] [dim]live repo root[/]"
                 self.query_one("#run-status-line", Static).update(
                     f"[{sc}]{state.upper()}[/]"
                     f"  [dim]Cost:[/] [#ffaa00]{cost_s}[/]"
@@ -582,41 +710,28 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
                     + (f"  [dim]Time:[/] {elapsed_str}" if elapsed_str else "")
                     + ws_line
                 )
+                self.query_one("#run-plan-line", Static).update(
+                    f"[dim]Agents:[/] {agents_str_rich}"
+                )
                 self.query_one("#btn-resume",  Button).disabled = not resumable
                 self.query_one("#btn-retry",   Button).disabled = not (failed or completed)
                 self.query_one("#btn-promote", Button).disabled = not completed
+                self.query_one("#btn-plan",    Button).disabled = not plan_exists
             except Exception:
                 pass
 
         self.app.call_from_thread(_fill_header)
 
-        # Tasks table + store full data for result view
-        task_rows: list[tuple] = []
-        self._tasks_data = {}
-        for tid, t_data in tasks_dict.items():
-            t_data  = t_data or {}
-            self._tasks_data[tid[:20]] = t_data
-            title   = str(t_data.get("title") or tid)[:24]
-            status  = str(t_data.get("status") or "—")
-            t_ut    = t_data.get("usageTotals") or {}
-            t_cost  = float(t_data.get("costUsd") or t_ut.get("totalCostUsd") or 0.0)
-            t_inp   = int(t_ut.get("inputTokens",  0) or 0)
-            t_out   = int(t_ut.get("outputTokens", 0) or 0)
-            t_sc    = _status_color(status)
-            c_s     = f"${t_cost:.4f}" if t_cost else "—"
-            k_s     = f"↓{_fmt_tok(t_inp)}↑{_fmt_tok(t_out)}" if (t_inp or t_out) else "—"
-            task_rows.append((tid[:20], title, status, t_sc, c_s, k_s))
-
         def _fill_tasks() -> None:
             tbl = self.query_one("#tasks-table", DataTable)
             tbl.clear()
-            for (tid, title, status, t_sc, c_s, k_s) in task_rows:
+            for (tid, agent, title, status, t_sc, c_s, k_s) in task_rows:
                 try:
                     from rich.text import Text as _T
                     status_cell: Any = _T(status, style=t_sc)
                 except Exception:
                     status_cell = status
-                tbl.add_row(tid, title, status_cell, c_s, k_s, key=tid)
+                tbl.add_row(tid, agent, title, status_cell, c_s, k_s, key=tid)
 
         self.app.call_from_thread(_fill_tasks)
 
@@ -747,6 +862,8 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             self.action_retry_run()
         elif event.button.id == "btn-promote":
             self.action_promote_run()
+        elif event.button.id == "btn-plan":
+            self.action_open_plan()
         elif event.button.id == "btn-back":
             self.action_go_back()
 
@@ -762,6 +879,13 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
     def action_promote_run(self) -> None:
         from pojo_lens_agents._tui_diff import DiffReviewScreen
         self.app.push_screen(DiffReviewScreen(self._run_ref))  # type: ignore[attr-defined]
+
+    def action_open_plan(self) -> None:
+        if self._plan_path and Path(self._plan_path).exists():
+            from pojo_lens_agents._tui_plans import PlanDetailsScreen
+            self.app.push_screen(PlanDetailsScreen(self._plan_path))  # type: ignore[attr-defined]
+        else:
+            self.app.notify("Plan file not found.", title="No Plan", severity="warning")  # type: ignore[attr-defined]
 
     def _log(self, text: str) -> None:
         self._log_ev(text)

@@ -217,6 +217,8 @@ class OperatorApp(App):  # type: ignore[type-arg,misc]
         self._agents       = str(getattr(args, "agents",       DEFAULT_AGENTS_PATH)  or DEFAULT_AGENTS_PATH)
         self._claude_bin   = str(getattr(args, "claude_bin",   "claude")             or "claude")
         self._tasks_dir    = str(DEFAULT_TASKS_DIR)
+        # Tracks active/completed background runs keyed by plan_path or "wizard"
+        self._active_runs: dict[str, dict[str, Any]] = {}
 
     def on_mount(self) -> None:
         self._op_logger.info("OperatorApp mounted — runtime_root=%s", self._runtime_root)

@@ -13,7 +13,7 @@ try:
     from textual.containers import Container, Horizontal
     from textual.reactive import reactive
     from textual.screen import Screen
-    from textual.widgets import Button, Footer, Header, RichLog, Static
+    from textual.widgets import Button, DataTable, Footer, Header, RichLog, Static
 except ImportError as exc:  # pragma: no cover
     TEXTUAL_IMPORT_ERROR = exc
     App = object  # type: ignore[assignment,misc]
@@ -69,6 +69,8 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         self._dry_run            = dry_run
         self._wizard_params      = wizard_params
         self._runtime_root_path: Path | None = None
+        self._plan_task_map: dict[str, dict[str, Any]] = {}
+        self._active_run_key     = plan_path or "wizard"
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -99,6 +101,7 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
             yield Static("", id="run-prog-label")
             yield Static("", id="run-prog-bar")
             yield Static("", id="run-prog-cost")
+        yield DataTable(id="run-task-table", cursor_type="none", zebra_stripes=True)
         yield RichLog(id="run-log", markup=True, auto_scroll=True, wrap=True, highlight=False)
         with Horizontal(id="action-bar"):
             yield Button("⬡ MONITOR DASHBOARD", id="btn-home", variant="success")
@@ -114,14 +117,37 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         self._runtime_root_path = Path(str(getattr(
             self.app, "_runtime_root", DEFAULT_RUNTIME_ROOT
         ))).resolve()
+        self._init_task_table()
+        # Run at app level so worker continues if user navigates away
         worker = self._run_wizard if self._wizard_params else self._execute_run
-        self.run_worker(worker, thread=True, name="plan-run")
-        self.set_interval(2.0, self._poll_progress)
+        self.app.run_worker(worker, thread=True, name="plan-run")
+        self.set_interval(1.0, self._poll_progress)
         self.set_interval(0.2, self._tick_spinner)
 
     def watch__run_status(self, status: str) -> None:
         try:
             self.query_one("#run-status", Static).update(f"[#00ff41][ SIGNAL ] {status}[/]")
+        except Exception:
+            pass
+
+    def _init_task_table(self) -> None:
+        table = self.query_one("#run-task-table", DataTable)
+        table.add_column("TASK",   key="task",   width=24)
+        table.add_column("AGENT",  key="agent",  width=14)
+        table.add_column("STATUS", key="status", width=14)
+        table.add_column("COST",   key="cost",   width=10)
+        if not self._plan_path:
+            return
+        try:
+            pdata = json.loads(Path(self._plan_path).read_text(encoding="utf-8"))
+            plan_tasks = list(pdata.get("tasks") or [])
+            self._plan_task_map = {str(pt.get("id") or ""): pt for pt in plan_tasks}
+            for pt in plan_tasks:
+                tid   = str(pt.get("id") or "")
+                agent = str(pt.get("agent") or "—")[:14]
+                title = str(pt.get("title") or tid)[:24]
+                if tid:
+                    table.add_row(title, agent, "○ pending", "—", key=tid)
         except Exception:
             pass
 
@@ -217,19 +243,56 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         except Exception:
             pass
 
+        # Update per-task table
+        _ICONS = {"completed": "✓", "failed": "✗", "running": "⟳",
+                  "skipped": "⊘", "reused": "⊕", "pending": "○"}
+        try:
+            table = self.query_one("#run-task-table", DataTable)
+            for tid, t_data in tasks_dict.items():
+                if not tid:
+                    continue
+                status  = str(t_data.get("status") or "pending")
+                t_cost  = t_data.get("costUsd") or t_data.get("cost_usd")
+                cost_s  = f"${float(t_cost):.4f}" if t_cost is not None else "—"
+                icon    = _ICONS.get(status, "○")
+                stat_s  = f"{icon} {status[:9]}"
+                pt      = self._plan_task_map.get(tid) or {}
+                agent   = str(pt.get("agent") or t_data.get("agent") or "—")[:14]
+                title   = str(pt.get("title") or tid)[:24]
+                try:
+                    table.update_cell(tid, "status", stat_s, update_width=False)
+                    table.update_cell(tid, "cost",   cost_s, update_width=False)
+                except Exception:
+                    table.add_row(title, agent, stat_s, cost_s, key=tid)
+        except Exception:
+            pass
+
     # ── plan execution ─────────────────────────────────────────────────────────
+
+    def _force_refresh(self) -> None:
+        """Force Textual to fully repaint the screen — called after handler returns
+        to recover from any terminal corruption caused by subprocesses."""
+        try:
+            self.app.call_from_thread(lambda: self.app.refresh(layout=True))
+        except Exception:
+            pass
 
     def _execute_run(self) -> None:
         import io as _io
-        handlers      = getattr(self.app, "_handlers",      {})
-        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
+        import traceback as _tb
+        try:
+            app = self.app
+        except Exception:
+            return
+        handlers      = getattr(app, "_handlers",      {})
+        parse_args_fn = getattr(app, "_parse_args_fn", None)
         if parse_args_fn is None:
             self._log("[#ff2244]No parse_args_fn available on app.[/]")
             return
 
-        runtime_root = str(getattr(self.app, "_runtime_root", DEFAULT_RUNTIME_ROOT))
-        agents       = str(getattr(self.app, "_agents",       DEFAULT_AGENTS_PATH))
-        claude_bin   = str(getattr(self.app, "_claude_bin",   "claude"))
+        runtime_root = str(getattr(app, "_runtime_root", DEFAULT_RUNTIME_ROOT))
+        agents       = str(getattr(app, "_agents",       DEFAULT_AGENTS_PATH))
+        claude_bin   = str(getattr(app, "_claude_bin",   "claude"))
 
         cmd = ["run", self._plan_path]
         if self._dry_run:
@@ -246,28 +309,39 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
 
         self._set_status("[ OPERATOR ] executing plan...")
         self._log(f"[#00e5ff][ SIGNAL ] run started: {self._plan_path}[/]")
-        self._log("[dim]── progress bar updates every 2 s  ·  press [H] to monitor on home dashboard ──[/]")
+        self._log("[dim]── run continues in background · press [H] to navigate home ──[/]")
 
         handler = handlers.get("run")
         if handler is None:
             self._log("[#ff2244]No 'run' handler registered.[/]")
             return
 
-        self.app.call_from_thread(lambda: setattr(self, "_running", True))
-        buf, old_stdout = _io.StringIO(), sys.stdout
-        sys.stdout = buf  # type: ignore[assignment]
+        import time as _time
+        _active = getattr(app, "_active_runs", None)
+        if _active is not None:
+            _active[self._active_run_key] = {
+                "plan_path": self._plan_path, "start": _time.time(), "status": "running",
+            }
+        app.call_from_thread(lambda: setattr(self, "_running", True))
+
+        py_buf = _io.StringIO()
+        old_py_out, old_py_err = sys.stdout, sys.stderr
+        sys.stdout = sys.stderr = py_buf  # type: ignore[assignment]
+        payload: dict = {}
         try:
             payload = handler(args)
         except Exception as exc:
-            import traceback as _tb
-            payload = {}
             self._log(f"[#ff2244]Run error: {exc}[/]")
             self._log(f"[dim]{_tb.format_exc()[:400]}[/]")
         finally:
-            sys.stdout = old_stdout
-            captured   = buf.getvalue().strip()
+            sys.stdout, sys.stderr = old_py_out, old_py_err
+            captured = py_buf.getvalue().strip()
 
-        self.app.call_from_thread(lambda: setattr(self, "_running", False))
+        try:
+            app.call_from_thread(lambda: setattr(self, "_running", False))
+        except Exception:
+            pass
+        self._force_refresh()
 
         if captured:
             self._log("")
@@ -291,19 +365,33 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
             if cost:
                 self._log(f"[#00e5ff]cost:[/] [#ffaa00]${cost:.5f}[/]")
 
+        try:
+            _active = getattr(app, "_active_runs", None)
+        except Exception:
+            _active = None
+        if _active is not None and self._active_run_key in _active:
+            _active[self._active_run_key]["status"] = "complete"
         self._set_status("[ EXIT ] run complete")
         self._log("[bold #00ff41]═══ EXECUTION COMPLETE — press [H] for dashboard ═══[/]")
+        try:
+            app.call_from_thread(lambda: setattr(app, "title", "POJOLENS  //  RUN"))
+        except Exception:
+            pass
 
     # ── wizard execution ───────────────────────────────────────────────────────
 
     def _run_wizard(self) -> None:
         import io as _io
+        try:
+            app = self.app
+        except Exception:
+            return
         wp            = self._wizard_params or {}
-        handlers      = getattr(self.app, "_handlers",      {})
-        parse_args_fn = getattr(self.app, "_parse_args_fn", None)
-        runtime_root  = str(getattr(self.app, "_runtime_root", DEFAULT_RUNTIME_ROOT))
-        agents        = str(getattr(self.app, "_agents",       DEFAULT_AGENTS_PATH))
-        claude_bin    = str(getattr(self.app, "_claude_bin",   "claude"))
+        handlers      = getattr(app, "_handlers",      {})
+        parse_args_fn = getattr(app, "_parse_args_fn", None)
+        runtime_root  = str(getattr(app, "_runtime_root", DEFAULT_RUNTIME_ROOT))
+        agents        = str(getattr(app, "_agents",       DEFAULT_AGENTS_PATH))
+        claude_bin    = str(getattr(app, "_claude_bin",   "claude"))
 
         self._set_status("building wizard args...")
         self._log("[dim #2a5a3a]═══ WIZARD START ═══[/]")
@@ -355,6 +443,7 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
 
         self._set_status("[ CONSTRUCT ] invoking wizard agent...")
         self._log("[#00e5ff][ SIGNAL ] wizard agent dispatched[/]")
+        self._log("[dim]── run continues in background · press [H] to navigate home ──[/]")
 
         handler = handlers.get("wizard")
         if handler is None:
@@ -362,19 +451,32 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
             self._set_status("failed — no wizard handler")
             return
 
-        self.app.call_from_thread(lambda: setattr(self, "_running", True))
-        buf, old_stdout = _io.StringIO(), sys.stdout
-        sys.stdout = buf  # type: ignore[assignment]
+        import time as _time
+        _active = getattr(app, "_active_runs", None)
+        if _active is not None:
+            _active[self._active_run_key] = {
+                "plan_path": "", "start": _time.time(), "status": "running",
+            }
+        app.call_from_thread(lambda: setattr(self, "_running", True))
+        import traceback as _tb
+        py_buf = _io.StringIO()
+        old_py_out, old_py_err = sys.stdout, sys.stderr
+        sys.stdout = sys.stderr = py_buf  # type: ignore[assignment]
+        payload: dict = {}
         try:
             payload = handler(args)
         except Exception as exc:
-            payload = {}
             self._log(f"[#ff2244]Wizard error: {exc}[/]")
+            self._log(f"[dim]{_tb.format_exc()[:400]}[/]")
         finally:
-            sys.stdout = old_stdout
-            captured   = buf.getvalue().strip()
+            sys.stdout, sys.stderr = old_py_out, old_py_err
+            captured = py_buf.getvalue().strip()
 
-        self.app.call_from_thread(lambda: setattr(self, "_running", False))
+        try:
+            app.call_from_thread(lambda: setattr(self, "_running", False))
+        except Exception:
+            pass
+        self._force_refresh()
 
         if captured:
             for line in captured.splitlines():
@@ -398,9 +500,17 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
             if saved:
                 self._log(f"[#00e5ff]saved to: {saved}[/]")
 
+        try:
+            _active = getattr(app, "_active_runs", None)
+        except Exception:
+            _active = None
+        if _active is not None and self._active_run_key in _active:
+            _active[self._active_run_key]["status"] = "complete"
         self._set_status("[ EXIT ] wizard complete")
         self._log("")
         self._log("[bold #00ff41]═══ WIZARD COMPLETE — press [H] for dashboard ═══[/]")
-        self.app.call_from_thread(  # type: ignore[attr-defined]
-            lambda: setattr(self.app, "sub_title", "COMPLETE")
-        )
+        try:
+            app.call_from_thread(lambda: setattr(app, "title",     "POJOLENS  //  RUN"))
+            app.call_from_thread(lambda: setattr(app, "sub_title", "COMPLETE"))
+        except Exception:
+            pass
