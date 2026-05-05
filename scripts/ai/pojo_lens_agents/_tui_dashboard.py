@@ -455,12 +455,31 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             table.clear()
             self._task_rendered_page = pg
 
+        # Build per-task cost lookups from events and governance as fallbacks.
+        mdata = self._last_data or {}
+        evt_costs: dict[str, float] = {}
+        for e in (mdata.get("events") or []):
+            if e.get("phase") == "task-finished" and e.get("taskId"):
+                cu = (e.get("details") or {}).get("usage", {}).get("totalCostUsd")
+                if cu is not None:
+                    evt_costs[str(e["taskId"])] = float(cu)
+        gov_costs: dict[str, float] = {
+            str(t.get("taskId") or ""): float(t.get("costUsd", 0.0))
+            for t in ((mdata.get("runGovernance") or {}).get("highestCostTasks") or [])
+            if t.get("taskId")
+        }
+
         for tid in ordered[start:end]:
             t_data  = tasks_dict.get(tid) or {}
             pt      = self._cached_plan_tasks.get(tid) or {}
             status  = str(t_data.get("status") or "pending")
-            t_cost  = t_data.get("costUsd") or t_data.get("cost_usd")
-            cost_s  = f"${float(t_cost):.4f}" if t_cost is not None else "—"
+            t_cost: float | None = (
+                (t_data.get("usage") or {}).get("totalCostUsd")
+                or evt_costs.get(tid)
+                or gov_costs.get(tid)
+                or None
+            )
+            cost_s  = f"${float(t_cost):.4f}" if t_cost else "—"
             icon    = _TASK_ICONS.get(status, "○")
             stat_s  = f"{icon} {status[:9]}"
             agent   = str(pt.get("agent") or t_data.get("agent") or "—")[:12]

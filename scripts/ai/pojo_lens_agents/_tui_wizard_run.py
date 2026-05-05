@@ -246,14 +246,21 @@ class PlanRunScreen(Screen):  # type: ignore[type-arg,misc]
         # Update per-task table
         _ICONS = {"completed": "✓", "failed": "✗", "running": "⟳",
                   "skipped": "⊘", "reused": "⊕", "pending": "○"}
+        _evt_costs: dict[str, float] = {}
+        for _e in events:
+            if _e.get("phase") == "task-finished" and _e.get("taskId"):
+                _cu = (_e.get("details") or {}).get("usage", {}).get("totalCostUsd")
+                if _cu is not None:
+                    _evt_costs[str(_e["taskId"])] = float(_cu)
         try:
             table = self.query_one("#run-task-table", DataTable)
             for tid, t_data in tasks_dict.items():
                 if not tid:
                     continue
                 status  = str(t_data.get("status") or "pending")
-                t_cost  = t_data.get("costUsd") or t_data.get("cost_usd")
-                cost_s  = f"${float(t_cost):.4f}" if t_cost is not None else "—"
+                _usage  = t_data.get("usage") or {}
+                t_cost  = _usage.get("totalCostUsd") or _evt_costs.get(tid)
+                cost_s  = f"${float(t_cost):.4f}" if t_cost else "—"
                 icon    = _ICONS.get(status, "○")
                 stat_s  = f"{icon} {status[:9]}"
                 pt      = self._plan_task_map.get(tid) or {}

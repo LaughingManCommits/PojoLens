@@ -598,6 +598,19 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
         out        = int(ut.get("outputTokens", 0) or 0)
         cost       = float(ut.get("totalCostUsd", 0.0) or 0.0)
 
+        # Per-task cost fallback lookups (used if task.usage is absent)
+        _evt_costs: dict[str, float] = {}
+        for _e in events:
+            if _e.get("phase") == "task-finished" and _e.get("taskId"):
+                _cu = (_e.get("details") or {}).get("usage", {}).get("totalCostUsd")
+                if _cu is not None:
+                    _evt_costs[str(_e["taskId"])] = float(_cu)
+        _gov_costs: dict[str, float] = {
+            str(_t.get("taskId") or ""): float(_t.get("costUsd", 0.0))
+            for _t in ((data.get("runGovernance") or {}).get("highestCostTasks") or [])
+            if _t.get("taskId")
+        }
+
         # ── Load plan file — primary source for task/agent definitions ──────────
         plan_exists   = bool(plan_path) and Path(plan_path).exists()
         plan_name     = Path(plan_path).stem if plan_path else ""
@@ -661,11 +674,16 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
                 title  = str(pt.get("title") or tid)[:20]
                 t_data = (tasks_dict.get(tid) or {})
                 self._tasks_data[tid[:20]] = t_data
-                status = str(t_data.get("status") or "pending")
-                t_ut   = t_data.get("usageTotals") or {}
-                t_cost = float(t_data.get("costUsd") or t_ut.get("totalCostUsd") or 0.0)
-                t_inp  = int(t_ut.get("inputTokens",  0) or 0)
-                t_out  = int(t_ut.get("outputTokens", 0) or 0)
+                status  = str(t_data.get("status") or "pending")
+                t_usage = t_data.get("usage") or {}
+                t_cost  = float(
+                    t_usage.get("totalCostUsd")
+                    or _evt_costs.get(tid)
+                    or _gov_costs.get(tid)
+                    or 0.0
+                )
+                t_inp   = int(t_usage.get("inputTokens",  0) or 0)
+                t_out   = int(t_usage.get("outputTokens", 0) or 0)
                 t_sc   = _status_color(status)
                 c_s    = f"${t_cost:.4f}" if t_cost else "—"
                 k_s    = f"↓{_fmt_tok(t_inp)}↑{_fmt_tok(t_out)}" if (t_inp or t_out) else "—"
@@ -675,15 +693,20 @@ class RunDetailsScreen(Screen):  # type: ignore[type-arg,misc]
             agents = sorted({str(t.get("agent") or "") for t in tasks_dict.values()
                              if t and t.get("agent")})
             for tid, t_data in tasks_dict.items():
-                t_data = t_data or {}
+                t_data  = t_data or {}
                 self._tasks_data[tid[:20]] = t_data
-                agent  = str(t_data.get("agent") or "—")[:12]
-                title  = str(t_data.get("title") or tid)[:20]
-                status = str(t_data.get("status") or "—")
-                t_ut   = t_data.get("usageTotals") or {}
-                t_cost = float(t_data.get("costUsd") or t_ut.get("totalCostUsd") or 0.0)
-                t_inp  = int(t_ut.get("inputTokens",  0) or 0)
-                t_out  = int(t_ut.get("outputTokens", 0) or 0)
+                agent   = str(t_data.get("agent") or "—")[:12]
+                title   = str(t_data.get("title") or tid)[:20]
+                status  = str(t_data.get("status") or "—")
+                t_usage = t_data.get("usage") or {}
+                t_cost  = float(
+                    t_usage.get("totalCostUsd")
+                    or _evt_costs.get(tid)
+                    or _gov_costs.get(tid)
+                    or 0.0
+                )
+                t_inp   = int(t_usage.get("inputTokens",  0) or 0)
+                t_out   = int(t_usage.get("outputTokens", 0) or 0)
                 t_sc   = _status_color(status)
                 c_s    = f"${t_cost:.4f}" if t_cost else "—"
                 k_s    = f"↓{_fmt_tok(t_inp)}↑{_fmt_tok(t_out)}" if (t_inp or t_out) else "—"
