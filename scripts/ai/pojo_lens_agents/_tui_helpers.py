@@ -69,6 +69,7 @@ def _status_color(status: str) -> str:
         "injected":        "#00e5ff",
         "saved":           "#00e5ff",
         "stopped":         "#2a5a3a",
+        "dry-run":         "#00e5ff",
     }.get(status, "#a0ffa0")
 
 

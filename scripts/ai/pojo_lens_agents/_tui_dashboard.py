@@ -9,12 +9,14 @@ from typing import Any
 TEXTUAL_IMPORT_ERROR: Exception | None = None
 
 try:
+    from rich.text import Text as _RichText
     from textual.app import ComposeResult
     from textual.containers import Horizontal, Vertical
     from textual.reactive import reactive
     from textual.widget import Widget
     from textual.widgets import Button, DataTable, Rule, Static
 except ImportError as exc:  # pragma: no cover
+    _RichText = None  # type: ignore[assignment,misc]
     TEXTUAL_IMPORT_ERROR = exc
     Widget = object  # type: ignore[assignment,misc]
     ComposeResult = Any  # type: ignore[assignment]
@@ -25,6 +27,11 @@ from pojo_lens_agents._tui_helpers import _fmt_tok, _status_color
 def _manifest_run_state(data: dict[str, Any]) -> str:
     phases = [e.get("phase", "") for e in (data.get("events") or [])]
     if "run-finished" in phases:
+        task_statuses = {str(t.get("status") or "") for t in (data.get("tasks") or {}).values() if t}
+        if "failed" in task_statuses:
+            return "failed"
+        if "blocked" in task_statuses:
+            return "blocked"
         return "completed"
     if "run-start" in phases:
         return "running"
@@ -116,11 +123,13 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
         rtable.add_column("STATUS", key="status", width=11)
         rtable.add_column("TASKS",  key="tasks",  width=7)
         rtable.add_column("COST",   key="cost",   width=9)
+        rtable.add_column("DATE",   key="date",   width=16)
         table = self.query_one("#dash-task-table", DataTable)
         table.add_column("TASK",   key="task",   width=22)
         table.add_column("AGENT",  key="agent",  width=12)
         table.add_column("STATUS", key="status", width=12)
         table.add_column("COST",   key="cost",   width=9)
+        table.add_column("TOKENS", key="tokens", width=14)
         self.set_interval(1.0, self._poll)
         self._show_idle()
 
@@ -142,11 +151,17 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             self._show_idle()
             return
 
-        manifests = sorted(
+        manifests = []
+        for _mp in sorted(
             runs_dir.glob("*/manifest.json"),
             key=lambda p: p.stat().st_mtime,
             reverse=True,
-        )
+        ):
+            try:
+                if not json.loads(_mp.read_text(encoding="utf-8")).get("dryRun"):
+                    manifests.append(_mp)
+            except Exception:
+                manifests.append(_mp)
         if not manifests:
             self._show_idle()
             return
@@ -206,18 +221,21 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             )
             cost    = _manifest_cost(d)
             run_id  = str(d.get("runId") or mp.parent.name)
-            icon    = _RUN_ICONS.get(state, "✗")
-            stat_s  = f"{icon} {state[:9]}"
-            tasks_s = f"{done}/{total}" if total else "—"
-            cost_s  = f"${cost:.4f}" if cost else "—"
-            key     = str(i)
+            icon      = _RUN_ICONS.get(state, "✗")
+            stat_s    = f"{icon} {state[:9]}"
+            sc        = _status_color(state)
+            stat_cell: Any = _RichText(stat_s, style=sc) if _RichText is not None else stat_s
+            tasks_s   = f"{done}/{total}" if total else "—"
+            cost_s    = f"${cost:.4f}" if cost else "—"
+            date_s    = str(events[0].get("ts") or "")[:16].replace("T", " ") if events else "—"
+            key       = str(i)
             if need_rebuild:
-                table.add_row(run_id[-22:], stat_s, tasks_s, cost_s, key=key)
+                table.add_row(run_id[-22:], stat_cell, tasks_s, cost_s, date_s, key=key)
             else:
                 try:
-                    table.update_cell(key, "status", stat_s,  update_width=False)
-                    table.update_cell(key, "tasks",  tasks_s, update_width=False)
-                    table.update_cell(key, "cost",   cost_s,  update_width=False)
+                    table.update_cell(key, "status", stat_cell, update_width=False)
+                    table.update_cell(key, "tasks",  tasks_s,   update_width=False)
+                    table.update_cell(key, "cost",   cost_s,    update_width=False)
                 except Exception:
                     pass
 
@@ -473,23 +491,30 @@ class DashboardWidget(Widget):  # type: ignore[type-arg,misc]
             t_data  = tasks_dict.get(tid) or {}
             pt      = self._cached_plan_tasks.get(tid) or {}
             status  = str(t_data.get("status") or "pending")
+            t_usage = t_data.get("usage") or {}
             t_cost: float | None = (
-                (t_data.get("usage") or {}).get("totalCostUsd")
+                t_usage.get("totalCostUsd")
                 or evt_costs.get(tid)
                 or gov_costs.get(tid)
                 or None
             )
+            t_inp   = int(t_usage.get("inputTokens",  0) or 0)
+            t_out   = int(t_usage.get("outputTokens", 0) or 0)
             cost_s  = f"${float(t_cost):.4f}" if t_cost else "—"
+            tok_s   = f"↓{_fmt_tok(t_inp)}↑{_fmt_tok(t_out)}" if (t_inp or t_out) else "—"
             icon    = _TASK_ICONS.get(status, "○")
             stat_s  = f"{icon} {status[:9]}"
+            sc      = _status_color(status)
+            stat_cell: Any = _RichText(stat_s, style=sc) if _RichText is not None else stat_s
             agent   = str(pt.get("agent") or t_data.get("agent") or "—")[:12]
             title   = str(pt.get("title") or tid)[:22]
             if need_rebuild:
-                table.add_row(title, agent, stat_s, cost_s, key=tid)
+                table.add_row(title, agent, stat_cell, cost_s, tok_s, key=tid)
             else:
                 try:
-                    table.update_cell(tid, "status", stat_s, update_width=False)
-                    table.update_cell(tid, "cost",   cost_s, update_width=False)
+                    table.update_cell(tid, "status", stat_cell, update_width=False)
+                    table.update_cell(tid, "cost",   cost_s,    update_width=False)
+                    table.update_cell(tid, "tokens", tok_s,     update_width=False)
                 except Exception:
                     pass
 

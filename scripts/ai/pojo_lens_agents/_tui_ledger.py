@@ -43,6 +43,24 @@ def _manifest_state(data: dict[str, Any]) -> str:
     return "unknown"
 
 
+def _manifest_task_counts(data: dict[str, Any]) -> tuple[int, int]:
+    """Return (done, total) task counts from a manifest."""
+    tasks_dict = data.get("tasks") or {}
+    total = len(tasks_dict) or int((data.get("topology") or {}).get("taskCount", 0))
+    done = sum(
+        1 for t in tasks_dict.values()
+        if str((t or {}).get("status") or "") in {"completed", "skipped", "reused"}
+    )
+    if done == 0:
+        events = data.get("events") or []
+        done = sum(
+            1 for e in events
+            if e.get("phase") == "task-finished"
+            and e.get("status") in {"completed", "skipped", "reused"}
+        )
+    return done, total
+
+
 def _manifest_cost(data: dict[str, Any]) -> float:
     cost = float((data.get("usageTotals") or {}).get("totalCostUsd", 0.0) or 0.0)
     if cost == 0.0:
@@ -140,14 +158,20 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                     data = json.loads(mp.read_text(encoding="utf-8"))
                     run_id = str(data.get("runId") or mp.parent.name)
                     ut = data.get("usageTotals") or {}
+                    _evts = data.get("events") or []
+                    _done, _total = _manifest_task_counts(data)
                     manifest_map[run_id] = {
                         "_cost":        _manifest_cost(data),
                         "_inputTokens": int(ut.get("inputTokens",  0) or 0),
                         "_outputTokens":int(ut.get("outputTokens", 0) or 0),
                         "_duration":    _calc_run_duration(data),
                         "_runDir":      str(mp.parent),
+                        "_startedAt":   str(_evts[0].get("ts") or "") if _evts else "",
+                        "_doneTasks":   _done,
+                        "_totalTasks":  _total,
                         "planPath":     str(data.get("planPath") or ""),
                         "planName":     Path(str(data.get("planPath") or "")).name,
+                        "_dryRun":      bool(data.get("dryRun")),
                     }
                 except Exception:
                     pass
@@ -167,7 +191,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                             "runId":      run_id,
                             "planName":   Path(str(data.get("planPath") or "")).name,
                             "planPath":   str(data.get("planPath") or ""),
-                            "status":     _manifest_state(data),
+                            "status":     "dry-run" if data.get("dryRun") else _manifest_state(data),
                             "totalTasks": len(data.get("tasks") or {}),
                             "startedAt":  events[0].get("ts") if events else "",
                             "runDir":     str(mp.parent),
@@ -175,6 +199,7 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                             "_inputTokens":  int(ut.get("inputTokens",  0) or 0),
                             "_outputTokens": int(ut.get("outputTokens", 0) or 0),
                             "_duration":     _calc_run_duration(data),
+                            "_doneTasks":    _manifest_task_counts(data)[0],
                         })
                     except Exception:
                         pass
@@ -188,6 +213,10 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
                             e[k] = v
                     if "runDir" not in e and "_runDir" in m:
                         e["runDir"] = m["_runDir"]
+                    if not e.get("startedAt") and m.get("_startedAt"):
+                        e["startedAt"] = m["_startedAt"]
+                    if m.get("_dryRun"):
+                        e["status"] = "dry-run"
 
         self._entries = entries
         self.app.call_from_thread(self._populate_table)
@@ -225,7 +254,9 @@ class RunLedgerScreen(Screen):  # type: ignore[type-arg,misc]
             run_id   = str(entry.get("runId") or entry.get("run_id") or "-")
             plan     = str(entry.get("planName") or entry.get("plan_name") or "-")
             status   = str(entry.get("status") or entry.get("lifecycleState") or "-")
-            tasks    = str(entry.get("totalTasks") or entry.get("task_count") or "-")
+            _total_t = int(entry.get("_totalTasks") or entry.get("totalTasks") or entry.get("task_count") or 0)
+            _done_t  = int(entry.get("_doneTasks") or 0)
+            tasks    = f"{_done_t}/{_total_t}" if _total_t else "—"
             date_raw = str(entry.get("startedAt") or entry.get("createdAt") or "")
             date     = date_raw[:16].replace("T", " ") if date_raw else "-"
             cost     = float(entry.get("_cost") or 0.0)
