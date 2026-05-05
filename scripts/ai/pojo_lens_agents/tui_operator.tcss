@@ -49,117 +49,128 @@ Footer {
 .accent {
     color: $cyan;
 }
-/* ── Global button styles — neon when enabled, dark when disabled ─────── */
+/* ── Global button styles ─────────────────────────────────────────────── */
 Button {
     margin: 0 1;
     background: $bg_panel;
-    color: $green;
-    border: tall $green 50%;
-    min-width: 12;
+    color: $green_body;
+    border: solid $green_dim;
+    min-width: 10;
+    padding: 0 2;
 }
-Button:hover   { background: $green_dim; color: $green; }
+Button:hover {
+    background: $green_dim;
+    color: $green;
+    border: solid $green;
+}
 Button:disabled {
     background: $bg_panel;
-    color: #0d200d;
-    border: tall #0d200d;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 
 Button.-primary {
     background: #001a08;
     color: $green;
-    border: tall $green;
+    border: solid $green;
 }
 Button.-primary:hover    { background: #002a10; }
 Button.-primary:disabled {
     background: $bg_panel;
-    color: #0d200d;
-    border: tall #0d200d;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 
 Button.-warning {
     background: #2a1400;
     color: $amber;
-    border: tall $amber;
+    border: solid $amber;
 }
 Button.-warning:hover    { background: #3a1e00; }
 Button.-warning:disabled {
     background: $bg_panel;
-    color: #1a0d00;
-    border: tall #1a0d00;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 
 Button.-error {
     background: #280008;
     color: $red;
-    border: tall $red;
+    border: solid $red;
 }
 Button.-error:hover    { background: #380010; }
 Button.-error:disabled {
     background: $bg_panel;
-    color: #180005;
-    border: tall #180005;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 
 Button.-success {
     background: #001530;
     color: $cyan;
-    border: tall $cyan;
+    border: solid $cyan;
 }
 Button.-success:hover    { background: #002040; }
 Button.-success:disabled {
     background: $bg_panel;
-    color: #000e20;
-    border: tall #000e20;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 
 /* ── Semantic button IDs — consistent color across all screens ────────── */
 #btn-resume, #btn-ledger {
     background: #001530;
     color: $cyan;
-    border: tall $cyan;
+    border: solid $cyan;
 }
-#btn-resume:disabled {
+#btn-resume:disabled, #btn-ledger:disabled {
     background: $bg_panel;
-    color: #000e20;
-    border: tall #000e20;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 
 #btn-retry {
     background: #2a1400;
     color: $amber;
-    border: tall $amber;
+    border: solid $amber;
 }
 #btn-retry:disabled {
     background: $bg_panel;
-    color: #1a0d00;
-    border: tall #1a0d00;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 
 #btn-gate, #btn-abort {
     background: #280008;
     color: $red;
-    border: tall $red;
+    border: solid $red;
 }
-#btn-gate:disabled {
+#btn-gate:disabled, #btn-abort:disabled {
     background: $bg_panel;
-    color: #180005;
-    border: tall #180005;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 
+/* ── Pagination buttons — compact, cyan ───────────────────────────────── */
 #btn-run-prev, #btn-run-next, #btn-prev, #btn-next,
-#btn-ag-prev, #btn-ag-next, #btn-sk-prev, #btn-sk-next {
-    background: #001530;
+#btn-ag-prev, #btn-ag-next, #btn-sk-prev, #btn-sk-next,
+#btn-dash-pg-prev, #btn-dash-pg-next,
+#btn-dash-tpg-prev, #btn-dash-tpg-next {
+    background: $bg_panel;
     color: $cyan;
-    border: tall $cyan;
-    min-width: 4;
+    border: solid $cyan;
+    min-width: 5;
+    padding: 0 1;
 }
 #btn-run-prev:disabled, #btn-run-next:disabled,
 #btn-prev:disabled,     #btn-next:disabled,
 #btn-ag-prev:disabled,  #btn-ag-next:disabled,
-#btn-sk-prev:disabled,  #btn-sk-next:disabled {
+#btn-sk-prev:disabled,  #btn-sk-next:disabled,
+#btn-dash-pg-prev:disabled,  #btn-dash-pg-next:disabled,
+#btn-dash-tpg-prev:disabled, #btn-dash-tpg-next:disabled {
     background: $bg_panel;
-    color: #000e20;
-    border: tall #000e20;
+    color: $text_dim;
+    border: solid $text_dim 30%;
 }
 Input {
     background: $bg_input;
@@ -537,16 +548,7 @@ SavedPlansScreen {
     width: 1fr;
     text-align: center;
 }
-#btn-prev, #btn-next {
-    min-width: 5;
-    background: $bg_panel;
-    color: $cyan;
-    border: solid $cyan 40%;
-}
-#btn-prev:disabled, #btn-next:disabled {
-    color: $text_dim;
-    border: solid $text_dim 20%;
-}
+#btn-prev, #btn-next { min-width: 5; }
 
 /* ── PlanDetailsScreen ───────────────────────────────────────────────────── */
 PlanDetailsScreen {
@@ -1005,16 +1007,7 @@ AgentsScreen { background: $bg; }
     width: 1fr;
     text-align: center;
 }
-#btn-ag-prev, #btn-ag-next {
-    min-width: 10;
-    background: $bg_panel;
-    color: $cyan;
-    border: solid $cyan 40%;
-}
-#btn-ag-prev:disabled, #btn-ag-next:disabled {
-    color: $text_dim;
-    border: solid $text_dim 20%;
-}
+#btn-ag-prev, #btn-ag-next { min-width: 10; }
 #ag-detail { height: 1fr; }
 /* ── SkillsScreen ────────────────────────────────────────────────────────── */
 SkillsScreen { background: $bg; }
@@ -1041,16 +1034,7 @@ SkillsScreen { background: $bg; }
     width: 1fr;
     text-align: center;
 }
-#btn-sk-prev, #btn-sk-next {
-    min-width: 10;
-    background: $bg_panel;
-    color: $cyan;
-    border: solid $cyan 40%;
-}
-#btn-sk-prev:disabled, #btn-sk-next:disabled {
-    color: $text_dim;
-    border: solid $text_dim 20%;
-}
+#btn-sk-prev, #btn-sk-next { min-width: 10; }
 #sk-detail { height: 1fr; }
 
 /* ── AgentEditScreen / SkillEditScreen ───────────────────────────────────── */
@@ -1331,16 +1315,7 @@ DashboardWidget {
     text-align: center;
     color: $cyan;
 }
-#btn-dash-pg-prev, #btn-dash-pg-next {
-    min-width: 4;
-    background: $bg_panel;
-    color: $cyan;
-    border: solid $cyan 40%;
-}
-#btn-dash-pg-prev:disabled, #btn-dash-pg-next:disabled {
-    color: $text_dim;
-    border: solid $text_dim 20%;
-}
+#btn-dash-pg-prev, #btn-dash-pg-next { min-width: 5; padding: 0 1; }
 
 /* ── Lower panel: detail view ── */
 #dash-stats {
@@ -1377,16 +1352,7 @@ DashboardWidget {
     text-align: center;
     color: $cyan;
 }
-#btn-dash-tpg-prev, #btn-dash-tpg-next {
-    min-width: 4;
-    background: $bg_panel;
-    color: $cyan;
-    border: solid $cyan 40%;
-}
-#btn-dash-tpg-prev:disabled, #btn-dash-tpg-next:disabled {
-    color: $text_dim;
-    border: solid $text_dim 20%;
-}
+#btn-dash-tpg-prev, #btn-dash-tpg-next { min-width: 5; padding: 0 1; }
 
 #dash-idle-msg {
     color: $text_dim;
