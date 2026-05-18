@@ -139,6 +139,10 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "findFirst", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "findOne", List.class);
         requirePublicMethod(TypedQuery.class, "findOne", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class);
+        requirePublicMethod(TypedQuery.class, "stream", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "executionGuard", QueryExecutionGuard.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
@@ -1547,6 +1551,71 @@ public class TypedQueryContractTest {
     void countMatchesFilterSize() {
         TypedQuery<Employee> q = TypedQuery.from(Employee.class).where(SALARY.gt(70_000));
         assertEquals(q.filter(sampleEmployees()).size(), (int) q.count(sampleEmployees()));
+    }
+
+    // --- stream ---
+
+    @Test
+    void streamReturnsAllRowsWhenNoPredicate() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .stream(sampleEmployees())
+                .toList();
+        assertEquals(sampleEmployees().size(), result.size());
+    }
+
+    @Test
+    void streamRespectsWherePredicate() {
+        List<String> names = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .stream(sampleEmployees())
+                .map(e -> e.name)
+                .sorted()
+                .toList();
+        assertEquals(List.of("Alice", "Bob", "Cara"), names);
+    }
+
+    @Test
+    void streamRespectsOrderAndLimit() {
+        List<String> names = TypedQuery.from(Employee.class)
+                .orderByDesc(SALARY)
+                .limit(2)
+                .stream(sampleEmployees())
+                .map(e -> e.name)
+                .toList();
+        assertEquals(List.of("Cara", "Alice"), names);
+    }
+
+    @Test
+    void streamParityWithFilter() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Engineering"))
+                .orderBy(NAME);
+        List<String> fromFilter = q.filter(sampleEmployees()).stream().map(e -> e.name).toList();
+        List<String> fromStream = q.stream(sampleEmployees()).map(e -> e.name).toList();
+        assertEquals(fromFilter, fromStream);
+    }
+
+    @Test
+    void streamDatasetBundleOverloadWorks() {
+        DatasetBundle bundle = DatasetBundle.of(sampleEmployees());
+        List<String> names = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(false))
+                .stream(bundle)
+                .map(e -> e.name)
+                .toList();
+        assertEquals(List.of("Dan"), names);
+    }
+
+    @Test
+    void streamJoinBindingsOverloadWorks() {
+        JoinBindings joins = JoinBindings.empty();
+        List<String> names = TypedQuery.from(Employee.class)
+                .where(SALARY.gte(120_000))
+                .orderBy(NAME)
+                .stream(sampleEmployees(), joins)
+                .map(e -> e.name)
+                .toList();
+        assertEquals(List.of("Alice", "Cara"), names);
     }
 
     // --- Between ---

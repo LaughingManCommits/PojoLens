@@ -141,6 +141,41 @@ Optional<Employee> alice = TypedQuery.from(Employee.class)
 All methods have `DatasetBundle` overloads. `exists` and `findFirst` apply
 `limit(1)` internally; `findOne` applies `limit(2)` to detect ambiguity cheaply.
 
+## Stream Execution
+
+`stream(rows)` executes the query and exposes results through a `Stream<T>`,
+enabling downstream `map`, `flatMap`, `collect`, or early-exit patterns without
+a named `List` variable:
+
+```java
+// stream with predicate and order
+Stream<Employee> s = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .stream(employees);
+
+// collect into a custom container
+Map<String, Long> byDept = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .stream(employees)
+    .collect(Collectors.groupingBy(e -> e.department, Collectors.counting()));
+```
+
+Overloads follow the same pattern as `filter`:
+
+```java
+stream(List<T> rows)
+stream(DatasetBundle bundle)
+stream(List<T> rows, JoinBindings joins)
+stream(List<T> rows, JoinBindings joins, Class<P> projectionClass)
+```
+
+**Laziness caveat:** the current implementation is a thin wrapper over
+`filter(...)` — rows are fully materialised into a `List` before the stream
+is returned. The stream API surface is identical to what callers would write,
+so if a future version introduces true lazy streaming from the engine, call
+sites will not need to change.
+
 ## Range Checks
 
 `between(lo, hi)` is a convenience for `gte(lo).and(lte(hi))` and is available

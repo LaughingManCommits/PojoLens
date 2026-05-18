@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **`TypedQuery.stream()` overloads (WP-8)** — `stream(List<T>)`, `stream(DatasetBundle)`,
+  `stream(List<T>, JoinBindings)`, and `stream(List<T>, JoinBindings, Class<P>)` expose query
+  results as `Stream<T>` / `Stream<P>`. Current implementation wraps `filter(...).stream()`;
+  rows are fully materialised before the stream is returned. Call sites are forward-compatible
+  if a lazy engine path is added later.
+
 - **Case-insensitive string matching (WP-7)** — `TypedField.containsIgnoreCase(String)`
   and `TypedPredicate.containsIgnoreCase(field, String)` match substrings without regard
   to case. Lowers to a `MATCHES` rule with `(?i).*Pattern.quote(value).*` — no engine

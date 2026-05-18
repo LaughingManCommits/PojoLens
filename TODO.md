@@ -48,7 +48,7 @@ equivalent exists on any surface today.
 
 ---
 
-### WP-8 — `stream()` lazy execution on `TypedQuery`  [P1]
+### ~~WP-8 — `stream()` lazy execution on `TypedQuery`~~ ✓ DONE 2026-05-18
 
 **Problem:** `TypedQuery.filter()` is eager and returns a `List<T>`. SQL-like
 and natural both expose `stream()`. Callers doing downstream `flatMap`,
@@ -263,3 +263,4 @@ Callers who want prefix/suffix matching must write regex patterns by hand.
 - [x] `2026-05-18`: WP-5 — `TypedField.between(lo, hi)` / `TypedPredicate.between(…)`; 1171 tests.
 - [x] `2026-05-18`: WP-6 — `count`, `exists`, `findFirst`, `findOne` on TypedQuery; 1183 tests.
 - [x] `2026-05-18`: WP-7 — `containsIgnoreCase` on TypedField/TypedPredicate; lowers to `MATCHES(?i)`; 1191 tests.
+- [x] `2026-05-18`: WP-8 — `stream()` overloads on TypedQuery (4 overloads, wraps `filter`); 1197 tests.

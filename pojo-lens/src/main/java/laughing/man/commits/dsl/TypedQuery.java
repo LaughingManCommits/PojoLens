@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * Immutable typed query builder that lowers into the shared PojoLens filter engine.
@@ -562,6 +563,23 @@ public final class TypedQuery<T> {
                     "findOne() expected at most one result but found more than one");
         }
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
+    // Note: stream() wraps filter(...).stream() — rows are fully materialised before streaming.
+    public Stream<T> stream(List<T> rows) {
+        return filter(rows).stream();
+    }
+
+    public Stream<T> stream(DatasetBundle datasetBundle) {
+        return filter(datasetBundle).stream();
+    }
+
+    public Stream<T> stream(List<T> rows, JoinBindings joinBindings) {
+        return filter(rows, joinBindings).stream();
+    }
+
+    public <P> Stream<P> stream(List<T> rows, JoinBindings joinBindings, Class<P> projectionClass) {
+        return filter(rows, joinBindings, projectionClass).stream();
     }
 
     /**
