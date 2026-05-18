@@ -1,14 +1,13 @@
 {
-  "generatedAt": "2026-04-29T20:21:41.038162+02:00",
+  "generatedAt": "2026-05-18T15:31:19.506771+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
-    "modules": 6,
-    "mainJavaFiles": 268,
-    "testJavaFiles": 144,
-    "markdownDocs": 58,
+    "modules": 9,
+    "mainJavaFiles": 284,
+    "testJavaFiles": 161,
+    "markdownDocs": 57,
     "aiCoreFiles": 11,
-    "aiIndexFiles": 7,
-    "orchestratorTaskPlans": 3
+    "aiIndexFiles": 8
   },
   "roots": [
     {
@@ -22,10 +21,6 @@
     {
       "path": "ai/state",
       "kind": "ai-state"
-    },
-    {
-      "path": "ai/orchestrator",
-      "kind": "ai-orchestrator"
     },
     {
       "path": "ai/indexes",
@@ -64,11 +59,23 @@
       "kind": "benchmark-source-root"
     },
     {
-      "path": "examples/spring-boot-starter-basic",
+      "path": "examples/spring-boot-starter-quickstart",
       "kind": "example"
     },
     {
-      "path": "examples/spring-boot-starter-quickstart",
+      "path": "examples/spring-boot-starter-risk-console",
+      "kind": "example"
+    },
+    {
+      "path": "examples/typed-compiler-maven",
+      "kind": "example"
+    },
+    {
+      "path": "examples/typed-compiler-gradle-java",
+      "kind": "example"
+    },
+    {
+      "path": "examples/typed-compiler-gradle-kotlin",
       "kind": "example"
     }
   ],
@@ -80,10 +87,10 @@
       "published": true,
       "sourceRoot": "pojo-lens/src/main/java",
       "testRoot": "pojo-lens/src/test/java",
-      "resourceRoot": null,
-      "mainJavaFiles": 228,
-      "testJavaFiles": 128,
-      "resourceFiles": 0
+      "resourceRoot": "pojo-lens/src/main/resources",
+      "mainJavaFiles": 230,
+      "testJavaFiles": 129,
+      "resourceFiles": 2
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -122,18 +129,6 @@
       "resourceFiles": 0
     },
     {
-      "path": "examples/spring-boot-starter-basic",
-      "kind": "example-module",
-      "role": "starter-dashboard-example",
-      "published": false,
-      "sourceRoot": "examples/spring-boot-starter-basic/src/main/java",
-      "testRoot": "examples/spring-boot-starter-basic/src/test/java",
-      "resourceRoot": "examples/spring-boot-starter-basic/src/main/resources",
-      "mainJavaFiles": 5,
-      "testJavaFiles": 2,
-      "resourceFiles": 5
-    },
-    {
       "path": "examples/spring-boot-starter-quickstart",
       "kind": "example-module",
       "role": "starter-quickstart-example",
@@ -144,6 +139,54 @@
       "mainJavaFiles": 3,
       "testJavaFiles": 2,
       "resourceFiles": 2
+    },
+    {
+      "path": "examples/spring-boot-starter-risk-console",
+      "kind": "example-module",
+      "role": "starter-risk-console-example",
+      "published": false,
+      "sourceRoot": "examples/spring-boot-starter-risk-console/src/main/java",
+      "testRoot": "examples/spring-boot-starter-risk-console/src/test/java",
+      "resourceRoot": "examples/spring-boot-starter-risk-console/src/main/resources",
+      "mainJavaFiles": 15,
+      "testJavaFiles": 16,
+      "resourceFiles": 6
+    },
+    {
+      "path": "examples/typed-compiler-maven",
+      "kind": "example-module",
+      "role": "typed-compiler-maven-example",
+      "published": false,
+      "sourceRoot": "examples/typed-compiler-maven/src/main/java",
+      "testRoot": "examples/typed-compiler-maven/src/test/java",
+      "resourceRoot": null,
+      "mainJavaFiles": 2,
+      "testJavaFiles": 1,
+      "resourceFiles": 0
+    },
+    {
+      "path": "examples/typed-compiler-gradle-java",
+      "kind": "example-module",
+      "role": "typed-compiler-gradle-java-example",
+      "published": false,
+      "sourceRoot": "examples/typed-compiler-gradle-java/src/main/java",
+      "testRoot": "examples/typed-compiler-gradle-java/src/test/java",
+      "resourceRoot": null,
+      "mainJavaFiles": 2,
+      "testJavaFiles": 1,
+      "resourceFiles": 0
+    },
+    {
+      "path": "examples/typed-compiler-gradle-kotlin",
+      "kind": "example-module",
+      "role": "typed-compiler-gradle-kotlin-example",
+      "published": false,
+      "sourceRoot": null,
+      "testRoot": null,
+      "resourceRoot": null,
+      "mainJavaFiles": 0,
+      "testJavaFiles": 0,
+      "resourceFiles": 0
     }
   ],
   "importantFiles": [
@@ -196,56 +239,48 @@
       "kind": "memory-maintenance"
     },
     {
+      "path": "scripts/README.md",
+      "kind": "process-doc"
+    },
+    {
       "path": "ai/state/recent-validations.md",
       "kind": "ai-warm-state"
     },
     {
-      "path": "ai/orchestrator/README.md",
-      "kind": "ai-orchestrator-guide"
-    },
-    {
-      "path": "ai/orchestrator/SYSTEM-SPEC.md",
-      "kind": "ai-orchestrator-guide"
-    },
-    {
-      "path": "ai/orchestrator/agents.json",
-      "kind": "ai-orchestration-config"
-    },
-    {
-      "path": "ai/orchestrator/tasks/example-review.json",
-      "kind": "ai-orchestration-task-plan"
-    },
-    {
-      "path": "ai/orchestrator/tasks/example-parallel.json",
-      "kind": "ai-orchestration-task-plan"
-    },
-    {
-      "path": "scripts/refresh-ai-memory.py",
+      "path": "scripts/ai/refresh-ai-memory.py",
       "kind": "memory-script"
     },
     {
-      "path": "scripts/query-ai-memory.py",
+      "path": "scripts/ai/query-ai-memory.py",
       "kind": "memory-script"
     },
     {
-      "path": "scripts/claude-orchestrator.py",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/claude-orchestrator.ps1",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/benchmark-ai-memory.py",
+      "path": "scripts/ai/benchmark-ai-memory.py",
       "kind": "memory-script"
     },
     {
-      "path": "scripts/check-doc-consistency.ps1",
+      "path": "scripts/docs/check-doc-consistency.ps1",
       "kind": "validation-script"
     },
     {
-      "path": "scripts/check-lint-baseline.ps1",
+      "path": "scripts/docs/check-doc-consistency.py",
       "kind": "validation-script"
+    },
+    {
+      "path": "scripts/quality/check-lint-baseline.ps1",
+      "kind": "validation-script"
+    },
+    {
+      "path": "scripts/quality/checkstyle-baseline.txt",
+      "kind": "validation-config"
+    },
+    {
+      "path": "scripts/release/export-release-secrets.ps1",
+      "kind": "release-script"
+    },
+    {
+      "path": "scripts/benchmarks/benchmark-suite-main.args",
+      "kind": "benchmark-config"
     },
     {
       "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensSql.java",
@@ -284,11 +319,15 @@
       "kind": "feature"
     },
     {
-      "path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java",
+      "path": "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
       "kind": "example"
     },
     {
-      "path": "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
+      "path": "examples/spring-boot-starter-risk-console/src/main/java/laughing/man/commits/examples/spring/boot/riskconsole/RiskConsoleApplication.java",
+      "kind": "example"
+    },
+    {
+      "path": "examples/typed-compiler-maven/src/main/java/laughing/man/commits/examples/typedcompiler/TypedCompilerExample.java",
       "kind": "example"
     }
   ]

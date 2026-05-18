@@ -12,7 +12,7 @@ Load this file only for benchmark, threshold, or profiling tasks.
 
 ## AI Memory Benchmark
 
-- `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` is the proof harness for AI memory refresh/check/query behavior.
+- `scripts/ai/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` is the proof harness for AI memory refresh/check/query behavior.
 - Latest measured run on `2026-03-27`: full refresh `1353.49 ms`, incremental refresh `331.509 ms`, check `124.475 ms`, average query `65.398 ms`.
 - Latest no-change incremental reuse on `2026-03-27`: JSON indexes `rebuilt=0 reused=5`; SQLite `updated=0 reused=47 removed=0`.
 - Latest fixed-query hit quality on `2026-03-27`: top-1 `1.0`, top-3 `1.0`.
@@ -51,7 +51,7 @@ Load this file only for benchmark, threshold, or profiling tasks.
 - Keep cold guardrail runs and warmed tuning runs separate.
 - Rebuild benchmark runner before quoting fresh numbers:
   `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
-- Use benchmark suite args from `scripts/benchmark-suite-*.args`.
+- Use benchmark suite args from `scripts/benchmarks/benchmark-suite-*.args`.
 - Do not run concurrent Maven builds in the same workspace `target/` directory.
 - For WP5 evidence, prefer the warmed join/window/reflection spot checks; the local cold core-suite anomaly above is unresolved.
 
@@ -62,5 +62,5 @@ Load this file only for benchmark, threshold, or profiling tasks.
 - `benchmarks/chart-thresholds.json`
 - `benchmarks/hotspot-thresholds.json`
 - `ai/indexes/memory-benchmark.json`
-- `scripts/benchmark-ai-memory.py`
+- `scripts/ai/benchmark-ai-memory.py`
 - `target/benchmarks/*.json` (generated artifacts, not source of truth)

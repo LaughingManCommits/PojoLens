@@ -15,11 +15,17 @@ state/ -> current markdown snapshot
 indexes/ -> derived JSON navigation data
 indexes/cold-memory.db -> optional derived SQLite/FTS cold-search artifact
 indexes/refresh-state.json -> derived per-file hash cache for incremental refresh
-orchestrator/ -> tracked orchestration specs and guide
+indexes/publish-state.json -> derived publish marker for staged refresh/check handoff
 state/recent-validations.md -> warm validation ledger
 log/events.jsonl -> recent discovery history
 log/archive/*-summary.md -> derived monthly archive summaries
 log/archive/*.jsonl -> archived discovery history
+
+Scope split:
+
+- `core/`, `state/`, and `log/` are **project memory**
+- project memory owns repo facts, active roadmap state, validation history, and session handoff
+- derived indexes support retrieval only; they do not replace Markdown truth
 
 Conceptually:
 
@@ -59,8 +65,6 @@ Examples:
 - ai/core/readme-alignment.md
 - ai/core/benchmark-context.md
 - ai/core/discovery-notes.md
-- ai/orchestrator/README.md
-- ai/orchestrator/SYSTEM-SPEC.md
 - ai/state/recent-validations.md
 - ai/state/benchmark-state.md
 - ai/indexes/*
@@ -76,19 +80,17 @@ Conditional cold-load triggers (additive hints, not hard gates):
 | Task signal | Also load |
 |---|---|
 | release/publish/signing/versioning work or touching `RELEASE.md`, `.github/workflows/release.yml`, `pom.xml`, `pojo-lens*/pom.xml` | `ai/core/runbook.md`, `ai/state/recent-validations.md` |
-| benchmark/JMH work or touching `pojo-lens-benchmarks/**`, `benchmarks/**`, `scripts/benchmark-*` | `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md` |
+| benchmark/JMH work or touching `pojo-lens-benchmarks/**`, `benchmarks/**`, `scripts/benchmarks/**` | `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md` |
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**` | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md` |
 | module topology/build boundary work | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work | `ai/core/test-strategy.md`, `ai/state/recent-validations.md` |
-| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/claude-orchestrator*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
-| AI memory maintenance or touching `ai/**`, `scripts/refresh-ai-memory*`, `scripts/query-ai-memory*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
+| AI memory maintenance or touching `ai/**`, `scripts/ai/refresh-ai-memory*`, `scripts/ai/query-ai-memory*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
 
 Routing fallback:
 - if task intent is broad or ambiguous after applying the trigger table, run:
-  `scripts/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
+  `scripts/ai/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
 - for domain-specific precision, add facets:
   `-Kind ai-core` for architecture/module facts
-  `-Kind ai-orchestrator` for orchestration workflow docs
   `-Tier hot,warm` for recency-focused state
   `-Path "ai/core/*"` or `-Path "ai/state/*"` to constrain scope
 - prefer top non-archive hits before raw archive logs
@@ -117,20 +119,10 @@ When durable repository facts change:
 2. regenerate affected indexes
 3. refresh `ai/state/current-state.md`
 4. refresh `ai/state/handoff.md`
-5. regenerate derived memory artifacts with `scripts/refresh-ai-memory.ps1`
+5. regenerate derived memory artifacts with `scripts/ai/refresh-ai-memory.ps1`
 6. log a significant event if useful
 
-Use `scripts/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is required; the default refresh is incremental.
-
----
-
-# Orchestration
-
-- `ai/orchestrator/` is tracked control plane, not transient worker output
-- the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
-- keep runtime manifests, prompts, transcripts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
-- workers may edit `ai/orchestrator/**` when explicitly assigned, but must not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
-- the coordinator owns review, merge decisions, final summaries, and all memory updates after worker runs
+Use `scripts/ai/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is required; the default refresh is incremental.
 
 ---
 
@@ -159,24 +151,21 @@ core/
 indexes/
 - derived data
 - regenerate instead of editing
-- `scripts/refresh-ai-memory.ps1` rebuilds `ai/indexes/*.json`
-- `scripts/refresh-ai-memory.ps1` updates `ai/indexes/refresh-state.json` for incremental reuse
+- `scripts/ai/refresh-ai-memory.ps1` rebuilds `ai/indexes/*.json`
+- `scripts/ai/refresh-ai-memory.ps1` updates `ai/indexes/refresh-state.json` for incremental reuse
+- `scripts/ai/refresh-ai-memory.ps1` also updates `ai/indexes/publish-state.json` so `-Check` can wait for an in-flight staged publish instead of reading a half-published snapshot
 - optional SQLite cold search under `ai/indexes/cold-memory.db` is derived only
-- `scripts/refresh-ai-memory.ps1 -CompactLog` compacts the recent event log into monthly archives
-- `scripts/query-ai-memory.ps1` supports `-Tier`, `-Kind`, and `-Path` facets for cold retrieval
-- `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` proves refresh/query latency and fixed-query hit quality
-
-orchestrator/
-- keep only stable tracked specs and guide material here
-- do not store per-run manifests, worker transcripts, or workspace snapshots under `ai/`
+- `scripts/ai/refresh-ai-memory.ps1 -CompactLog` compacts the recent event log into monthly archives
+- `scripts/ai/query-ai-memory.ps1` supports `-Tier`, `-Kind`, and `-Path` facets for cold retrieval
+- `scripts/ai/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` proves refresh/query latency and fixed-query hit quality
 
 Summary guardrails:
 - one bullet should carry one fact; split mixed bullets
 - keep only startup-critical content in hot files; demote detail to cold docs
-- when event history becomes noisy, run `scripts/refresh-ai-memory.ps1 -CompactLog`
+- when event history becomes noisy, run `scripts/ai/refresh-ai-memory.ps1 -CompactLog`
 - after AI memory edits, run:
-  `scripts/refresh-ai-memory.ps1`
-  `scripts/refresh-ai-memory.ps1 -Check`
+  `scripts/ai/refresh-ai-memory.ps1`
+  `scripts/ai/refresh-ai-memory.ps1 -Check`
 
 ---
 

@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.laughingmancommits</groupId>
         <artifactId>pojo-lens-parent</artifactId>
-        <version>2026.04.17.1834</version>
+        <version>2026.04.29.1809</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -78,6 +78,20 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.15.0</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>pojo-lens</artifactId>
+                            <version>${project.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <annotationProcessors>
+                        <annotationProcessor>
+                            laughing.man.commits.metamodel.PojoLensTypedFieldsProcessor
+                        </annotationProcessor>
+                    </annotationProcessors>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

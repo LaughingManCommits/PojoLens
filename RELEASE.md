@@ -16,7 +16,7 @@ Latest release baseline:
 ```bash
 mvn -B -ntp test
 mvn -B -ntp -Plint verify -DskipTests
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/quality/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/quality/checkstyle-baseline.txt -RepoRoot .
 ```
 
 ## 2) Documentation Alignment
@@ -88,8 +88,8 @@ Required repository secrets:
 Optional helper for generating `GPG_PRIVATE_KEY` export + template files:
 
 ```powershell
-./scripts/export-release-secrets.ps1 -ListKeys
-./scripts/export-release-secrets.ps1 -KeyId <KEY_ID>
+./scripts/release/export-release-secrets.ps1 -ListKeys
+./scripts/release/export-release-secrets.ps1 -KeyId <KEY_ID>
 ```
 
 Workflow inputs:

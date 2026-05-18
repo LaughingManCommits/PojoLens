@@ -201,6 +201,10 @@ The default first-read story is SQL-like first:
 - `TypedWindowOrder`:
   - `asc`, `desc`, `fieldName`, `sort`
 - `FieldMetamodelGenerator.generateTyped(...)`
+- `GeneratePojoLensTypedFields`:
+  - `packageName`, `simpleName`
+- `PojoLensTypedFieldsProcessor`:
+  - javac annotation processor for compiler-time typed field generation
 
 ### Plain-English Contracts
 
@@ -243,8 +247,8 @@ The following remain public, but are treated as advanced:
 - the Spring/JDBC bridge helper `PojoLensJdbc`
 - `SnapshotComparison`, regression fixtures, parity helpers, and other testing
   support
-- metamodel batch generation, saved-report catalog validation, and related
-  build-tooling result types
+- metamodel annotation processing, batch generation, saved-report catalog
+  validation, and related build-tooling result types
 - benchmark tooling and threshold helpers
 
 ## Internal Engine DSL

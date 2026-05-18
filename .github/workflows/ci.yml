@@ -136,7 +136,7 @@ jobs:
         run: mvn -B -ntp -Plint verify -DskipTests
       - name: Enforce lint baseline (fail on new violations)
         shell: pwsh
-        run: ./scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .
+        run: ./scripts/quality/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/quality/checkstyle-baseline.txt -RepoRoot .
 
   static-analysis:
     if: github.ref == 'refs/heads/main'
@@ -183,7 +183,7 @@ jobs:
       - uses: actions/checkout@v5
       - name: Check README/MIGRATION/RELEASE invariants
         shell: pwsh
-        run: ./scripts/check-doc-consistency.ps1
+        run: ./scripts/docs/check-doc-consistency.ps1
 
   benchmark-guardrail:
     if: github.ref == 'refs/heads/main'
@@ -206,7 +206,7 @@ jobs:
       - name: Run benchmark suite
         run: |
           java -jar "$BENCHMARK_JAR" \
-            @scripts/benchmark-suite-main.args \
+            @scripts/benchmarks/benchmark-suite-main.args \
             -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
       - name: Check thresholds
         run: java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict
@@ -298,7 +298,7 @@ jobs:
         run: |
           mkdir -p target/benchmarks/charts
           java -jar "$BENCHMARK_JAR" \
-            @scripts/benchmark-suite-chart.args \
+            @scripts/benchmarks/benchmark-suite-chart.args \
             -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
       - name: Check chart thresholds
         run: java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict

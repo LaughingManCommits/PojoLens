@@ -1,5 +1,6 @@
 package laughing.man.commits.examples.spring.boot.riskconsole;
 
+import laughing.man.commits.annotations.GeneratePojoLensTypedFields;
 import laughing.man.commits.chartjs.ChartJsPayload;
 
 import java.time.LocalDateTime;
@@ -81,6 +82,7 @@ public final class RiskConsoleTypes {
         public String detailText;
     }
 
+    @GeneratePojoLensTypedFields
     public static final class TransactionRecord {
         public String id;
         public String merchantId;

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T20:17:39.315874+02:00",
+  "generatedAt": "2026-05-18T15:12:15.627478+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -7,17 +7,20 @@
     "pojo-lens-benchmarks/src/test/resources/fixtures",
     "pojo-lens-spring-boot-autoconfigure/src/test/java",
     "pojo-lens-spring-boot-starter/src/test/java",
-    "examples/spring-boot-starter-basic/src/test/java",
-    "examples/spring-boot-starter-quickstart/src/test/java"
+    "examples/spring-boot-starter-quickstart/src/test/java",
+    "examples/spring-boot-starter-risk-console/src/test/java",
+    "examples/typed-compiler-maven/src/test/java",
+    "examples/typed-compiler-gradle-java/src/test/java",
+    "examples/typed-compiler-gradle-kotlin/src/test/kotlin"
   ],
   "counts": {
-    "testJavaFiles": 144,
-    "testClasses": 144
+    "testJavaFiles": 161,
+    "testClasses": 161
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 128
+      "testJavaFiles": 129
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -32,12 +35,20 @@
       "testJavaFiles": 9
     },
     {
-      "path": "examples/spring-boot-starter-basic",
+      "path": "examples/spring-boot-starter-quickstart",
       "testJavaFiles": 2
     },
     {
-      "path": "examples/spring-boot-starter-quickstart",
-      "testJavaFiles": 2
+      "path": "examples/spring-boot-starter-risk-console",
+      "testJavaFiles": 16
+    },
+    {
+      "path": "examples/typed-compiler-maven",
+      "testJavaFiles": 1
+    },
+    {
+      "path": "examples/typed-compiler-gradle-java",
+      "testJavaFiles": 1
     }
   ],
   "suites": [
@@ -127,6 +138,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/internal/NameSuggestionsTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/internal/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/metamodel/MetamodelBatchGeneratorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/metamodel/PojoLensTypedFieldsProcessorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryParserTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/NestedPathQueryTest.java",
@@ -219,10 +231,26 @@
     {
       "category": "starter-example",
       "files": [
-        "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/BasicVirtualThreadsIntegrationTest.java",
-        "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java",
         "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
-        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/AccessibilitySanityTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/AnalyticsTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/DashboardOverviewTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/DashboardSmokeTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/DrilldownTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/MerchantDetailTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/PlaywrightE2EBase.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/QueryStudioTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/ReportsInspectorTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/ResponsiveLayoutTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/ReviewQueueTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/RiskConsoleControllerTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/RiskConsoleDashboardServiceTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/TableFilteringTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/TableSortingTest.java",
+        "examples/spring-boot-starter-risk-console/src/test/java/laughing/man/commits/examples/spring/boot/riskconsole/WorkbenchFeatureTest.java",
+        "examples/typed-compiler-gradle-java/src/test/java/laughing/man/commits/examples/typedgradle/TypedGradleExampleTest.java",
+        "examples/typed-compiler-maven/src/test/java/laughing/man/commits/examples/typedcompiler/TypedCompilerExampleTest.java"
       ]
     }
   ]

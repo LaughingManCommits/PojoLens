@@ -7,6 +7,22 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- Reset `TODO.md` and hot AI memory around the `neon` extraction cleanup so
+  PojoLens stays focused on the Java library and the surviving repo-memory
+  helpers.
+
+### Removed
+
+- Removed the extracted local AI tooling surface after that runtime moved to
+  the separate `neon` codebase.
+
+- Removed the leftover extracted runtime artifacts and obsolete Python-only
+  validation coverage from PojoLens.
+
 ## [2026.04.29.1809] - 2026-04-29
 
 ### Changed
@@ -159,7 +175,6 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   pushed first-phase rows and let PojoLens finish unsupported stages in memory.
   Added `PUSHDOWN` telemetry and JMH coverage for pure in-memory, pushed, and
 
-## [Unreleased]
   split completion paths.
 
 - **Reflection hotspot guardrails** (`STRAT-WP5` first slice) - added
@@ -327,14 +342,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   semantics, and generated typed-source compilation. Typed grouping,
   aggregation, joins, windows, and subqueries are deferred.
 
-- **Cooperative query cancellation** (`STRAT-WP2` completion) — added
+- **Cooperative query cancellation** (`STRAT-WP2` completion) â€” added
   `QueryCancellationToken` (@FunctionalInterface) to the `sqllike` package with
   `ofAtomic(AtomicBoolean)` and `ofThread(Thread)` static factories. Attach via
   `QueryExecutionGuard.Builder#cancellationToken(token)`. The library polls the
   token at execution start (eager paths) and between every row in lazy
   (stream/iterator) paths. When the token fires, a `QueryExecutionGuardException`
   is thrown with block code `GUARD_CANCELLED`. `QueryGuardOutcome#cancelled()`
-  factory carries `rowsReturnedBeforeAbort` — the exact number of rows the caller
+  factory carries `rowsReturnedBeforeAbort` â€” the exact number of rows the caller
   already received before the abort, providing deterministic aborted-query
   metadata. `auditMetadata()` includes `rowsReturnedBeforeAbort` for telemetry
   and structured logging. `QueryExecutionGuard#hasPreExecutionLimits()` added to
@@ -343,7 +358,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   input cancellation, stable public API contract coverage, and public docs
   alignment.
 
-- **Production query governance and audit** (`STRAT-WP2`) — added
+- **Production query governance and audit** (`STRAT-WP2`) â€” added
   `QueryExecutionGuard`, `QueryGuardOutcome`, `QueryComplexitySummary`, and
   `QueryExecutionGuardException` to the `sqllike` package. `QueryExecutionGuard`
   enforces bounded execution via pre-execution checks (max rows scanned, max
@@ -361,7 +376,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   remain host-application responsibilities. Contract coverage added to
   `StablePublicApiContractTest`.
 
-- **Stable embedded reporting contract** (`STRAT-WP1`) — added `SavedReport`
+- **Stable embedded reporting contract** (`STRAT-WP1`) â€” added `SavedReport`
   and `SavedReportKind` to the `report` package. `SavedReport` is a versioned,
   serialization-friendly contract carrying query text, default parameters,
   optional chart spec, and optional schema. Supports SQL-like and natural
@@ -372,7 +387,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `StablePublicApiContractTest`.
 
 - **Better error suggestions** (`QOL-WP5`) - extracted `NameSuggestions` helper
-  (Levenshtein ≤ 2 + prefix match, up to 3 candidates, case-normalised) into
+  (Levenshtein â‰¤ 2 + prefix match, up to 3 candidates, case-normalised) into
   `laughing.man.commits.internal`. Wired deterministic "Did you mean" suggestions
   into SQL-like unknown-field errors (WHERE/SELECT/ORDER BY/QUALIFY/HAVING
   aggregate/JOIN child/JOIN source/JOIN flexible resolve/subquery source),
@@ -398,10 +413,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `PlanPreviewOrder`, `PlanPreviewPaging`, `PlanPreviewPredicate`) in the
   `sqllike` package. New
   `SqlLikeQuery.planPreview()` entry point returns a deterministic structural
-  description of a query's execution shape — selected fields with aliases,
+  description of a query's execution shape â€” selected fields with aliases,
   metrics, time buckets, and window function details; WHERE/HAVING/QUALIFY
   predicates with operator and value-kind; JOIN clauses; ORDER BY fields; paging
-  config; and required parameters — all without executing against rows or
+  config; and required parameters â€” all without executing against rows or
   requiring a source class. Does not include cost estimates or row counts.
 - **Grouped plan preview predicates** (`QOL-WP3` hardening) - added
   `PlanPreviewPredicate` plus `filterExpression()`, `havingExpression()`, and
@@ -473,16 +488,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
-- **Natural language query surface** — `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery`, and `PojoLensRuntime.natural()` provide a controlled plain-English query path (`show`, `where`, `sort by`, `group by`, `having`, `limit`, `bucket by`, `as chart`) that lowers deterministically into the shared engine. Includes runtime-scoped `NaturalVocabulary` for field aliases, reusable `NaturalTemplate` parameter schemas, and parity with fluent/SQL-like for aggregates, joins, window analytics, time buckets, and chart output.
-- **Natural subquery and existence predicates** — natural grammar accepts bounded `is in query … end query`, `exists query … end query`, and `not exists query … end query` predicates with `and`/`or` connectors; lowers onto fluent/core subquery predicates.
-- **CSV boundary adapter** — `PojoLensCsv` loads UTF-8 CSV into typed rows at the file boundary with strict header-based coercion, multiline quoted-record support, CRLF/BOM handling, `CsvCoercionPolicy` for blank/null/locale/date/enum rules, `CsvLoadReport`/`CsvLoadResult` diagnostics, and `runtime.csv().read(...)` / `readWithReport(...)` integration. Dynamic schema remains deferred (`CSV-WP6`).
-- **Bounded window frames** — public `QueryWindowFrame` adds explicit `ROWS BETWEEN` frame control (`UNBOUNDED PRECEDING / CURRENT ROW / <n> PRECEDING / UNBOUNDED FOLLOWING`) for aggregate window functions alongside the existing running-window default.
-- **Immutable fluent prepared wrapper** — `PojoLensCore.prepare(...)` returns an immutable `FluentQueryDefinition<T>` that rebuilds a fresh `QueryBuilder` per execution; exposes `rows(...)`, `schema()`, `explain()`, and promotes to `ReportDefinition<T>`.
-- **Bounded subquery and existence predicates** — fluent `QueryBuilder` exposes `addInSubquery(...)`, `addExists(...)`, and `addNotExists(...)` with self-source and explicit-source execution-snapshot resolution. `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and `QueryRule.notExists(...)` participate in `allOf(...)` / `anyOf(...)` groups. SQL-like `WHERE … IN (select …)` and `WHERE [NOT] EXISTS (select …)` bind onto fluent/core predicates; bounded OR/DNF subquery shapes lower onto grouped fluent predicates.
-- **Aggregate ORDER BY diagnostics** — SQL-like queries now surface useful error messages distinguishing known-raw-field ORDER BY references from unknown-field typos and correctly scope HAVING wording.
-- **Natural joined-schema vocabulary** — runtime `schema(...)` resolves registered vocabulary aliases against projection/source type at explain time; new overloads accept `DatasetBundle` or `JoinBindings` for join-source schema resolution.
-- **Natural QUALIFY** — natural `qualify` accepts controlled inline window phrases, multiple partitions, and supported aggregate ROWS frames; `NaturalQuery` caches resolved delegates by execution shape.
-- **Tree row shaping** — `PojoLensTree` selects deterministic subtrees from flat parent-ID POJO lists before normal fluent or SQL-like execution, with optional depth metadata through `TreeEntry`.
+- **Natural language query surface** â€” `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery`, and `PojoLensRuntime.natural()` provide a controlled plain-English query path (`show`, `where`, `sort by`, `group by`, `having`, `limit`, `bucket by`, `as chart`) that lowers deterministically into the shared engine. Includes runtime-scoped `NaturalVocabulary` for field aliases, reusable `NaturalTemplate` parameter schemas, and parity with fluent/SQL-like for aggregates, joins, window analytics, time buckets, and chart output.
+- **Natural subquery and existence predicates** â€” natural grammar accepts bounded `is in query â€¦ end query`, `exists query â€¦ end query`, and `not exists query â€¦ end query` predicates with `and`/`or` connectors; lowers onto fluent/core subquery predicates.
+- **CSV boundary adapter** â€” `PojoLensCsv` loads UTF-8 CSV into typed rows at the file boundary with strict header-based coercion, multiline quoted-record support, CRLF/BOM handling, `CsvCoercionPolicy` for blank/null/locale/date/enum rules, `CsvLoadReport`/`CsvLoadResult` diagnostics, and `runtime.csv().read(...)` / `readWithReport(...)` integration. Dynamic schema remains deferred (`CSV-WP6`).
+- **Bounded window frames** â€” public `QueryWindowFrame` adds explicit `ROWS BETWEEN` frame control (`UNBOUNDED PRECEDING / CURRENT ROW / <n> PRECEDING / UNBOUNDED FOLLOWING`) for aggregate window functions alongside the existing running-window default.
+- **Immutable fluent prepared wrapper** â€” `PojoLensCore.prepare(...)` returns an immutable `FluentQueryDefinition<T>` that rebuilds a fresh `QueryBuilder` per execution; exposes `rows(...)`, `schema()`, `explain()`, and promotes to `ReportDefinition<T>`.
+- **Bounded subquery and existence predicates** â€” fluent `QueryBuilder` exposes `addInSubquery(...)`, `addExists(...)`, and `addNotExists(...)` with self-source and explicit-source execution-snapshot resolution. `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and `QueryRule.notExists(...)` participate in `allOf(...)` / `anyOf(...)` groups. SQL-like `WHERE â€¦ IN (select â€¦)` and `WHERE [NOT] EXISTS (select â€¦)` bind onto fluent/core predicates; bounded OR/DNF subquery shapes lower onto grouped fluent predicates.
+- **Aggregate ORDER BY diagnostics** â€” SQL-like queries now surface useful error messages distinguishing known-raw-field ORDER BY references from unknown-field typos and correctly scope HAVING wording.
+- **Natural joined-schema vocabulary** â€” runtime `schema(...)` resolves registered vocabulary aliases against projection/source type at explain time; new overloads accept `DatasetBundle` or `JoinBindings` for join-source schema resolution.
+- **Natural QUALIFY** â€” natural `qualify` accepts controlled inline window phrases, multiple partitions, and supported aggregate ROWS frames; `NaturalQuery` caches resolved delegates by execution shape.
+- **Tree row shaping** â€” `PojoLensTree` selects deterministic subtrees from flat parent-ID POJO lists before normal fluent or SQL-like execution, with optional depth metadata through `TreeEntry`.
 
 ### Changed
 
@@ -502,18 +517,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Input-safety guidance** - SQL-like and natural docs now call out parameter
   binding, allowed-field exposure, lint mode, strict typing, and authorization
   boundaries for user-authored query text.
-- **`ReflectionUtil` cleanup** — renamed `isPlatformType` → `isUserDefinedType`; removed dead `extractQueryFields` and `buildSchema` methods; `DirectFieldReadPlan` now includes `final` fields via a dedicated `READABLE_FIELD_BY_NAME_CACHE`; `collectFieldGraph` uses an array-backed path stack instead of per-node list allocation; `buildMutableFieldByNameMap` uses `LinkedHashMap` for consistent field ordering.
-- **`FastArrayQuerySupport` cleanup** — replaced `stream().findFirst()` with direct iterator in `canUseFastJoinPath`; `visitingComputedNames` allocated once per `compileJoinPlan` call instead of per field; dead 3-arg `orderRows` overload deleted; `andMatched`/`andFailed` renamed to `andAnyPassed`/`andAnyFailed` with clarifying comment.
+- **`ReflectionUtil` cleanup** â€” renamed `isPlatformType` â†’ `isUserDefinedType`; removed dead `extractQueryFields` and `buildSchema` methods; `DirectFieldReadPlan` now includes `final` fields via a dedicated `READABLE_FIELD_BY_NAME_CACHE`; `collectFieldGraph` uses an array-backed path stack instead of per-node list allocation; `buildMutableFieldByNameMap` uses `LinkedHashMap` for consistent field ordering.
+- **`FastArrayQuerySupport` cleanup** â€” replaced `stream().findFirst()` with direct iterator in `canUseFastJoinPath`; `visitingComputedNames` allocated once per `compileJoinPlan` call instead of per field; dead 3-arg `orderRows` overload deleted; `andMatched`/`andFailed` renamed to `andAnyPassed`/`andAnyFailed` with clarifying comment.
 
 ---
 
-## [2026.03.28.1919] — 2026-03-28
+## [2026.03.28.1919] â€” 2026-03-28
 
 Initial public release.
 
 ### Core engine
 
-- In-memory query execution over existing Java POJOs (`List<T>`) — no ORM rewrite, no database required.
+- In-memory query execution over existing Java POJOs (`List<T>`) â€” no ORM rewrite, no database required.
 - Filtering with AND/OR rule groups, field path traversal, computed fields, and optional equality index hints.
 - Ordering, grouping, aggregates (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`), HAVING, and DISTINCT.
 - JOIN execution across multiple sources via `JoinBindings` with fast-array join path for single-key equality joins.
@@ -525,7 +540,7 @@ Initial public release.
 
 ### Window analytics
 
-- `ROW_NUMBER()`, `RANK()`, and `DENSE_RANK()` with `OVER (PARTITION BY … ORDER BY …)`.
+- `ROW_NUMBER()`, `RANK()`, and `DENSE_RANK()` with `OVER (PARTITION BY â€¦ ORDER BY â€¦)`.
 - Aggregate window functions (`SUM`, `AVG`, `MIN`, `MAX`, `COUNT`) with running-window frame.
 - `QUALIFY` clause for post-window row filtering.
 - Fluent parity: `addWindow(...)`, `addQualify(...)`, qualify rule groups.
@@ -533,23 +548,23 @@ Initial public release.
 
 ### Query surfaces
 
-- **Fluent API** (`PojoLensCore`, `QueryBuilder`) — type-safe Java composition; canonical capability layer.
-- **SQL-like API** (`PojoLensSql`, `SqlLikeQuery`) — dynamic/config-driven query strings; SQL-like parsing, validation, and binding onto the fluent/core path.
-- `SqlLikeBoundQuery` — reusable bound execution with materialized source rows for repeated runs.
+- **Fluent API** (`PojoLensCore`, `QueryBuilder`) â€” type-safe Java composition; canonical capability layer.
+- **SQL-like API** (`PojoLensSql`, `SqlLikeQuery`) â€” dynamic/config-driven query strings; SQL-like parsing, validation, and binding onto the fluent/core path.
+- `SqlLikeBoundQuery` â€” reusable bound execution with materialized source rows for repeated runs.
 
 ### Output helpers
 
-- **Chart mapping** — `PojoLensChart` and `ChartQueryPreset` for chart payload generation; built-in Chart.js dataset mapping (`ChartJsDataset`, `ChartSpec`) including `withType(...)` for `BAR`/`PIE`/`LINE`/`AREA` switching.
-- **Stats presets** — `StatsViewPresets` (`summary`/`by`/`topNBy`), `StatsViewPreset`, `StatsTable`, and `StatsTablePayload`/`TabularRows`/`tablePayload(...)` for grouped table output.
-- **Report definitions** — `ReportDefinition<T>` as the canonical reusable-query contract with chart and stats promotion.
-- **Dataset bundles** — `DatasetBundle` as the reusable snapshot form for multi-source execution.
-- **Snapshot comparison** — regression fixture and snapshot diff support.
+- **Chart mapping** â€” `PojoLensChart` and `ChartQueryPreset` for chart payload generation; built-in Chart.js dataset mapping (`ChartJsDataset`, `ChartSpec`) including `withType(...)` for `BAR`/`PIE`/`LINE`/`AREA` switching.
+- **Stats presets** â€” `StatsViewPresets` (`summary`/`by`/`topNBy`), `StatsViewPreset`, `StatsTable`, and `StatsTablePayload`/`TabularRows`/`tablePayload(...)` for grouped table output.
+- **Report definitions** â€” `ReportDefinition<T>` as the canonical reusable-query contract with chart and stats promotion.
+- **Dataset bundles** â€” `DatasetBundle` as the reusable snapshot form for multi-source execution.
+- **Snapshot comparison** â€” regression fixture and snapshot diff support.
 
 ### Runtime and integration
 
-- `PojoLensRuntime` — instance-scoped policy, cache tuning, DI support, and optional multi-tenant query behavior. Only public cache-tuning surface.
-- **Spring Boot autoconfigure and starter** — `pojo-lens-spring-boot-autoconfigure` and `pojo-lens-spring-boot-starter` auto-configure `PojoLensRuntime` via `pojo-lens.*` properties; optional Micrometer telemetry listener bridge; published alongside the runtime artifact.
-- **Spring Boot examples** — `examples/spring-boot-starter-quickstart` (minimal onboarding) and `examples/spring-boot-starter-basic` (advanced dashboard with Chart.js, Bootstrap, REST endpoints, and Java Playwright E2E tests).
+- `PojoLensRuntime` â€” instance-scoped policy, cache tuning, DI support, and optional multi-tenant query behavior. Only public cache-tuning surface.
+- **Spring Boot autoconfigure and starter** â€” `pojo-lens-spring-boot-autoconfigure` and `pojo-lens-spring-boot-starter` auto-configure `PojoLensRuntime` via `pojo-lens.*` properties; optional Micrometer telemetry listener bridge; published alongside the runtime artifact.
+- **Spring Boot examples** â€” `examples/spring-boot-starter-quickstart` (minimal onboarding) and `examples/spring-boot-starter-basic` (advanced dashboard with Chart.js, Bootstrap, REST endpoints, and Java Playwright E2E tests).
 
 ### Build and quality
 

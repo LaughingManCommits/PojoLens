@@ -7,7 +7,7 @@ Runtime Java package roles under `pojo-lens/src/main/java/laughing/man/commits`:
 - SQL-like pipeline: `sqllike/parser`, `sqllike/internal/validation`, `sqllike/internal/binding`, `sqllike/internal/execution`
 - reporting and visualization: `chart/*`, `report/*`, `table/*`, `time/*`
 - supporting features: `computed/*`, `snapshot/*`, `testing/*`, `telemetry/*`, `metamodel/*`
-- performance tooling: `pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/*`, `benchmarks/*`, `scripts/benchmark-suite-*.args`
+- performance tooling: `pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/*`, `benchmarks/*`, `scripts/benchmarks/benchmark-suite-*.args`
 
 High-level flow:
 

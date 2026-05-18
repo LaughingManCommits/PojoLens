@@ -3,9 +3,9 @@
 ## Validation Commands
 
 - tests: `mvn -B -ntp test`
-- docs consistency: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-doc-consistency.ps1`
+- docs consistency: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\docs\check-doc-consistency.ps1`
 - lint: `mvn -B -ntp -Plint verify -DskipTests`
-- lint baseline gate: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-lint-baseline.ps1 -Report target\checkstyle-result.xml -Baseline scripts\checkstyle-baseline.txt -RepoRoot .`
+- lint baseline gate: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality\check-lint-baseline.ps1 -Report target\checkstyle-result.xml -Baseline scripts\quality\checkstyle-baseline.txt -RepoRoot .`
 - static analysis: `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
 - ai memory refresh: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1`
 - ai memory full refresh: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -ForceFull`
@@ -19,7 +19,7 @@
 
 1. Build runner: `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
 2. Resolve `target/*-benchmarks.jar` dynamically.
-3. Run suite args from `scripts/benchmark-suite-*.args`.
+3. Run suite args from `scripts/benchmarks/benchmark-suite-*.args`.
 4. Check thresholds with `benchmarks/thresholds.json` or `benchmarks/chart-thresholds.json`.
 
 ## AI Memory Benchmark Flow
