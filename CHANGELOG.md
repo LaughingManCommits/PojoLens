@@ -16,6 +16,17 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   after it moved to the separate `neon` codebase, while keeping PojoLens
   centered on the Java library and repo-memory helpers.
 
+### Removed
+
+- Removed the in-repo `pojolens-agents` Python package and CLI shims:
+  `pyproject.toml`, `scripts/ai/claude-orchestrator.py`,
+  `scripts/ai/claude-orchestrator.ps1`, `scripts/ai/pojo_lens_agents/**`, and
+  `scripts/ai/pojolens_agents.egg-info/**` are gone from PojoLens after the
+  multi-agent runtime moved to the separate `neon` codebase.
+
+- Removed the orchestrator-only Python test suite under `scripts/tests/`,
+  leaving only the repo-memory helper coverage in place.
+
 ### Added
 
 - **HITL TUI live gate integration** (WP75) - `_read_gate_manifest` pure function

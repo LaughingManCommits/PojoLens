@@ -47,15 +47,19 @@
 - `MAINTENANCE.md`
 - `AGENTS.md`
 - `ai/AGENTS.md`
+- `LICENSE.md`
+
+## Legacy Cleanup Docs
+
 - `ai/orchestrator/README.md`
 - `ai/orchestrator/SYSTEM-SPEC.md`
-- `LICENSE.md`
 
 ## Notes
 
 - `TODO.md` remains the backlog file for active planning and follow-up.
 - `MAINTENANCE.md` applies only to `/ai` cleanup passes.
 - `scripts/ai/refresh-ai-memory.ps1` rebuilds derived AI JSON indexes and the optional cold-search database.
+- `scripts/ai/query-ai-memory.ps1` and `scripts/ai/benchmark-ai-memory.ps1` remain the surviving repo-memory helper entrypoints under `scripts/ai/`.
 - `ai/state/recent-validations.md` is the compact warm ledger for exact recent validation commands and results.
 - Keep `CONTRIBUTING.md`, `MIGRATION.md`, and `RELEASE.md` aligned with `pom.xml` and workflows.
 

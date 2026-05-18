@@ -25,11 +25,11 @@
 
 ### 1. Package and CLI surface
 
-- [ ] Remove `pyproject.toml` packaging for `pojolens-agents`.
-- [ ] Remove `scripts/ai/claude-orchestrator.py`.
-- [ ] Remove `scripts/ai/claude-orchestrator.ps1`.
-- [ ] Remove `scripts/ai/pojo_lens_agents/**`.
-- [ ] Remove `scripts/ai/pojolens_agents.egg-info/**`.
+- [x] Remove `pyproject.toml` packaging for `pojolens-agents`.
+- [x] Remove `scripts/ai/claude-orchestrator.py`.
+- [x] Remove `scripts/ai/claude-orchestrator.ps1`.
+- [x] Remove `scripts/ai/pojo_lens_agents/**`.
+- [x] Remove `scripts/ai/pojolens_agents.egg-info/**`.
 
 ### 2. Tracked control-plane files
 
@@ -46,9 +46,9 @@
 
 ### 4. Tests and Python-only tooling
 
-- [ ] Remove orchestrator-only tests under `scripts/tests/`.
-- [ ] Keep or replace only the tests that still cover repo-memory helpers.
-- [ ] Re-run the surviving validation set after the removals land.
+- [x] Remove orchestrator-only tests under `scripts/tests/`.
+- [x] Keep or replace only the tests that still cover repo-memory helpers.
+- [x] Re-run the surviving validation set after the removals land.
 
 ### 5. Docs and metadata
 
@@ -83,3 +83,9 @@
 
 - [x] `2026-05-18`: Replaced the stale WP backlog with a cleanup backlog
   focused on removing the in-repo multi-agent stack after the move to `neon`.
+- [x] `2026-05-18`: Removed the in-repo `pojolens-agents` package, the
+  `claude-orchestrator` CLI shims, and the orchestrator-only Python test
+  suite.
+- [x] `2026-05-18`: Kept the repo-memory helper scripts plus
+  `scripts/tests/test_refresh_ai_memory.py`, and re-ran the surviving
+  validation set.

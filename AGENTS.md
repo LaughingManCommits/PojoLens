@@ -31,12 +31,12 @@ Conditional cold-load matrix (additive hints, not hard gates):
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**`                                                  | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md`                          |
 | module topology/build boundary work or touching module structure and build wiring                                                  | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work                                                                                           | `ai/core/test-strategy.md`, `ai/state/recent-validations.md`                             |
-| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/ai/**`                                                        | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
+| legacy orchestrator cleanup work or touching `ai/orchestrator/**`, `.claude-orchestrator/**`, `runs/**`                            | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 | AI memory maintenance or touching `ai/**`, `scripts/ai/refresh-ai-memory*`, `scripts/ai/query-ai-memory*`                            | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 
 Split-memory rule:
 - treat `ai/core/*`, `ai/state/*`, and `ai/log/*` as **project memory** for repo facts, active state, validation history, and session handoff
-- treat `ai/orchestrator/*` as **orchestrator control-plane memory** for the local multi-agent contract, operator flow, task-plan format, and worker rules
+- treat `ai/orchestrator/*` as **legacy extracted orchestrator memory** kept only for cleanup and history until those files are removed
 - do not use `ai/orchestrator/*` as a second project-state snapshot
 - do not copy roadmap or handoff state into `ai/orchestrator/*`
 - do not move operator-contract rules into `ai/state/*` unless they are startup-critical for the next session
@@ -64,16 +64,11 @@ Memory rules:
 - `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts; refresh them with `scripts/ai/refresh-ai-memory.ps1` after structural or documentation changes
 - run `scripts/ai/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` after changing the AI memory retrieval path
 
-Claude orchestration:
-- tracked orchestration specs live in `ai/orchestrator/`; AI tooling implementations live under `scripts/ai/`; the primary operator command is `pojolens-agents`
-- the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
-- when working on orchestration behavior, load the project-memory rules from `AGENTS.md` + `ai/AGENTS.md`, then load the control-plane contract from `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` as needed
-- keep project memory and orchestrator control-plane memory separate; cross-reference them, but do not let either become a duplicate state store for the other
-- keep runtime manifests, prompts, and stdout/stderr outside `ai/` under repo-local `.claude-orchestrator/`; keep isolated worker workspaces outside the repo root in the orchestrator-managed external workspace root recorded in each manifest
-- only split work into low-coupling tasks; do not schedule parallel workers that need to edit the same files
-- default workers to isolated `copy` workspaces; use `worktree` only when a clean repo and git metadata are required; use `repo` only as an explicit high-risk exception
-- workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
-- the coordinator owns review, merge decisions, memory updates, and final validation after worker runs
+Legacy orchestration cleanup:
+- the active multi-agent runtime now lives in the separate `neon` codebase
+- `ai/orchestrator/` remains only as legacy extracted control-plane material pending removal from this repo
+- do not add or revive local orchestrator runtime code under `scripts/ai/`
+- when cleaning legacy orchestration artifacts, load the project-memory rules from `AGENTS.md` + `ai/AGENTS.md`, then open `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` only if the cleanup needs their contents
 
 Context budget and summarization:
 - hot context hard cap: `240` lines and `24 KB` total across the 4 hot files

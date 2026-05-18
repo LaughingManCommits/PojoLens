@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-18T14:50:40.706917+02:00",
+  "generatedAt": "2026-05-18T14:58:29.232154+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 9,
@@ -278,38 +278,6 @@
     {
       "path": "scripts/ai/query-ai-memory.py",
       "kind": "memory-script"
-    },
-    {
-      "path": "scripts/ai/claude-orchestrator.py",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/ai/pojo_lens_agents/cli.py",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/ai/pojo_lens_agents/governance.py",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/ai/pojo_lens_agents/path_safety.py",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/ai/pojo_lens_agents/provider.py",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/ai/pojo_lens_agents/run_store.py",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/ai/pojo_lens_agents/runtime.py",
-      "kind": "orchestration-script"
-    },
-    {
-      "path": "scripts/ai/pojo_lens_agents/workspace_review.py",
-      "kind": "orchestration-script"
     },
     {
       "path": "scripts/ai/benchmark-ai-memory.py",

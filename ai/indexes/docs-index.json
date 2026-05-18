@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-05-18T14:50:40.706917+02:00",
+  "generatedAt": "2026-05-18T14:58:29.232154+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
       "category": "agent-guide",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 98,
-      "byteCount": 7165,
+      "lineCount": 93,
+      "byteCount": 6297,
       "coldSearchEligible": true
     },
     {
@@ -15,8 +15,8 @@
       "category": "ai-memory-guide",
       "relevance": "high",
       "loadTier": "cold",
-      "lineCount": 201,
-      "byteCount": 7845,
+      "lineCount": 199,
+      "byteCount": 7474,
       "coldSearchEligible": true
     },
     {
@@ -52,7 +52,7 @@
       "relevance": "medium",
       "loadTier": "cold",
       "lineCount": 10,
-      "byteCount": 1197,
+      "byteCount": 1265,
       "coldSearchEligible": true
     },
     {
@@ -60,8 +60,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 61,
-      "byteCount": 1499,
+      "lineCount": 65,
+      "byteCount": 1673,
       "coldSearchEligible": true
     },
     {
@@ -249,8 +249,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 24,
-      "byteCount": 1294,
+      "lineCount": 27,
+      "byteCount": 1768,
       "coldSearchEligible": true
     },
     {
@@ -258,8 +258,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 26,
-      "byteCount": 1691,
+      "lineCount": 27,
+      "byteCount": 1961,
       "coldSearchEligible": true
     },
     {
@@ -267,8 +267,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 237,
-      "byteCount": 136886,
+      "lineCount": 238,
+      "byteCount": 137335,
       "coldSearchEligible": true
     },
     {
@@ -601,7 +601,7 @@
       "relevance": "medium",
       "loadTier": null,
       "lineCount": 11,
-      "byteCount": 524,
+      "byteCount": 545,
       "coldSearchEligible": true
     },
     {
@@ -609,8 +609,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 85,
-      "byteCount": 2763,
+      "lineCount": 91,
+      "byteCount": 3065,
       "coldSearchEligible": true
     }
   ]

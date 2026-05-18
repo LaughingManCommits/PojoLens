@@ -16,7 +16,7 @@ indexes/ -> derived JSON navigation data
 indexes/cold-memory.db -> optional derived SQLite/FTS cold-search artifact
 indexes/refresh-state.json -> derived per-file hash cache for incremental refresh
 indexes/publish-state.json -> derived publish marker for staged refresh/check handoff
-orchestrator/ -> tracked orchestration specs and guide
+orchestrator/ -> legacy extracted orchestration specs pending removal
 state/recent-validations.md -> warm validation ledger
 log/events.jsonl -> recent discovery history
 log/archive/*-summary.md -> derived monthly archive summaries
@@ -25,9 +25,9 @@ log/archive/*.jsonl -> archived discovery history
 Scope split:
 
 - `core/`, `state/`, and `log/` are **project memory**
-- `orchestrator/` is **orchestrator control-plane memory**
+- `orchestrator/` is **legacy extracted orchestrator memory**
 - project memory owns repo facts, active roadmap state, validation history, and session handoff
-- orchestrator memory owns the local multi-agent contract, operator flow, task-plan format, worker roles, and control-plane rules
+- orchestrator memory only preserves the extracted local multi-agent contract/history until cleanup removes it
 - neither side should duplicate the other's volatile state
 
 Conceptually:
@@ -89,10 +89,10 @@ Conditional cold-load triggers (additive hints, not hard gates):
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**` | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md` |
 | module topology/build boundary work | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work | `ai/core/test-strategy.md`, `ai/state/recent-validations.md` |
-| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/ai/**` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
+| legacy orchestrator cleanup work or touching `ai/orchestrator/**`, `.claude-orchestrator/**`, `runs/**` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
 | AI memory maintenance or touching `ai/**`, `scripts/ai/refresh-ai-memory*`, `scripts/ai/query-ai-memory*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
 
-For broad orchestration work, also load:
+For legacy orchestrator cleanup that needs the archived control-plane docs, also load:
 - `ai/orchestrator/README.md`
 - `ai/orchestrator/SYSTEM-SPEC.md`
 
@@ -137,14 +137,12 @@ Use `scripts/ai/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is re
 
 ---
 
-# Orchestration
+# Legacy Orchestration
 
-- `ai/orchestrator/` is tracked control plane, not transient worker output
-- the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
-- `ai/orchestrator/` is not a second copy of `ai/state/*`; keep active repo state in project memory and keep operator-contract behavior in orchestrator memory
-- keep runtime manifests, prompts, transcripts, and stdout/stderr outside `ai/` under repo-local `.claude-orchestrator/`; keep isolated worker workspaces outside the repo root in the orchestrator-managed external workspace root recorded in each manifest
-- workers may edit `ai/orchestrator/**` when explicitly assigned, but must not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
-- the coordinator owns review, merge decisions, final summaries, and all memory updates after worker runs
+- the active multi-agent runtime now lives in the separate `neon` codebase
+- `ai/orchestrator/` is legacy extracted control-plane material pending removal from this repo
+- do not add new local orchestrator runtime code under `scripts/ai/`
+- if cleanup still touches `ai/orchestrator/**`, keep it separate from project state and do not let it become a second active roadmap store
 
 ---
 
@@ -182,8 +180,8 @@ indexes/
 - `scripts/ai/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` proves refresh/query latency and fixed-query hit quality
 
 orchestrator/
-- keep only stable tracked specs and guide material here
-- do not store per-run manifests, worker transcripts, or workspace snapshots under `ai/`
+- treat as legacy extracted material pending removal
+- do not store new per-run manifests, worker transcripts, or workspace snapshots under `ai/`
 
 Summary guardrails:
 - one bullet should carry one fact; split mixed bullets
