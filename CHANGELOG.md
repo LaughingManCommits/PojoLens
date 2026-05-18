@@ -11,6 +11,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **TypedField / TypedPredicate `between()` (WP-5)** — `TypedField.between(lo, hi)`
+  and `TypedPredicate.between(field, lo, hi)` are convenience shorthands for
+  `gte(lo).and(lte(hi))`. Both bounds are inclusive; null bounds throw
+  `NullPointerException`.
+
 - **TypedQuery time bucket (WP-4)** — `TypedQuery.timeBucket(dateField, TimeBucket, alias)`
   and `timeBucket(dateField, TimeBucketPreset, alias)` bring date-truncation
   aggregation to the typed surface, matching `bucket(field, 'unit')` in SQL-like.

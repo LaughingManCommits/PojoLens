@@ -25,10 +25,11 @@
 - No active extracted-runtime risks remain in the live changelog or hot/warm repo-memory files.
 
 ## Next
-- `2026-05-18`: Feature audit complete; `TODO.md` reset with WP-1 through WP-5 targeting typed-surface gaps.
+- `2026-05-18`: All WP-1 through WP-5 complete. Typed surface gaps closed. Ready for release cut or new feature work.
 - ~~WP-1~~: DONE 2026-05-18 — `TypedPredicate.not()` now lowers via DeMorgan; 1141 tests pass.
 - ~~WP-2~~: DONE 2026-05-18 — `contains()` / `matches()` on TypedField and TypedPredicate; 1153 tests pass.
 - ~~WP-3~~: DONE 2026-05-18 — `TypedSortOrder` + `orderBy(TypedSortOrder...)` vararg; 1160 tests pass.
 - ~~WP-4~~: DONE 2026-05-18 — `TypedQuery.timeBucket(dateField, TimeBucket/Preset, alias/TypedField)` wired to engine; 1165 tests pass.
+- ~~WP-5~~: DONE 2026-05-18 — `TypedField.between(lo, hi)` / `TypedPredicate.between(field, lo, hi)`; 1171 tests pass.
 - WP-4 (P4): Time bucket entry point on typed surface.
 - WP-5 (P5): `between()` convenience on `TypedField` / `TypedPredicate`.

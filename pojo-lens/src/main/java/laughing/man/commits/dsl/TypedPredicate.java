@@ -125,6 +125,13 @@ public final class TypedPredicate<T> {
         return scalar(Operator.LTE, field, value);
     }
 
+    public static <T, V> TypedPredicate<T> between(TypedField<T, V> field, V lo, V hi) {
+        requireField(field);
+        Objects.requireNonNull(lo, "lo must not be null for between");
+        Objects.requireNonNull(hi, "hi must not be null for between");
+        return gte(field, lo).and(lte(field, hi));
+    }
+
     public static <T> TypedPredicate<T> isNull(TypedField<T, ?> field) {
         requireField(field);
         return new TypedPredicate<>(Operator.IS_NULL, field, null, List.of(), List.of(), null);

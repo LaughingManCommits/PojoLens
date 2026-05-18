@@ -97,6 +97,23 @@ List<Employee> excluded = TypedQuery.from(Employee.class)
 
 `NOT(IN_SUBQUERY)` is not supported — use `NOT EXISTS` instead.
 
+## Range Checks
+
+`between(lo, hi)` is a convenience for `gte(lo).and(lte(hi))` and is available
+on both `TypedField` and as a static factory on `TypedPredicate`:
+
+```java
+// instance method on TypedField
+List<Employee> midRange = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.SALARY.between(60_000, 120_000))
+    .filter(employees);
+
+// static factory — symmetric with other TypedPredicate factories
+TypedPredicate<Employee> range = TypedPredicate.between(EmployeeTypedFields.SALARY, 60_000, 120_000);
+```
+
+Both bounds are inclusive.
+
 ## Sort Order
 
 `orderBy(field)` and `orderByDesc(field)` sort a single field ascending or

@@ -84,7 +84,7 @@ no typed entry point.
 
 ---
 
-### WP-5 — `between()` convenience on `TypedField` / `TypedPredicate`  [P5]
+### ~~WP-5 — `between()` convenience on `TypedField` / `TypedPredicate`~~ ✓ DONE 2026-05-18
 
 **Problem:** Common range check requires `field.gte(a).and(field.lte(b))`.
 No first-class `BETWEEN` operator exists on any surface. Engine can express it

@@ -80,6 +80,10 @@ public final class TypedField<T, V> {
         return TypedPredicate.lte(this, value);
     }
 
+    public TypedPredicate<T> between(V lo, V hi) {
+        return TypedPredicate.between(this, lo, hi);
+    }
+
     public TypedPredicate<T> in(Collection<? extends V> values) {
         return TypedPredicate.in(this, values);
     }

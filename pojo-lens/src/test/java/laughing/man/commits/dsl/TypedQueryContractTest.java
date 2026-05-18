@@ -1384,6 +1384,49 @@ public class TypedQueryContractTest {
         assertEquals(List.of("department", "name", "salary", "rn"), s.names());
     }
 
+    // --- Between ---
+
+    @Test
+    void betweenFiltersInclusiveRange() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(SALARY.between(60_000, 80_000))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<String> names = result.stream().map(e -> e.name).toList();
+        assertTrue(names.stream().allMatch(n -> {
+            int salary = sampleEmployees().stream().filter(e -> e.name.equals(n)).findFirst().get().salary;
+            return salary >= 60_000 && salary <= 80_000;
+        }));
+    }
+
+    @Test
+    void betweenEqualsGteLteComposition() {
+        List<Employee> byBetween = TypedQuery.from(Employee.class)
+                .where(SALARY.between(60_000, 80_000))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> byComposed = TypedQuery.from(Employee.class)
+                .where(SALARY.gte(60_000).and(SALARY.lte(80_000)))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(byComposed.stream().map(e -> e.name).toList(),
+                byBetween.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void betweenStaticFactoryMatchesInstanceMethod() {
+        List<Employee> fromField = TypedQuery.from(Employee.class)
+                .where(SALARY.between(60_000, 80_000))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> fromStatic = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.between(SALARY, 60_000, 80_000))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(fromField.stream().map(e -> e.name).toList(),
+                fromStatic.stream().map(e -> e.name).toList());
+    }
+
     // --- Time bucket ---
 
     @Test

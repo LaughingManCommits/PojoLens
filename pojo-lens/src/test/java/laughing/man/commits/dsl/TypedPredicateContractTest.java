@@ -73,6 +73,7 @@ public class TypedPredicateContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "contains", TypedField.class, String.class);
         requirePublicStaticMethod(TypedPredicate.class, "matches", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "between", TypedField.class, Object.class, Object.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
     }
@@ -90,6 +91,7 @@ public class TypedPredicateContractTest {
         requirePublicMethod(TypedField.class, "isNotNull");
         requirePublicMethod(TypedField.class, "contains", String.class);
         requirePublicMethod(TypedField.class, "matches", String.class);
+        requirePublicMethod(TypedField.class, "between", Object.class, Object.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, List.class, TypedQuery.class);
     }
@@ -174,6 +176,29 @@ public class TypedPredicateContractTest {
     void nullValueForContainsMatchesThrows() {
         assertThrows(NullPointerException.class, () -> TypedPredicate.contains(NAME, null));
         assertThrows(NullPointerException.class, () -> TypedPredicate.matches(NAME, null));
+    }
+
+    @Test
+    void betweenIsAndOfGteAndLte() {
+        TypedPredicate<Employee> p = TypedPredicate.between(SALARY, 50_000, 100_000);
+        assertEquals(TypedPredicate.Operator.AND, p.operator());
+        assertEquals(2, p.children().size());
+        assertEquals(TypedPredicate.Operator.GTE, p.children().get(0).operator());
+        assertEquals(TypedPredicate.Operator.LTE, p.children().get(1).operator());
+    }
+
+    @Test
+    void betweenFieldInstanceMethodMatchesStaticFactory() {
+        TypedPredicate<Employee> fromField = SALARY.between(50_000, 100_000);
+        TypedPredicate<Employee> fromStatic = TypedPredicate.between(SALARY, 50_000, 100_000);
+        assertEquals(fromStatic.operator(), fromField.operator());
+        assertEquals(fromStatic.children().size(), fromField.children().size());
+    }
+
+    @Test
+    void betweenNullBoundsThrow() {
+        assertThrows(NullPointerException.class, () -> TypedPredicate.between(SALARY, null, 100_000));
+        assertThrows(NullPointerException.class, () -> TypedPredicate.between(SALARY, 50_000, null));
     }
 
     @Test
