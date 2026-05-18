@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **TypedQuery execution convenience methods (WP-6)** — `count(rows)` → `long`,
+  `exists(rows)` → `boolean`, `findFirst(rows)` → `Optional<T>`, and
+  `findOne(rows)` → `Optional<T>` (throws if >1 result). All have `DatasetBundle`
+  overloads. `exists` and `findFirst` apply `limit(1)` internally to short-circuit;
+  `findOne` uses `limit(2)` to detect ambiguity cheaply.
+
 - **TypedField / TypedPredicate `between()` (WP-5)** — `TypedField.between(lo, hi)`
   and `TypedPredicate.between(field, lo, hi)` are convenience shorthands for
   `gte(lo).and(lte(hi))`. Both bounds are inclusive; null bounds throw

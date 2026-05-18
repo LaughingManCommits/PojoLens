@@ -97,6 +97,37 @@ List<Employee> excluded = TypedQuery.from(Employee.class)
 
 `NOT(IN_SUBQUERY)` is not supported — use `NOT EXISTS` instead.
 
+## Execution Convenience
+
+Beyond `filter(rows)` that returns a `List<T>`, `TypedQuery` provides short-circuit
+execution methods that avoid full materialisation where possible:
+
+```java
+// count matching rows without building a list
+long n = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .count(employees);
+
+// check for at least one match — applies limit(1) internally
+boolean hasEngineer = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.DEPARTMENT.eq("Engineering"))
+    .exists(employees);
+
+// first result in defined order, or empty
+Optional<Employee> top = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .findFirst(employees);
+
+// exactly one match or empty; throws IllegalStateException if more than one
+Optional<Employee> alice = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.NAME.eq("Alice"))
+    .findOne(employees);
+```
+
+All methods have `DatasetBundle` overloads. `exists` and `findFirst` apply
+`limit(1)` internally; `findOne` applies `limit(2)` to detect ambiguity cheaply.
+
 ## Range Checks
 
 `between(lo, hi)` is a convenience for `gte(lo).and(lte(hi))` and is available

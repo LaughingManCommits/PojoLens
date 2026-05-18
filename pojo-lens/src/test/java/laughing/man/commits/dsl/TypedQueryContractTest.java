@@ -34,6 +34,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
@@ -130,6 +131,14 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "count", List.class);
+        requirePublicMethod(TypedQuery.class, "count", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "exists", List.class);
+        requirePublicMethod(TypedQuery.class, "exists", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "findFirst", List.class);
+        requirePublicMethod(TypedQuery.class, "findFirst", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "findOne", List.class);
+        requirePublicMethod(TypedQuery.class, "findOne", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "executionGuard", QueryExecutionGuard.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
@@ -1382,6 +1391,102 @@ public class TypedQueryContractTest {
                 .schema(sampleEmployees(), DepartmentRank.class);
 
         assertEquals(List.of("department", "name", "salary", "rn"), s.names());
+    }
+
+    // --- Execution convenience ---
+
+    @Test
+    void countReturnsMatchingRowCount() {
+        long result = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .count(sampleEmployees());
+        assertEquals(3L, result);
+    }
+
+    @Test
+    void countReturnsZeroWhenNoMatch() {
+        long result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Nobody"))
+                .count(sampleEmployees());
+        assertEquals(0L, result);
+    }
+
+    @Test
+    void countWithNoWhereReturnsAllRows() {
+        long result = TypedQuery.from(Employee.class)
+                .count(sampleEmployees());
+        assertEquals(sampleEmployees().size(), result);
+    }
+
+    @Test
+    void existsReturnsTrueWhenMatchFound() {
+        boolean found = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Alice"))
+                .exists(sampleEmployees());
+        assertTrue(found);
+    }
+
+    @Test
+    void existsReturnsFalseWhenNoMatch() {
+        boolean found = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Nobody"))
+                .exists(sampleEmployees());
+        assertFalse(found);
+    }
+
+    @Test
+    void findFirstReturnsFirstOrderedResult() {
+        Optional<Employee> result = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .orderBy(NAME)
+                .findFirst(sampleEmployees());
+        assertTrue(result.isPresent());
+        assertEquals("Alice", result.get().name);
+    }
+
+    @Test
+    void findFirstReturnsEmptyWhenNoMatch() {
+        Optional<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Nobody"))
+                .findFirst(sampleEmployees());
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    void findOneReturnsSingleMatch() {
+        Optional<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Alice"))
+                .findOne(sampleEmployees());
+        assertTrue(result.isPresent());
+        assertEquals("Alice", result.get().name);
+    }
+
+    @Test
+    void findOneReturnsEmptyWhenNoMatch() {
+        Optional<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Nobody"))
+                .findOne(sampleEmployees());
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    void findOneThrowsWhenMultipleMatches() {
+        assertThrows(IllegalStateException.class, () ->
+                TypedQuery.from(Employee.class)
+                        .where(ACTIVE.eq(true))
+                        .findOne(sampleEmployees()));
+    }
+
+    @Test
+    void existsShortCircuitsAtOneRow() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class).where(ACTIVE.eq(true));
+        assertTrue(q.exists(sampleEmployees()));
+    }
+
+    @Test
+    void countMatchesFilterSize() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class).where(SALARY.gt(70_000));
+        assertEquals(q.filter(sampleEmployees()).size(), (int) q.count(sampleEmployees()));
     }
 
     // --- Between ---

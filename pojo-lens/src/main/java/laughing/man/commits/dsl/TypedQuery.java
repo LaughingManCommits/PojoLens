@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Immutable typed query builder that lowers into the shared PojoLens filter engine.
@@ -518,6 +519,50 @@ public final class TypedQuery<T> {
         return filterInternal(rows, joinBindings, projectionClass);
     }
 
+    public long count(List<T> rows) {
+        return filter(rows).size();
+    }
+
+    public long count(DatasetBundle datasetBundle) {
+        return filter(datasetBundle).size();
+    }
+
+    public boolean exists(List<T> rows) {
+        return !cappedAt(1).filter(rows).isEmpty();
+    }
+
+    public boolean exists(DatasetBundle datasetBundle) {
+        return !cappedAt(1).filter(datasetBundle).isEmpty();
+    }
+
+    public Optional<T> findFirst(List<T> rows) {
+        List<T> result = cappedAt(1).filter(rows);
+        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
+    public Optional<T> findFirst(DatasetBundle datasetBundle) {
+        List<T> result = cappedAt(1).filter(datasetBundle);
+        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
+    public Optional<T> findOne(List<T> rows) {
+        List<T> result = cappedAt(2).filter(rows);
+        if (result.size() > 1) {
+            throw new IllegalStateException(
+                    "findOne() expected at most one result but found more than one");
+        }
+        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
+    public Optional<T> findOne(DatasetBundle datasetBundle) {
+        List<T> result = cappedAt(2).filter(datasetBundle);
+        if (result.size() > 1) {
+            throw new IllegalStateException(
+                    "findOne() expected at most one result but found more than one");
+        }
+        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
     /**
      * Returns the engine's debug explain payload for this query against the
      * provided rows without executing the filter.
@@ -577,6 +622,13 @@ public final class TypedQuery<T> {
     public <P> TabularSchema schema(DatasetBundle datasetBundle, Class<P> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
         return schemaInternal(datasetBundle.primaryRows(), datasetBundle.joinBindings(), projectionClass);
+    }
+
+    private TypedQuery<T> cappedAt(int n) {
+        if (hasLimit() && limit <= n) {
+            return this;
+        }
+        return limit(n);
     }
 
     // --- Guard helpers ---
