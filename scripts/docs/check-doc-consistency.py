@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -26,6 +27,7 @@ TELEMETRY = ROOT / "docs/telemetry.md"
 CACHING = ROOT / "docs/caching.md"
 METAMODEL = ROOT / "docs/metamodel.md"
 MODULES = ROOT / "docs/modules.md"
+JDBC = ROOT / "docs/jdbc.md"
 SQL_LIKE = ROOT / "docs/sql-like.md"
 BENCHMARKING = ROOT / "docs/benchmarking.md"
 BENCHMARK_MAIN_ARGS = ROOT / "scripts/benchmarks/benchmark-suite-main.args"
@@ -51,6 +53,24 @@ def pom_version() -> str:
     return version.strip()
 
 
+def latest_release_version(default_version: str) -> str:
+    try:
+        result = subprocess.run(
+            ["git", "tag", "--list", "release-*", "--sort=-v:refname"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return default_version
+    for line in result.stdout.splitlines():
+        tag = line.strip()
+        if tag.startswith("release-") and len(tag) > len("release-"):
+            return tag[len("release-") :]
+    return default_version
+
+
 def require_substring(doc: str, path: Path, needle: str, errors: list[str]) -> None:
     if needle not in doc:
         errors.append(f"{path.name}: missing required text: {needle}")
@@ -68,6 +88,7 @@ def forbid_regex(doc: str, path: Path, pattern: str, errors: list[str]) -> None:
 
 def main() -> int:
     version = pom_version()
+    release_version = latest_release_version(version)
     readme = read_text(README)
     contributing = read_text(CONTRIBUTING)
     changelog = read_text(CHANGELOG)
@@ -85,6 +106,7 @@ def main() -> int:
     caching = read_text(CACHING)
     metamodel = read_text(METAMODEL)
     modules = read_text(MODULES)
+    jdbc = read_text(JDBC)
     sql_like = read_text(SQL_LIKE)
     benchmarking = read_text(BENCHMARKING)
     benchmark_main_args = read_text(BENCHMARK_MAIN_ARGS)
@@ -96,10 +118,11 @@ def main() -> int:
 
     errors: list[str] = []
 
-    require_substring(readme, README, f"<version>{version}</version>", errors)
-    require_substring(modules, MODULES, f"<version>{version}</version>", errors)
-    require_substring(release, RELEASE, f"Maven version: `{version}`", errors)
-    require_substring(release, RELEASE, f"Git tag: `release-{version}`", errors)
+    require_substring(readme, README, f"<version>{release_version}</version>", errors)
+    require_substring(modules, MODULES, f"<version>{release_version}</version>", errors)
+    require_substring(release, RELEASE, f"Maven version: `{release_version}`", errors)
+    require_substring(release, RELEASE, f"Git tag: `release-{release_version}`", errors)
+    require_substring(jdbc, JDBC, f"<version>{release_version}</version>", errors)
     require_substring(changelog, CHANGELOG, f"## [{version}]", errors)
     require_substring(quickstart_pom, QUICKSTART_POM, f"<version>{version}</version>", errors)
     require_substring(risk_console_pom, RISK_CONSOLE_POM, f"<version>{version}</version>", errors)

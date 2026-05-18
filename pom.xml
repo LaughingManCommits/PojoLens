@@ -49,6 +49,9 @@
         <spring.boot.version>4.0.4</spring.boot.version>
         <jmh.version>1.37</jmh.version>
         <japicmp.version>0.23.1</japicmp.version>
+        <central.publish.autoPublish>true</central.publish.autoPublish>
+        <central.publish.skipPublishing>false</central.publish.skipPublishing>
+        <central.publish.waitUntil>validated</central.publish.waitUntil>
     </properties>
 
     <dependencyManagement>
@@ -96,8 +99,9 @@
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
-                            <autoPublish>true</autoPublish>
-                            <waitUntil>published</waitUntil>
+                            <autoPublish>${central.publish.autoPublish}</autoPublish>
+                            <skipPublishing>${central.publish.skipPublishing}</skipPublishing>
+                            <waitUntil>${central.publish.waitUntil}</waitUntil>
                         </configuration>
                     </plugin>
                 </plugins>

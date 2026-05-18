@@ -12,7 +12,7 @@ them.
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens</artifactId>
-  <version>2026.04.29.1809</version>
+  <version>2026.05.18.1353</version>
 </dependency>
 ```
 
@@ -34,7 +34,7 @@ Central distribution:
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens-spring-boot-starter</artifactId>
-  <version>2026.04.29.1809</version>
+  <version>2026.05.18.1353</version>
 </dependency>
 ```
 

@@ -42,7 +42,7 @@ Examples: `merchant_name` → `merchantName`, `merchant name` → `merchantName`
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens-spring-boot-starter</artifactId>
-  <version>2026.04.29.1809</version>
+  <version>2026.05.18.1353</version>
 </dependency>
 ```
 

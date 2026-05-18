@@ -13,7 +13,7 @@ on:
         default: false
         type: boolean
       wait_until:
-        description: "Central deployment wait mode."
+        description: "Central deployment wait mode. Use 'published' only when you explicitly want the workflow to block for final Central publication."
         required: false
         default: validated
         type: choice
@@ -86,16 +86,12 @@ jobs:
             echo "Invalid wait_until value '${WAIT_UNTIL}'. Allowed: validated, published"
             exit 1
           fi
-          DEPLOY_FLAGS="-DwaitUntil=${WAIT_UNTIL}"
-          if [ "${DRY_RUN}" = "true" ]; then
-            DEPLOY_FLAGS="${DEPLOY_FLAGS} -DskipPublishing=true -Dgpg.skip=true"
-          fi
           {
-            echo "deploy_flags=${DEPLOY_FLAGS}"
             echo "dry_run=${DRY_RUN}"
             echo "wait_until=${WAIT_UNTIL}"
           } >> "$GITHUB_OUTPUT"
-          echo "Deploy flags: ${DEPLOY_FLAGS}"
+          echo "Dry run: ${DRY_RUN}"
+          echo "Central wait mode: ${WAIT_UNTIL}"
 
       - name: Set Maven project version
         run: mvn -B -ntp -DnewVersion="${{ steps.release_version.outputs.release_version }}" -DgenerateBackupPoms=false versions:set
@@ -200,9 +196,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          DEPLOY_ARGS=("-DskipTests" "-DwaitUntil=${{ steps.deploy_options.outputs.wait_until }}")
+          DEPLOY_ARGS=("-DskipTests" "-Dcentral.publish.waitUntil=${{ steps.deploy_options.outputs.wait_until }}")
           if [ "${{ steps.deploy_options.outputs.dry_run }}" = "true" ]; then
-            DEPLOY_ARGS+=("-DskipPublishing=true" "-Dgpg.skip=true")
+            DEPLOY_ARGS+=("-Dcentral.publish.skipPublishing=true" "-Dgpg.skip=true")
           fi
           mvn -B -ntp \
             -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter \
