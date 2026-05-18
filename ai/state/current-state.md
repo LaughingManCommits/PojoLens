@@ -28,6 +28,6 @@
 - `2026-05-18`: Feature audit complete; `TODO.md` reset with WP-1 through WP-5 targeting typed-surface gaps.
 - ~~WP-1~~: DONE 2026-05-18 — `TypedPredicate.not()` now lowers via DeMorgan; 1141 tests pass.
 - ~~WP-2~~: DONE 2026-05-18 — `contains()` / `matches()` on TypedField and TypedPredicate; 1153 tests pass.
-- WP-3 (P3): Per-field sort direction (`TypedSortOrder`) for `TypedQuery`.
+- ~~WP-3~~: DONE 2026-05-18 — `TypedSortOrder` + `orderBy(TypedSortOrder...)` vararg; 1160 tests pass.
 - WP-4 (P4): Time bucket entry point on typed surface.
 - WP-5 (P5): `between()` convenience on `TypedField` / `TypedPredicate`.

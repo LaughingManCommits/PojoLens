@@ -11,6 +11,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **TypedQuery per-field sort direction (WP-3)** — `TypedSortOrder` (field +
+  direction) pairs replace the global-direction model. `TypedQuery.orderBy(TypedSortOrder...)`
+  accepts one or more `TypedSortOrder.asc(field)` / `TypedSortOrder.desc(field)`
+  descriptors. The existing `orderBy(field)` and `orderByDesc(field)` overloads
+  are preserved for single-field backward compatibility. Mixed directions throw
+  `IllegalStateException` at execution time, consistent with the SQL-like
+  surface.
+
 - **TypedQuery CONTAINS / MATCHES (WP-2)** — `TypedField.contains(String)` and
   `TypedField.matches(String)` plus the corresponding `TypedPredicate.contains`
   and `TypedPredicate.matches` static factories bring string-containment and

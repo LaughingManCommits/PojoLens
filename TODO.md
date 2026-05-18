@@ -48,7 +48,7 @@ support string containment and regex matching; the typed surface has neither.
 
 ---
 
-### WP-3 — Per-field sort direction on `TypedQuery`  [P3]
+### ~~WP-3 — Per-field sort direction on `TypedQuery`~~ ✓ DONE 2026-05-18
 
 **Problem:** `orderBy(field)` forces `Sort.ASC` globally; `orderByDesc(field)`
 forces `Sort.DESC` globally. Last call wins for all order fields. Cannot

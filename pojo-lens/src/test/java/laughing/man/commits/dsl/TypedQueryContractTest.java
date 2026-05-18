@@ -108,6 +108,7 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "qualify", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
+        requirePublicMethod(TypedQuery.class, "orderBy", TypedSortOrder[].class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
         requirePublicMethod(TypedQuery.class, "offset", int.class);
         requirePublicMethod(TypedQuery.class, "filter", List.class);
@@ -279,6 +280,71 @@ public class TypedQueryContractTest {
         assertEquals(2, result.size());
         assertEquals("Cara", result.get(0).name);
         assertEquals("Alice", result.get(1).name);
+    }
+
+    @Test
+    void typedSortOrderAscSortsAscending() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.asc(NAME))
+                .filter(sampleEmployees());
+        List<String> names = result.stream().map(e -> e.name).toList();
+        assertEquals(names.stream().sorted().toList(), names);
+    }
+
+    @Test
+    void typedSortOrderDescSortsDescending() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.desc(SALARY))
+                .filter(sampleEmployees());
+        for (int i = 0; i < result.size() - 1; i++) {
+            assertTrue(result.get(i).salary >= result.get(i + 1).salary);
+        }
+    }
+
+    @Test
+    void typedSortOrderVarargMultipleFieldsSameDirectionDoesNotThrow() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.asc(DEPT), TypedSortOrder.asc(NAME))
+                .filter(sampleEmployees());
+        assertEquals(sampleEmployees().size(), result.size());
+    }
+
+    @Test
+    void typedSortOrderMixedDirectionsThrows() {
+        assertThrows(IllegalStateException.class, () ->
+                TypedQuery.from(Employee.class)
+                        .orderBy(TypedSortOrder.asc(DEPT), TypedSortOrder.desc(NAME))
+                        .filter(sampleEmployees()));
+    }
+
+    @Test
+    void typedSortOrderVarargParityWithOrderByAsc() {
+        List<Employee> byField = TypedQuery.from(Employee.class)
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> bySortOrder = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.asc(NAME))
+                .filter(sampleEmployees());
+        assertEquals(byField.stream().map(e -> e.name).toList(),
+                bySortOrder.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void typedSortOrderVarargParityWithOrderByDesc() {
+        List<Employee> byField = TypedQuery.from(Employee.class)
+                .orderByDesc(SALARY)
+                .filter(sampleEmployees());
+        List<Employee> bySortOrder = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.desc(SALARY))
+                .filter(sampleEmployees());
+        assertEquals(byField.stream().map(e -> e.salary).toList(),
+                bySortOrder.stream().map(e -> e.salary).toList());
+    }
+
+    @Test
+    void typedSortOrderEmptyVarargThrows() {
+        assertThrows(IllegalArgumentException.class, () ->
+                TypedQuery.from(Employee.class).orderBy(new TypedSortOrder[0]));
     }
 
     @Test

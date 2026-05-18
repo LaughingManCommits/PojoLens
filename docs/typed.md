@@ -97,6 +97,28 @@ List<Employee> excluded = TypedQuery.from(Employee.class)
 
 `NOT(IN_SUBQUERY)` is not supported — use `NOT EXISTS` instead.
 
+## Sort Order
+
+`orderBy(field)` and `orderByDesc(field)` sort a single field ascending or
+descending. For explicit per-field direction use `TypedSortOrder`:
+
+```java
+// single field, explicit direction
+List<Employee> rows = TypedQuery.from(Employee.class)
+    .orderBy(TypedSortOrder.desc(EmployeeTypedFields.SALARY))
+    .filter(employees);
+
+// multiple fields, same direction
+List<Employee> rows2 = TypedQuery.from(Employee.class)
+    .orderBy(TypedSortOrder.asc(EmployeeTypedFields.DEPARTMENT),
+             TypedSortOrder.asc(EmployeeTypedFields.NAME))
+    .filter(employees);
+```
+
+The underlying engine requires all ORDER BY fields to share the same direction.
+Mixing `asc` and `desc` in a single `orderBy(TypedSortOrder...)` call throws
+`IllegalStateException` at execution time.
+
 ## Projection
 
 Use `select(...)` when the output type is a projection rather than the source
@@ -255,7 +277,7 @@ the source row type.
 ## Current Boundaries
 
 - `TypedQuery` is the right path for Java-owned query logic, not user-authored text.
-- Sort direction is global; the last `orderBy(...)` or `orderByDesc(...)` call wins.
+- `orderBy(TypedSortOrder...)` requires all fields to share the same direction; mixed directions throw `IllegalStateException`.
 - `having(...)` only accepts grouped fields and metric aliases.
 - `qualify(...)` only accepts selected window aliases.
 - `NOT(IN_SUBQUERY)` is not supported; use `NOT EXISTS` instead.
