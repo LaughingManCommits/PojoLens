@@ -9,6 +9,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ## [Unreleased]
 
+### Changed
+
+- Reset `TODO.md` and hot AI memory away from the stale in-repo orchestrator
+  roadmap. The active repo focus is now removing the local multi-agent stack
+  after it moved to the separate `neon` codebase, while keeping PojoLens
+  centered on the Java library and repo-memory helpers.
+
 ### Added
 
 - **HITL TUI live gate integration** (WP75) - `_read_gate_manifest` pure function

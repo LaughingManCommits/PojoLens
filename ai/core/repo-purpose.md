@@ -20,4 +20,5 @@
 - Core behavior includes filtering, ordering, grouping, HAVING, metrics, time buckets, joins, typed projection, bounded subqueries/existence predicates, windows, and explain or schema support.
 - Adjacent library features include CSV boundary loading, tree row shaping, chart payload mapping, chart or query presets, reusable reports, dataset bundles, snapshot comparison, telemetry hooks, tabular schema metadata, field metamodel generation, regression fixtures, and benchmark tooling.
 - The repository does not own a web service, CLI application, deployment manifests, or database pushdown integration.
+- The repository no longer owns the local multi-agent orchestrator; that code has moved to the separate `neon` codebase, and any remaining in-repo orchestrator assets are migration leftovers to remove.
 - `pojo-lens/pom.xml` includes a `release-central` profile for Maven Central publishing (sources, javadocs, gpg signing, and central publishing plugin).

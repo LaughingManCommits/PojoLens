@@ -7,4 +7,4 @@
 - `target/` contains generated outputs and is not source of truth.
 - Maven Central publishing is implemented via `release-central` profile in `pom.xml` and `.github/workflows/release.yml`.
 - Benchmark runner usage should resolve `target/*-benchmarks.jar` dynamically instead of hardcoding a versioned filename.
-- The Claude orchestrator keeps manifests and task artifacts under repo-local `.claude-orchestrator/`, but default copy/worktree worker sandboxes now live in an external temp-backed workspace root recorded in `workspacesDir`; this prevents copy-mode workers from mutating the live repo by escaping a repo-local sandbox.
+- The remaining repo-memory helpers live under `scripts/ai/refresh-ai-memory.*` and `scripts/ai/query-ai-memory.*`; the separate multi-agent/orchestrator runtime has moved to `neon`, so `scripts/ai/pojo_lens_agents/**`, `ai/orchestrator/**`, `.claude-orchestrator/**`, and `runs/**` are removal candidates rather than active product surfaces.
