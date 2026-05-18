@@ -16,7 +16,6 @@ indexes/ -> derived JSON navigation data
 indexes/cold-memory.db -> optional derived SQLite/FTS cold-search artifact
 indexes/refresh-state.json -> derived per-file hash cache for incremental refresh
 indexes/publish-state.json -> derived publish marker for staged refresh/check handoff
-orchestrator/ -> legacy extracted orchestration specs pending removal
 state/recent-validations.md -> warm validation ledger
 log/events.jsonl -> recent discovery history
 log/archive/*-summary.md -> derived monthly archive summaries
@@ -25,10 +24,8 @@ log/archive/*.jsonl -> archived discovery history
 Scope split:
 
 - `core/`, `state/`, and `log/` are **project memory**
-- `orchestrator/` is **legacy extracted orchestrator memory**
 - project memory owns repo facts, active roadmap state, validation history, and session handoff
-- orchestrator memory only preserves the extracted local multi-agent contract/history until cleanup removes it
-- neither side should duplicate the other's volatile state
+- derived indexes support retrieval only; they do not replace Markdown truth
 
 Conceptually:
 
@@ -68,8 +65,6 @@ Examples:
 - ai/core/readme-alignment.md
 - ai/core/benchmark-context.md
 - ai/core/discovery-notes.md
-- ai/orchestrator/README.md
-- ai/orchestrator/SYSTEM-SPEC.md
 - ai/state/recent-validations.md
 - ai/state/benchmark-state.md
 - ai/indexes/*
@@ -89,19 +84,13 @@ Conditional cold-load triggers (additive hints, not hard gates):
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**` | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md` |
 | module topology/build boundary work | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work | `ai/core/test-strategy.md`, `ai/state/recent-validations.md` |
-| legacy orchestrator cleanup work or touching `ai/orchestrator/**`, `.claude-orchestrator/**`, `runs/**` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
 | AI memory maintenance or touching `ai/**`, `scripts/ai/refresh-ai-memory*`, `scripts/ai/query-ai-memory*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
-
-For legacy orchestrator cleanup that needs the archived control-plane docs, also load:
-- `ai/orchestrator/README.md`
-- `ai/orchestrator/SYSTEM-SPEC.md`
 
 Routing fallback:
 - if task intent is broad or ambiguous after applying the trigger table, run:
   `scripts/ai/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
 - for domain-specific precision, add facets:
   `-Kind ai-core` for architecture/module facts
-  `-Kind ai-orchestrator` for orchestration workflow docs
   `-Tier hot,warm` for recency-focused state
   `-Path "ai/core/*"` or `-Path "ai/state/*"` to constrain scope
 - prefer top non-archive hits before raw archive logs
@@ -137,15 +126,6 @@ Use `scripts/ai/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is re
 
 ---
 
-# Legacy Orchestration
-
-- the active multi-agent runtime now lives in the separate `neon` codebase
-- `ai/orchestrator/` is legacy extracted control-plane material pending removal from this repo
-- do not add new local orchestrator runtime code under `scripts/ai/`
-- if cleanup still touches `ai/orchestrator/**`, keep it separate from project state and do not let it become a second active roadmap store
-
----
-
 # Compaction
 
 Keep memory lightweight.
@@ -178,10 +158,6 @@ indexes/
 - `scripts/ai/refresh-ai-memory.ps1 -CompactLog` compacts the recent event log into monthly archives
 - `scripts/ai/query-ai-memory.ps1` supports `-Tier`, `-Kind`, and `-Path` facets for cold retrieval
 - `scripts/ai/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` proves refresh/query latency and fixed-query hit quality
-
-orchestrator/
-- treat as legacy extracted material pending removal
-- do not store new per-run manifests, worker transcripts, or workspace snapshots under `ai/`
 
 Summary guardrails:
 - one bullet should carry one fact; split mixed bullets

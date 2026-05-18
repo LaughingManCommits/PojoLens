@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-05-18T14:58:29.232154+02:00",
+  "generatedAt": "2026-05-18T15:13:14.869656+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
       "category": "agent-guide",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 93,
-      "byteCount": 6297,
+      "lineCount": 83,
+      "byteCount": 5310,
       "coldSearchEligible": true
     },
     {
@@ -15,8 +15,8 @@
       "category": "ai-memory-guide",
       "relevance": "high",
       "loadTier": "cold",
-      "lineCount": 199,
-      "byteCount": 7474,
+      "lineCount": 175,
+      "byteCount": 6234,
       "coldSearchEligible": true
     },
     {
@@ -52,7 +52,7 @@
       "relevance": "medium",
       "loadTier": "cold",
       "lineCount": 10,
-      "byteCount": 1265,
+      "byteCount": 1223,
       "coldSearchEligible": true
     },
     {
@@ -60,8 +60,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 65,
-      "byteCount": 1673,
+      "lineCount": 60,
+      "byteCount": 1583,
       "coldSearchEligible": true
     },
     {
@@ -88,7 +88,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 24,
-      "byteCount": 1980,
+      "byteCount": 1906,
       "coldSearchEligible": true
     },
     {
@@ -137,105 +137,6 @@
       "coldSearchEligible": true
     },
     {
-      "path": "ai/orchestrator/agents/analyst/prompt.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 1,
-      "byteCount": 828,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/agents/implementer/prompt.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 1,
-      "byteCount": 835,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/agents/planner/prompt.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 1,
-      "byteCount": 392,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/agents/reviewer/prompt.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 1,
-      "byteCount": 878,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/README.md",
-      "category": "ai-orchestrator",
-      "relevance": "high",
-      "loadTier": "cold",
-      "lineCount": 826,
-      "byteCount": 30299,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/skills/benchmark/SKILL.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 3,
-      "byteCount": 205,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/skills/caveman/SKILL.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 3,
-      "byteCount": 178,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/skills/docs/SKILL.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 3,
-      "byteCount": 170,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/skills/orchestrator/SKILL.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 3,
-      "byteCount": 234,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/skills/release/SKILL.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 3,
-      "byteCount": 217,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "ai/orchestrator/SYSTEM-SPEC.md",
-      "category": "ai-orchestrator",
-      "relevance": "medium",
-      "loadTier": "cold",
-      "lineCount": 241,
-      "byteCount": 34190,
-      "coldSearchEligible": true
-    },
-    {
       "path": "ai/state/benchmark-state.md",
       "category": "ai-benchmark-state",
       "relevance": "medium",
@@ -249,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 27,
-      "byteCount": 1768,
+      "lineCount": 24,
+      "byteCount": 1577,
       "coldSearchEligible": true
     },
     {
@@ -258,8 +159,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 27,
-      "byteCount": 1961,
+      "lineCount": 28,
+      "byteCount": 1903,
       "coldSearchEligible": true
     },
     {
@@ -267,8 +168,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 238,
-      "byteCount": 137335,
+      "lineCount": 239,
+      "byteCount": 137763,
       "coldSearchEligible": true
     },
     {
@@ -609,8 +510,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 91,
-      "byteCount": 3065,
+      "lineCount": 94,
+      "byteCount": 3232,
       "coldSearchEligible": true
     }
   ]

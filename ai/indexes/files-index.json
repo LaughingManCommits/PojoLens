@@ -1,14 +1,13 @@
 {
-  "generatedAt": "2026-05-18T14:58:29.232154+02:00",
+  "generatedAt": "2026-05-18T15:13:14.869656+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 9,
     "mainJavaFiles": 284,
     "testJavaFiles": 161,
-    "markdownDocs": 68,
+    "markdownDocs": 57,
     "aiCoreFiles": 11,
-    "aiIndexFiles": 8,
-    "orchestratorTaskPlans": 11
+    "aiIndexFiles": 8
   },
   "roots": [
     {
@@ -22,10 +21,6 @@
     {
       "path": "ai/state",
       "kind": "ai-state"
-    },
-    {
-      "path": "ai/orchestrator",
-      "kind": "ai-orchestrator"
     },
     {
       "path": "ai/indexes",
@@ -250,26 +245,6 @@
     {
       "path": "ai/state/recent-validations.md",
       "kind": "ai-warm-state"
-    },
-    {
-      "path": "ai/orchestrator/README.md",
-      "kind": "ai-orchestrator-guide"
-    },
-    {
-      "path": "ai/orchestrator/SYSTEM-SPEC.md",
-      "kind": "ai-orchestrator-guide"
-    },
-    {
-      "path": "ai/orchestrator/agents.json",
-      "kind": "ai-orchestration-config"
-    },
-    {
-      "path": "ai/orchestrator/tasks/example-review.json",
-      "kind": "ai-orchestration-task-plan"
-    },
-    {
-      "path": "ai/orchestrator/tasks/example-parallel.json",
-      "kind": "ai-orchestration-task-plan"
     },
     {
       "path": "scripts/ai/refresh-ai-memory.py",

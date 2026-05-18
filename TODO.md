@@ -33,15 +33,15 @@
 
 ### 2. Tracked control-plane files
 
-- [ ] Remove `ai/orchestrator/**` after any PojoLens-only facts are preserved
+- [x] Remove `ai/orchestrator/**` after any PojoLens-only facts are preserved
   elsewhere.
-- [ ] Remove stale orchestrator roadmap/history references from `ai/state/*`
+- [x] Remove stale orchestrator roadmap/history references from `ai/state/*`
   and other repo-memory files.
 
 ### 3. Runtime artifacts and retained data
 
-- [ ] Remove repo-local retained run data under `.claude-orchestrator/**`.
-- [ ] Remove orchestrator-generated run data under `runs/**` if it is not
+- [x] Remove repo-local retained run data under `.claude-orchestrator/**`.
+- [x] Remove orchestrator-generated run data under `runs/**` if it is not
   needed for any remaining PojoLens workflow.
 
 ### 4. Tests and Python-only tooling
@@ -52,11 +52,11 @@
 
 ### 5. Docs and metadata
 
-- [ ] Remove or rewrite orchestrator references in `README.md`,
+- [x] Remove or rewrite active orchestrator references in `README.md`,
   `CHANGELOG.md`, `CLAUDE.md`, `MAINTENANCE.md`, `AGENTS.md`, and related docs.
 - [ ] Decide how much old orchestrator history should stay in this repo's
   changelog versus moving to `neon`.
-- [ ] Remove editor or CI assumptions that still expect the Python package to
+- [x] Remove editor or CI assumptions that still expect the Python package to
   exist.
 
 ---
@@ -86,6 +86,9 @@
 - [x] `2026-05-18`: Removed the in-repo `pojolens-agents` package, the
   `claude-orchestrator` CLI shims, and the orchestrator-only Python test
   suite.
+- [x] `2026-05-18`: Removed legacy tracked control-plane files, retained run
+  directories, and stale active repo-memory references to the extracted
+  runtime.
 - [x] `2026-05-18`: Kept the repo-memory helper scripts plus
   `scripts/tests/test_refresh_ai_memory.py`, and re-ran the surviving
   validation set.

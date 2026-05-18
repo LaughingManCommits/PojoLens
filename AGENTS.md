@@ -31,14 +31,11 @@ Conditional cold-load matrix (additive hints, not hard gates):
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**`                                                  | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md`                          |
 | module topology/build boundary work or touching module structure and build wiring                                                  | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work                                                                                           | `ai/core/test-strategy.md`, `ai/state/recent-validations.md`                             |
-| legacy orchestrator cleanup work or touching `ai/orchestrator/**`, `.claude-orchestrator/**`, `runs/**`                            | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 | AI memory maintenance or touching `ai/**`, `scripts/ai/refresh-ai-memory*`, `scripts/ai/query-ai-memory*`                            | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 
 Split-memory rule:
 - treat `ai/core/*`, `ai/state/*`, and `ai/log/*` as **project memory** for repo facts, active state, validation history, and session handoff
-- treat `ai/orchestrator/*` as **legacy extracted orchestrator memory** kept only for cleanup and history until those files are removed
-- do not use `ai/orchestrator/*` as a second project-state snapshot
-- do not copy roadmap or handoff state into `ai/orchestrator/*`
+- do not create a second project-state snapshot outside those project-memory areas
 - do not move operator-contract rules into `ai/state/*` unless they are startup-critical for the next session
 
 Routing fallback:
@@ -46,7 +43,6 @@ Routing fallback:
   `scripts/ai/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
 - for domain-specific precision, add facets:
   `-Kind ai-core` for architecture/module facts
-  `-Kind ai-orchestrator` for orchestration workflow docs
   `-Tier hot,warm` for recency-focused state
   `-Path "ai/core/*"` or `-Path "ai/state/*"` to constrain scope
 - prefer top non-archive hits before opening archive logs
@@ -63,12 +59,6 @@ Memory rules:
 - code, tests, and build config override `/ai` if facts conflict
 - `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts; refresh them with `scripts/ai/refresh-ai-memory.ps1` after structural or documentation changes
 - run `scripts/ai/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` after changing the AI memory retrieval path
-
-Legacy orchestration cleanup:
-- the active multi-agent runtime now lives in the separate `neon` codebase
-- `ai/orchestrator/` remains only as legacy extracted control-plane material pending removal from this repo
-- do not add or revive local orchestrator runtime code under `scripts/ai/`
-- when cleaning legacy orchestration artifacts, load the project-memory rules from `AGENTS.md` + `ai/AGENTS.md`, then open `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` only if the cleanup needs their contents
 
 Context budget and summarization:
 - hot context hard cap: `240` lines and `24 KB` total across the 4 hot files

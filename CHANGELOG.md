@@ -27,6 +27,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - Removed the orchestrator-only Python test suite under `scripts/tests/`,
   leaving only the repo-memory helper coverage in place.
 
+- Removed the remaining extracted control-plane and retained run artifacts:
+  `ai/orchestrator/**`, repo-local `.claude-orchestrator/**`, `runs/**`, and
+  `ai/state/run-ledger.jsonl` are no longer tracked in PojoLens.
+
 ### Added
 
 - **HITL TUI live gate integration** (WP75) - `_read_gate_manifest` pure function

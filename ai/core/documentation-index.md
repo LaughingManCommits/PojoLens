@@ -49,11 +49,6 @@
 - `ai/AGENTS.md`
 - `LICENSE.md`
 
-## Legacy Cleanup Docs
-
-- `ai/orchestrator/README.md`
-- `ai/orchestrator/SYSTEM-SPEC.md`
-
 ## Notes
 
 - `TODO.md` remains the backlog file for active planning and follow-up.

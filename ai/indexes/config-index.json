@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-18T14:58:01.499428+02:00",
+  "generatedAt": "2026-05-18T15:12:15.627478+02:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
@@ -134,25 +134,6 @@
       "recentEntries": 12
     }
   },
-  "orchestration": {
-    "trackedControlPlane": [
-      "ai/orchestrator/README.md",
-      "ai/orchestrator/SYSTEM-SPEC.md",
-      "ai/orchestrator/agents.json",
-      "ai/orchestrator/tasks/*.json"
-    ],
-    "defaultAgentsPath": "ai/orchestrator/agents.json",
-    "taskPlanGlob": "ai/orchestrator/tasks/*.json",
-    "runtimeRoot": ".claude-orchestrator/",
-    "validateCommand": "pojolens-agents validate ai/orchestrator/tasks/<plan>.json",
-    "planCommand": "pojolens-agents plan <goal> --dry-run",
-    "runCommand": "pojolens-agents run ai/orchestrator/tasks/<plan>.json --dry-run",
-    "workerProtectionRules": [
-      "Workers must not edit TODO.md.",
-      "Workers must not edit ai/state/*, ai/log/*, or ai/indexes/*.",
-      "The coordinator owns review, merge decisions, memory updates, and final validation."
-    ]
-  },
   "validationScripts": [
     "scripts/docs/check-doc-consistency.ps1",
     "scripts/docs/check-doc-consistency.py",
@@ -165,17 +146,6 @@
     "scripts/ai/query-ai-memory.py",
     "scripts/ai/benchmark-ai-memory.ps1",
     "scripts/ai/benchmark-ai-memory.py"
-  ],
-  "orchestrationScripts": [
-    "scripts/ai/claude-orchestrator.ps1",
-    "scripts/ai/claude-orchestrator.py",
-    "scripts/ai/pojo_lens_agents/cli.py",
-    "scripts/ai/pojo_lens_agents/governance.py",
-    "scripts/ai/pojo_lens_agents/path_safety.py",
-    "scripts/ai/pojo_lens_agents/provider.py",
-    "scripts/ai/pojo_lens_agents/run_store.py",
-    "scripts/ai/pojo_lens_agents/runtime.py",
-    "scripts/ai/pojo_lens_agents/workspace_review.py"
   ],
   "releaseScripts": [
     "scripts/release/export-release-secrets.ps1"
