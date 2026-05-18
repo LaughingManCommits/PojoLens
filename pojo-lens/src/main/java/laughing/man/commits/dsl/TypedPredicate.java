@@ -309,7 +309,26 @@ public final class TypedPredicate<T> {
         if (predicates.length == 1) {
             return predicates[0];
         }
-        return compound(Operator.AND, copyPredicateList(predicates));
+        // absorption: any NONE absorbs the entire AND
+        for (TypedPredicate<T> p : predicates) {
+            if (p.operator == Operator.NONE) {
+                return TypedPredicate.none();
+            }
+        }
+        // identity: ANY is identity for AND — filter it out
+        List<TypedPredicate<T>> filtered = new java.util.ArrayList<>();
+        for (TypedPredicate<T> p : predicates) {
+            if (p.operator != Operator.ANY) {
+                filtered.add(p);
+            }
+        }
+        if (filtered.isEmpty()) {
+            return TypedPredicate.any();
+        }
+        if (filtered.size() == 1) {
+            return filtered.get(0);
+        }
+        return compound(Operator.AND, List.copyOf(filtered));
     }
 
     @SafeVarargs
@@ -318,7 +337,26 @@ public final class TypedPredicate<T> {
         if (predicates.length == 1) {
             return predicates[0];
         }
-        return compound(Operator.OR, copyPredicateList(predicates));
+        // absorption: any ANY absorbs the entire OR
+        for (TypedPredicate<T> p : predicates) {
+            if (p.operator == Operator.ANY) {
+                return TypedPredicate.any();
+            }
+        }
+        // identity: NONE is identity for OR — filter it out
+        List<TypedPredicate<T>> filtered = new java.util.ArrayList<>();
+        for (TypedPredicate<T> p : predicates) {
+            if (p.operator != Operator.NONE) {
+                filtered.add(p);
+            }
+        }
+        if (filtered.isEmpty()) {
+            return TypedPredicate.none();
+        }
+        if (filtered.size() == 1) {
+            return filtered.get(0);
+        }
+        return compound(Operator.OR, List.copyOf(filtered));
     }
 
     /** Always-true sentinel: lowers to no WHERE clause, returning all rows. */

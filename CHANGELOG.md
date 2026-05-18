@@ -11,6 +11,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Typed-surface hardening (WP-11)** — follow-up pass closing the remaining gaps from WP-7–10:
+  - `applyToBuilder` now applies `computedFields` immediately after `applyJoins`, before `applyWhere`,
+    `applyTimeBuckets`, `applyGroupBy`, `applyMetrics`, and `applyHaving`; previously it was applied
+    last, which prevented computed fields from being visible to WHERE and aggregation stages.
+  - `TypedPredicate.allOf()` and `anyOf()` now apply the same identity/absorption sentinel laws
+    that instance `and()` / `or()` already had: `allOf(pred, any()) → pred`,
+    `allOf(pred, none()) → none()`, `anyOf(pred, none()) → pred`, `anyOf(pred, any()) → any()`.
+  - Contract tests added for computed-field groupBy+metric and computed-field groupBy+HAVING.
+  - `StablePublicApiContractTest` now locks `containsIgnoreCase`, `any`, `none`, all four
+    `stream()` overloads, `computedFields`, `hasComputedFields`, and `computedFieldRegistry`.
+  - 1223 tests pass.
+
 - **`TypedQuery.computedFields(ComputedFieldRegistry)` (WP-10)** — typed queries can now attach
   a computed-field registry, matching the capability on SQL-like and natural surfaces. The registry
   is retained across fluent calls and applied to the engine via `builder.computedFields(registry)`

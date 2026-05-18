@@ -1728,6 +1728,50 @@ public class TypedQueryContractTest {
                 () -> TypedQuery.from(Employee.class).computedFields(null));
     }
 
+    @Test
+    void computedFieldsWithGroupByAndMetric() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedField<Employee, String> DEPT = TypedField.of("department", String.class);
+        TypedField<Employee, Double> ADJUSTED_SALARY = TypedField.of("adjustedSalary", Double.class);
+
+        List<DepartmentAdjustedPayrollRow> result = TypedQuery.from(Employee.class)
+                .computedFields(registry)
+                .groupBy(DEPT)
+                .metric(ADJUSTED_SALARY, Metric.SUM, "totalAdjustedPayroll")
+                .filter(sampleEmployees(), DepartmentAdjustedPayrollRow.class);
+
+        // Engineering: Alice(132000) + Cara(143000) + Dan(121000) = 396000
+        // Finance: Bob(99000)
+        assertEquals(2, result.size());
+        DepartmentAdjustedPayrollRow eng = result.stream()
+                .filter(r -> "Engineering".equals(r.department)).findFirst().orElseThrow();
+        assertEquals(396000.0, eng.totalAdjustedPayroll, 0.01);
+    }
+
+    @Test
+    void computedFieldsWithGroupByAndHaving() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedField<Employee, String> DEPT = TypedField.of("department", String.class);
+        TypedField<Employee, Double> ADJUSTED_SALARY = TypedField.of("adjustedSalary", Double.class);
+        TypedField<DepartmentAdjustedPayrollRow, Double> TOTAL =
+                TypedField.of("totalAdjustedPayroll", Double.class);
+
+        List<DepartmentAdjustedPayrollRow> result = TypedQuery.from(Employee.class)
+                .computedFields(registry)
+                .groupBy(DEPT)
+                .metric(ADJUSTED_SALARY, Metric.SUM, "totalAdjustedPayroll")
+                .having(TOTAL.gt(200_000.0))
+                .filter(sampleEmployees(), DepartmentAdjustedPayrollRow.class);
+
+        // Only Engineering (396000) passes the having > 200000 filter
+        assertEquals(1, result.size());
+        assertEquals("Engineering", result.get(0).department);
+    }
+
     // --- Between ---
 
     @Test
@@ -1860,6 +1904,14 @@ public class TypedQueryContractTest {
         public long total;
 
         public JoinedTitleCount() {
+        }
+    }
+
+    public static class DepartmentAdjustedPayrollRow {
+        public String department;
+        public double totalAdjustedPayroll;
+
+        public DepartmentAdjustedPayrollRow() {
         }
     }
 }

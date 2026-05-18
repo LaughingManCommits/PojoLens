@@ -433,6 +433,50 @@ public class TypedPredicateContractTest {
         assertEquals(ANY, p.operator());
     }
 
+    // --- allOf / anyOf static-factory sentinel laws ---
+
+    @Test
+    void allOfWithAnyIsIdentity() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = TypedPredicate.allOf(pred, TypedPredicate.any());
+        assertSame(pred, result);
+    }
+
+    @Test
+    void allOfWithNoneAbsorbs() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = TypedPredicate.allOf(pred, TypedPredicate.none());
+        assertEquals(NONE, result.operator());
+    }
+
+    @Test
+    void anyOfWithNoneIsIdentity() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = TypedPredicate.anyOf(pred, TypedPredicate.none());
+        assertSame(pred, result);
+    }
+
+    @Test
+    void anyOfWithAnyAbsorbs() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = TypedPredicate.anyOf(pred, TypedPredicate.any());
+        assertEquals(ANY, result.operator());
+    }
+
+    @Test
+    void allOfAllAnyCollapsesToAny() {
+        TypedPredicate<Employee> result = TypedPredicate.allOf(
+                TypedPredicate.any(), TypedPredicate.any());
+        assertEquals(ANY, result.operator());
+    }
+
+    @Test
+    void anyOfAllNoneCollapsesToNone() {
+        TypedPredicate<Employee> result = TypedPredicate.anyOf(
+                TypedPredicate.none(), TypedPredicate.none());
+        assertEquals(NONE, result.operator());
+    }
+
     // --- Helpers ---
 
     private static Method requirePublicMethod(Class<?> type, String name, Class<?>... params)

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-18T21:15:57.652156+02:00",
+  "generatedAt": "2026-05-18T21:47:58.438052+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "fad71a23aff0206e1938854bb2b75378a2bc08303a447961456e5c94d15bba72",
+      "inputHash": "955b2d4afa12993b2ba795565052503e1158b26c9e02efe9a35ab2f8aaf5a981",
       "pathHashes": {
         "AGENTS.md": "6c9a60b3d37c1325b358c615564f866b3dc094d146a93b547739ff68d8d54175",
         "ai/AGENTS.md": "32d2c7129f4daa1666b52284d5618a1748a0c9f4c94f92e1b48becf67d1adcbe",
@@ -23,7 +23,7 @@
         "ai/log/archive/2026-04-summary.md": "da76f526a227b6ab1b3faa1bd92e3b2427a73e304d99ced5b576885c5c4d0df9",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
         "ai/state/current-state.md": "935285feac73823892475a931b88e8864fb6a58e19669df8588b6cfc8132cfe8",
-        "ai/state/handoff.md": "be2761ab13b55da1e2926a9365aebb2d04ff9b78166001318877b39406b175ed",
+        "ai/state/handoff.md": "2a9b556630e1d4ac77e1d4de90693d3ea4f95df22a249b9974f32dc7c8c2bb53",
         "ai/state/recent-validations.md": "f107463c0fb35f255b6c0071f7ab09109eb7d31129367e281255fd6d526c823a",
         "CONTRIBUTING.md": "4ea5bb5d583a04a40ffd00289e0872ec7b981480c3db2fcd62bcbe3a048a773f",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -63,12 +63,12 @@
         "RELEASE.md": "1f96ad66457183039b1deba365fb153d1ac48edf64f5135cdacf708d07e20588",
         "scripts/ai/refresh-ai-memory.py": "41d452e92f0f17bb81364bb574b0cbf18acf509408b1e116ba93f7a4ed13ff4c",
         "scripts/README.md": "fde53f36481c3c9fd2ae0cf66ec053b8753066eae8f37f53610d3fe55ac7b772",
-        "TODO.md": "d14daaeb543f21c6a5e7eda7c8990db30f23009172054be857d7329299ae4a76"
+        "TODO.md": "bc53480d10ed50d3698dc1abd958ce18a5c3c96fa7b765e69e867c5b025feda4"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "91d70cc9a6a3b220fce923b85a57742983b77d99f261f7faf6d7b1bb44ad9b86",
+      "inputHash": "dff6d853fd50b3245fb7da3cc9dc33c487b53040ca50e50926efc2297cb1f070",
       "pathHashes": {
         ".github/workflows/ci.yml": "6798b7bcccc464d98d04e5a86816b29585b131b95f41f13a6786330c03d41b5d",
         ".github/workflows/release.yml": "31ed6b9ff60bc49ce8a73681a0d2584522bb878093b476757040327285918b34",
@@ -89,7 +89,7 @@
         "ai/log/archive/2026-04-summary.md": "da76f526a227b6ab1b3faa1bd92e3b2427a73e304d99ced5b576885c5c4d0df9",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
         "ai/state/current-state.md": "935285feac73823892475a931b88e8864fb6a58e19669df8588b6cfc8132cfe8",
-        "ai/state/handoff.md": "be2761ab13b55da1e2926a9365aebb2d04ff9b78166001318877b39406b175ed",
+        "ai/state/handoff.md": "2a9b556630e1d4ac77e1d4de90693d3ea4f95df22a249b9974f32dc7c8c2bb53",
         "ai/state/recent-validations.md": "f107463c0fb35f255b6c0071f7ab09109eb7d31129367e281255fd6d526c823a",
         "CONTRIBUTING.md": "4ea5bb5d583a04a40ffd00289e0872ec7b981480c3db2fcd62bcbe3a048a773f",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -203,8 +203,8 @@
         "pojo-lens/src/main/java/laughing/man/commits/domain/QueryRow.java": "de510d03f04ee711b3df4b1e9d07e86b3dfcc55b9c2b6c4cec49c771cfc91de4",
         "pojo-lens/src/main/java/laughing/man/commits/domain/RawQueryRow.java": "355325ea736f556362112f7a8b2af05858a5ff45141b248fa6b0c4a983721f0d",
         "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedField.java": "b9adb78ea033145085a00b23e0cdf1bf478408f3caff57515f6cac9d42c62b96",
-        "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedPredicate.java": "54ec290411f3581dfd840d12db75c49d28deaf91912305107bf48e1fbfbeded6",
-        "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedQuery.java": "10d6bf7b7e74502fdb7ee8148b1dbd32babf8ecf43c98457802680bdff712f0f",
+        "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedPredicate.java": "862a35aefca49101ac04b5d36712f4a9e7cc0bb187d727b7096f8421f036bf5d",
+        "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedQuery.java": "0cf2883212fd9ff6a887ac025928d6980fa18e3e70cae648d4ac87226b39d32a",
         "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedSortOrder.java": "5448d02efece4cd37f0f4f5672dea1e044679f23f2d501123bb5bfd1195358f3",
         "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedWindowOrder.java": "6f445e9cbc1b61ee41237d315671318a27aaf433031a485d908f2204ae8c443d",
         "pojo-lens/src/main/java/laughing/man/commits/EngineDefaults.java": "13f83cf3f2c93792d1bf312a6707679b74a68d24d27c1734af6e65f84775c76e",
@@ -413,8 +413,8 @@
         "pojo-lens/src/test/java/laughing/man/commits/DatasetBundleExecutionContextTest.java": "2780b038e5c66a96476e0e01d296bdc20696aa96306308c3452b27288f364912",
         "pojo-lens/src/test/java/laughing/man/commits/domain/Foo.java": "1dd28485a1ce24fcdfff9fccc4ef4cf92afc2c51f7f476ec8e8413d6e3652620",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedFieldContractTest.java": "f636689201389bad1ef1669ec749078c6c4dd34968e470a0cfe3159c0bba3251",
-        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedPredicateContractTest.java": "334f4221981b276c05b64d10bae12de6a009bd5799c9a391efa0d9d1dc69e3d5",
-        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedQueryContractTest.java": "cb7de67d3bcddfdbf7448ef6ee168937ccb8e980037d86ffcb3e85eae7b9014e",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedPredicateContractTest.java": "5bbc175eca1db2b78d613206db87754ba63ec06455e2ebf43fd5449228b6da08",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedQueryContractTest.java": "fe10c59655dca0402402c6e656ff4a8e54e611dd87df1ba41c15f573e0daa0f0",
         "pojo-lens/src/test/java/laughing/man/commits/ExplainToolingTest.java": "f5c288d0f72355262fff3b0d093108a2c4f7125184907fe0e174db202d7b4c03",
         "pojo-lens/src/test/java/laughing/man/commits/facet/FacetPresetsTest.java": "9ecb0f9cc90351a2195ad6f40ccedd52a9c213f0592e6f2a7236d1c0c40157e9",
         "pojo-lens/src/test/java/laughing/man/commits/FieldMetamodelGeneratorTest.java": "96c5397519af151244b842cec7201dfb169400e5668f682a3004d9f426b9c5a2",
@@ -457,7 +457,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiNaturalCoverageTest.java": "3be6afc515332b9bd76fbde6a8c70dbeecf29d5891de7f5a1cc8c4c8d6b8305f",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiSqlCoverageTest.java": "0ae0ad82e5775e18333326a3184c3322e053fbe81ecd9c0fb0d1b234a272308f",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicSurfaceContractTest.java": "091aeaee1ac234ff8a9e808fe0abf1299030e96c7f2f195a2fd62ea4fab9a38b",
-        "pojo-lens/src/test/java/laughing/man/commits/publicapi/StablePublicApiContractTest.java": "27d7974b8ecb62d7c186ae0ac7f46d38d73aea384cff6cba9b91580e16d209dd",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/StablePublicApiContractTest.java": "b42030c7114c52c01dd4232de8452e1b1d9a36103726c602f825b057c53c8de5",
         "pojo-lens/src/test/java/laughing/man/commits/query/NestedPathQueryTest.java": "365f4e456e8a59d5ded7eec51805a87ecf7f96e18cf1eb7de0393aa652897723",
         "pojo-lens/src/test/java/laughing/man/commits/query/package-info.java": "98b9e6da5bdce7fa93d7a4d0bb80ead8fc18c330eba2eb06b364c659f944e4bb",
         "pojo-lens/src/test/java/laughing/man/commits/query/QueryRegressionFixtureTest.java": "51d81177dc32cce4df2dc2ffe1760653a8488b3fc6485b98462b8b473e6aff12",
@@ -599,12 +599,12 @@
         "scripts/quality/check-lint-baseline.ps1": "246ef847644b2dbfaca4adbf811fabc95734c0f32376cf4b0379fb45aeaa6412",
         "scripts/quality/checkstyle-baseline.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "scripts/README.md": "fde53f36481c3c9fd2ae0cf66ec053b8753066eae8f37f53610d3fe55ac7b772",
-        "TODO.md": "d14daaeb543f21c6a5e7eda7c8990db30f23009172054be857d7329299ae4a76"
+        "TODO.md": "bc53480d10ed50d3698dc1abd958ce18a5c3c96fa7b765e69e867c5b025feda4"
       }
     },
     "symbols": {
       "outputPath": "ai/indexes/symbols-index.json",
-      "inputHash": "d1c55e8a168ed592fe5d8b7c6f24862833a6bbe7cdf801148a82192d4fd160bb",
+      "inputHash": "3afa824d26b149ff3da7a28bdec5d5fbee3145efc07b7465bab349c4b31497da",
       "pathHashes": {
         "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java": "3d65bca000efb3eb3920ccaf0c8991fd114b8964d6113d8d256012682ea0aaef",
         "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeTypes.java": "bc59ad30734ffdb38208c3c0fd3cda7cf48d7c7b34e864767a1ce9620d0629ab",
@@ -663,8 +663,8 @@
         "pojo-lens/src/main/java/laughing/man/commits/domain/QueryRow.java": "de510d03f04ee711b3df4b1e9d07e86b3dfcc55b9c2b6c4cec49c771cfc91de4",
         "pojo-lens/src/main/java/laughing/man/commits/domain/RawQueryRow.java": "355325ea736f556362112f7a8b2af05858a5ff45141b248fa6b0c4a983721f0d",
         "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedField.java": "b9adb78ea033145085a00b23e0cdf1bf478408f3caff57515f6cac9d42c62b96",
-        "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedPredicate.java": "54ec290411f3581dfd840d12db75c49d28deaf91912305107bf48e1fbfbeded6",
-        "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedQuery.java": "10d6bf7b7e74502fdb7ee8148b1dbd32babf8ecf43c98457802680bdff712f0f",
+        "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedPredicate.java": "862a35aefca49101ac04b5d36712f4a9e7cc0bb187d727b7096f8421f036bf5d",
+        "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedQuery.java": "0cf2883212fd9ff6a887ac025928d6980fa18e3e70cae648d4ac87226b39d32a",
         "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedSortOrder.java": "5448d02efece4cd37f0f4f5672dea1e044679f23f2d501123bb5bfd1195358f3",
         "pojo-lens/src/main/java/laughing/man/commits/dsl/TypedWindowOrder.java": "6f445e9cbc1b61ee41237d315671318a27aaf433031a485d908f2204ae8c443d",
         "pojo-lens/src/main/java/laughing/man/commits/EngineDefaults.java": "13f83cf3f2c93792d1bf312a6707679b74a68d24d27c1734af6e65f84775c76e",
@@ -896,7 +896,7 @@
     },
     "test": {
       "outputPath": "ai/indexes/test-index.json",
-      "inputHash": "97129ab736350f5b64e5d4d7f96def3bb9624bfbeb803f705be404898f521f6e",
+      "inputHash": "23cf1c42e10f0cb6ef4832b669d3b027d805c6be8b7385120e148b82481617b0",
       "pathHashes": {
         "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java": "94728f6b0b6e6dc003eaa3f04ce2a82c5f4698c6ab21244ba7c2d7e64edbbf14",
         "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java": "8c08c9f979bf1ae3664b3aa987ea3e509143a8dc4eb34a3f25171bfc967c4475",
@@ -932,8 +932,8 @@
         "pojo-lens/src/test/java/laughing/man/commits/DatasetBundleExecutionContextTest.java": "2780b038e5c66a96476e0e01d296bdc20696aa96306308c3452b27288f364912",
         "pojo-lens/src/test/java/laughing/man/commits/domain/Foo.java": "1dd28485a1ce24fcdfff9fccc4ef4cf92afc2c51f7f476ec8e8413d6e3652620",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedFieldContractTest.java": "f636689201389bad1ef1669ec749078c6c4dd34968e470a0cfe3159c0bba3251",
-        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedPredicateContractTest.java": "334f4221981b276c05b64d10bae12de6a009bd5799c9a391efa0d9d1dc69e3d5",
-        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedQueryContractTest.java": "cb7de67d3bcddfdbf7448ef6ee168937ccb8e980037d86ffcb3e85eae7b9014e",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedPredicateContractTest.java": "5bbc175eca1db2b78d613206db87754ba63ec06455e2ebf43fd5449228b6da08",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedQueryContractTest.java": "fe10c59655dca0402402c6e656ff4a8e54e611dd87df1ba41c15f573e0daa0f0",
         "pojo-lens/src/test/java/laughing/man/commits/ExplainToolingTest.java": "f5c288d0f72355262fff3b0d093108a2c4f7125184907fe0e174db202d7b4c03",
         "pojo-lens/src/test/java/laughing/man/commits/facet/FacetPresetsTest.java": "9ecb0f9cc90351a2195ad6f40ccedd52a9c213f0592e6f2a7236d1c0c40157e9",
         "pojo-lens/src/test/java/laughing/man/commits/FieldMetamodelGeneratorTest.java": "96c5397519af151244b842cec7201dfb169400e5668f682a3004d9f426b9c5a2",
@@ -976,7 +976,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiNaturalCoverageTest.java": "3be6afc515332b9bd76fbde6a8c70dbeecf29d5891de7f5a1cc8c4c8d6b8305f",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiSqlCoverageTest.java": "0ae0ad82e5775e18333326a3184c3322e053fbe81ecd9c0fb0d1b234a272308f",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicSurfaceContractTest.java": "091aeaee1ac234ff8a9e808fe0abf1299030e96c7f2f195a2fd62ea4fab9a38b",
-        "pojo-lens/src/test/java/laughing/man/commits/publicapi/StablePublicApiContractTest.java": "27d7974b8ecb62d7c186ae0ac7f46d38d73aea384cff6cba9b91580e16d209dd",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/StablePublicApiContractTest.java": "b42030c7114c52c01dd4232de8452e1b1d9a36103726c602f825b057c53c8de5",
         "pojo-lens/src/test/java/laughing/man/commits/query/NestedPathQueryTest.java": "365f4e456e8a59d5ded7eec51805a87ecf7f96e18cf1eb7de0393aa652897723",
         "pojo-lens/src/test/java/laughing/man/commits/query/package-info.java": "98b9e6da5bdce7fa93d7a4d0bb80ead8fc18c330eba2eb06b364c659f944e4bb",
         "pojo-lens/src/test/java/laughing/man/commits/query/QueryRegressionFixtureTest.java": "51d81177dc32cce4df2dc2ffe1760653a8488b3fc6485b98462b8b473e6aff12",

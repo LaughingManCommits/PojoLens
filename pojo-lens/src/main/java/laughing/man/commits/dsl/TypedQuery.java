@@ -743,6 +743,9 @@ public final class TypedQuery<T> {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         validateQueryShape();
         applyJoins(builder, joinBindings);
+        if (hasComputedFields()) {
+            builder.computedFields(computedFieldRegistry);
+        }
         applySelect(builder);
         applyWhere(builder, joinBindings);
         applyTimeBuckets(builder);
@@ -754,9 +757,6 @@ public final class TypedQuery<T> {
         applyOrderBy(builder);
         applyLimit(builder);
         applyOffset(builder);
-        if (hasComputedFields()) {
-            builder.computedFields(computedFieldRegistry);
-        }
     }
 
     private Filter preparedFilter(QueryBuilder builder) {

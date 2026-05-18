@@ -18,6 +18,7 @@ import laughing.man.commits.csv.CsvLoadReport;
 import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.csv.CsvRuntime;
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.dsl.TypedField;
 import laughing.man.commits.dsl.TypedPredicate;
 import laughing.man.commits.dsl.TypedQuery;
@@ -545,6 +546,7 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedField.class, "isNotNull");
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, List.class, TypedQuery.class);
+        requirePublicMethod(TypedField.class, "containsIgnoreCase", String.class);
 
         requirePublicMethod(TypedPredicate.class, "operator");
         requirePublicMethod(TypedPredicate.class, "field");
@@ -569,6 +571,9 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
+        requirePublicStaticMethod(TypedPredicate.class, "containsIgnoreCase", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "any");
+        requirePublicStaticMethod(TypedPredicate.class, "none");
 
         requirePublicStaticMethod(TypedQuery.class, "from", Class.class);
         requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
@@ -614,6 +619,13 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class);
+        requirePublicMethod(TypedQuery.class, "stream", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "computedFields", ComputedFieldRegistry.class);
+        requirePublicMethod(TypedQuery.class, "hasComputedFields");
+        requirePublicMethod(TypedQuery.class, "computedFieldRegistry");
         requirePublicMethod(TypedQuery.class, "explain", List.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
         requirePublicMethod(TypedQuery.class, "explain", DatasetBundle.class);

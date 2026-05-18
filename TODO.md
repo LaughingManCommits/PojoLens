@@ -7,6 +7,9 @@ Expand typed-surface completeness and cross-surface parity identified in the
 (`feature-audit.md`). Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
+Next priority: complete WP-11 before starting the remaining feature-parity
+packages. WP-11 is the single follow-up package from the TODO-work audit.
+
 ### Quick fixes (no WP needed)
 
 - [ ] **README JDK requirement** — README says `JDK 17+`; root POM uses
@@ -97,7 +100,43 @@ switch surfaces just for computed fields.
 
 ---
 
-### WP-11 — `filterPage()` / `PageResult<T>` on `TypedQuery`  [P2]
+### WP-11 - TODO-work audit follow-up hardening  [P1]
+
+**Problem:** The 2026-05-18 TODO-work audit found that WP-7 through WP-10 are
+mostly complete, but the follow-up work should be closed as one hardening PR
+before starting new feature packages.
+
+**Work:**
+- Fix WP-10 ordering in `TypedQuery.applyToBuilder(...)`: apply
+  `builder.computedFields(computedFieldRegistry)` before any step that validates
+  or uses computed fields (`where`, time buckets, group by, metrics, HAVING,
+  windows, QUALIFY, schema/explain paths as applicable).
+- Add typed computed-field metric coverage:
+  `computedFields(...).groupBy(...).metric(computedField, Metric.SUM, alias)`.
+- Add typed computed-field HAVING coverage, including a grouped query that
+  filters by a computed-field-derived metric/alias.
+- Normalize WP-9 sentinels in `TypedPredicate.allOf(...)` and `anyOf(...)`:
+  `allOf(pred, any()) -> pred`, `allOf(pred, none()) -> none()`,
+  `anyOf(pred, none()) -> pred`, and `anyOf(pred, any()) -> any()`.
+- Add contract tests for static-factory sentinel combinations, not only
+  instance `and(...)` / `or(...)` combinations.
+- Update `StablePublicApiContractTest` to lock the public methods added in
+  WP-7 through WP-10: `containsIgnoreCase`, `any`, `none`, `stream(...)`,
+  `computedFields(...)`, `hasComputedFields()`, and
+  `computedFieldRegistry()`.
+- Refresh stale hot memory after the fix: `ai/state/handoff.md` must say
+  WP-7 through WP-10 are done and WP-11 is the next priority.
+- Update `CHANGELOG.md` with a WP-11 hardening entry.
+
+**Validation:**
+- `mvn -B -ntp test`
+- `scripts/docs/check-doc-consistency.ps1`
+- If `ai/**` changes: `scripts/ai/refresh-ai-memory.ps1` and
+  `scripts/ai/refresh-ai-memory.ps1 -Check`
+
+---
+
+### WP-12 — `filterPage()` / `PageResult<T>` on `TypedQuery`  [P2]
 
 **Problem:** SQL-like exposes `filterPage(…)` → `PageResult<T>`. TypedQuery
 has `limit()` and `offset()` but no `filterPage()`, so callers run two queries
@@ -115,7 +154,7 @@ manually. Also: assess whether Natural should gain `filterPage()` for parity.
 
 ---
 
-### WP-12 — `TimeBucket.HOUR` granularity  [P2]
+### WP-13 — `TimeBucket.HOUR` granularity  [P2]
 
 **Problem:** `TimeBucket` has DAY → YEAR but no HOUR. Event-stream workloads
 routinely bucket by hour. `ObjectUtil` already parses `DATE_HOUR` and
@@ -131,7 +170,7 @@ routinely bucket by hour. `ObjectUtil` already parses `DATE_HOUR` and
 
 ---
 
-### WP-13 — Mixed-direction sort (engine-level)  [P2]
+### WP-14 — Mixed-direction sort (engine-level)  [P2]
 
 **Problem:** The engine enforces one global sort direction. This blocks common
 ordering (`department ASC, salary DESC`) and weakens keyset cursor expressions.
@@ -153,7 +192,7 @@ has the same limitation.
 
 ---
 
-### WP-14 — `ReportDefinition.typed(…)` reusable typed workflow  [P2]
+### WP-15 — `ReportDefinition.typed(…)` reusable typed workflow  [P2]
 
 **Problem:** `ReportDefinition` and `SavedReport` wrap SQL-like and natural
 queries for reusable report definitions, schema review, replay, and validation.
@@ -172,7 +211,7 @@ queries for reusable report definitions, schema review, replay, and validation.
 
 ---
 
-### WP-15 — `NaturalQuery.filterPage(…)` pagination parity  [P2]
+### WP-16 — `NaturalQuery.filterPage(…)` pagination parity  [P2]
 
 **Problem:** SQL-like has `filterPage()` / `PageResult<T>` but natural queries
 do not, despite natural being a first-class endpoint/query-studio surface.
@@ -186,7 +225,7 @@ do not, despite natural being a first-class endpoint/query-studio surface.
 
 ---
 
-### WP-16 — Typed diagnostics / plan preview  [P3]
+### WP-17 — Typed diagnostics / plan preview  [P3]
 
 **Problem:** SQL-like and natural have `diagnostics()` and `QueryDiagnostics`
 for no-data pre-execution review. TypedQuery exposes only `explain(rows)` and
@@ -206,7 +245,7 @@ policy, or projection issues.
 
 ---
 
-### WP-17 — File loader `Reader`/`InputStream` overloads  [P3]
+### WP-18 — File loader `Reader`/`InputStream` overloads  [P3]
 
 **Problem:** `PojoLensFiles` accepts only `Path`. This is inconvenient for
 classpath resources, in-memory uploads, object-store streams, and tests that
@@ -223,7 +262,7 @@ already hold a `Reader` or `InputStream`.
 
 ---
 
-### WP-18 — `startsWith` / `endsWith` on typed and SQL-like  [P4]
+### WP-19 — `startsWith` / `endsWith` on typed and SQL-like  [P4]
 
 **Problem:** Natural maps starts-with/ends-with phrases to `MATCHES` regex
 under the hood. Typed and SQL-like expose only `contains()`/`matches()`.
