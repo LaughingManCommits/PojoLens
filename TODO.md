@@ -81,7 +81,7 @@ and QueryDSL `BooleanBuilder` all solve this with sentinel values.
 
 ---
 
-### WP-10 — `computedFields(ComputedFieldRegistry)` on `TypedQuery`  [P2]
+### ~~WP-10 — `computedFields(ComputedFieldRegistry)` on `TypedQuery`~~ ✓ DONE 2026-05-18
 
 **Problem:** SQL-like and Natural both expose `.computedFields(registry)`.
 TypedQuery is the only entry point that cannot attach one, forcing callers to
@@ -265,3 +265,4 @@ Callers who want prefix/suffix matching must write regex patterns by hand.
 - [x] `2026-05-18`: WP-7 — `containsIgnoreCase` on TypedField/TypedPredicate; lowers to `MATCHES(?i)`; 1191 tests.
 - [x] `2026-05-18`: WP-8 — `stream()` overloads on TypedQuery (4 overloads, wraps `filter`); 1197 tests.
 - [x] `2026-05-18`: WP-9 — `TypedPredicate.any()` / `none()` sentinels with identity/absorption laws; 1211 tests.
+- [x] `2026-05-18`: WP-10 — `computedFields(ComputedFieldRegistry)` on TypedQuery; 1215 tests.

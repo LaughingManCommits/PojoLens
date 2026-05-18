@@ -413,6 +413,31 @@ List<Company> rows = TypedQuery.from(Company.class)
 same pattern. Bounded typed subqueries are supported only in `where(...)`, not
 in `having(...)` or `qualify(...)`.
 
+## Computed Fields
+
+`computedFields(ComputedFieldRegistry)` attaches derived numeric fields so they
+can be referenced in `where(...)`, `having(...)`, and metrics — matching the same
+capability available on SQL-like and natural queries:
+
+```java
+ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+    .add("adjustedSalary", "salary * 1.1", Double.class)
+    .build();
+
+TypedField<Employee, Double> ADJUSTED_SALARY =
+    TypedField.of("adjustedSalary", Double.class);
+
+List<Employee> highEarners = TypedQuery.from(Employee.class)
+    .computedFields(registry)
+    .where(ADJUSTED_SALARY.gte(130_000.0))
+    .orderBy(EmployeeTypedFields.NAME)
+    .filter(employees);
+```
+
+The registry is retained across fluent calls and accessible via
+`computedFieldRegistry()`. `hasComputedFields()` returns false when no registry
+was set or the registry is empty.
+
 ## Explain, Schema, And Guards
 
 The typed surface keeps the same diagnostics and governance hooks as the text

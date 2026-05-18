@@ -11,6 +11,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **`TypedQuery.computedFields(ComputedFieldRegistry)` (WP-10)** — typed queries can now attach
+  a computed-field registry, matching the capability on SQL-like and natural surfaces. The registry
+  is retained across fluent calls and applied to the engine via `builder.computedFields(registry)`
+  in `applyToBuilder`. Accessors: `hasComputedFields()`, `computedFieldRegistry()`.
+
 - **`TypedPredicate.any()` / `none()` sentinels (WP-9)** — always-true and always-false sentinel
   predicates for null-free conditional predicate chain building. Identity and absorption laws are
   applied eagerly at composition time: `pred.and(any())` → `pred`, `pred.or(none())` → `pred`,

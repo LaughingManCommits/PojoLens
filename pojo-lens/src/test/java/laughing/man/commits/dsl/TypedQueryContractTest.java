@@ -2,6 +2,7 @@ package laughing.man.commits.dsl;
 
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensSql;
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
@@ -143,6 +144,9 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "stream", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class);
         requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "computedFields", ComputedFieldRegistry.class);
+        requirePublicMethod(TypedQuery.class, "hasComputedFields");
+        requirePublicMethod(TypedQuery.class, "computedFieldRegistry");
         requirePublicMethod(TypedQuery.class, "executionGuard", QueryExecutionGuard.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
@@ -1682,6 +1686,46 @@ public class TypedQueryContractTest {
                 .where(TypedPredicate.none())
                 .filter(bundle);
         assertTrue(result.isEmpty());
+    }
+
+    // --- computedFields ---
+
+    @Test
+    void computedFieldsAccessorDefaultsToEmpty() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class);
+        assertFalse(q.hasComputedFields());
+        assertNotNull(q.computedFieldRegistry());
+    }
+
+    @Test
+    void computedFieldsRegistryIsRetainedAfterFluent() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class).computedFields(registry);
+        assertTrue(q.hasComputedFields());
+        assertEquals(registry, q.computedFieldRegistry());
+    }
+
+    @Test
+    void computedFieldsFilterOnDerivedField() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedField<Employee, Double> ADJUSTED_SALARY = TypedField.of("adjustedSalary", Double.class);
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .computedFields(registry)
+                .where(ADJUSTED_SALARY.gte(130_000.0))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        // Alice: 120000*1.1=132000 ≥ 130000; Cara: 130000*1.1=143000 ≥ 130000
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void computedFieldsNullRegistryThrows() {
+        assertThrows(NullPointerException.class,
+                () -> TypedQuery.from(Employee.class).computedFields(null));
     }
 
     // --- Between ---
