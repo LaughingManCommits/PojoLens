@@ -30,7 +30,7 @@ and repo-memory helpers.
 
 ---
 
-### WP-2 — `contains()` and `matches()` on typed surface  [P2]
+### ~~WP-2 — `contains()` and `matches()` on typed surface~~ ✓ DONE 2026-05-18
 
 **Problem:** Engine (`Clauses.CONTAINS`, `Clauses.MATCHES`) and SQL-like both
 support string containment and regex matching; the typed surface has neither.

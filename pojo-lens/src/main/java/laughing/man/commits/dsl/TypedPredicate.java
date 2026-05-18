@@ -17,6 +17,7 @@ public final class TypedPredicate<T> {
 
     public enum Operator {
         EQ, NE, GT, GTE, LT, LTE, IN, IS_NULL, IS_NOT_NULL,
+        CONTAINS, MATCHES,
         IN_SUBQUERY, EXISTS, NOT_EXISTS,
         AND, OR, NOT
     }
@@ -132,6 +133,20 @@ public final class TypedPredicate<T> {
     public static <T> TypedPredicate<T> isNotNull(TypedField<T, ?> field) {
         requireField(field);
         return new TypedPredicate<>(Operator.IS_NOT_NULL, field, null, List.of(), List.of(), null);
+    }
+
+    // --- Static string-match factories ---
+
+    public static <T> TypedPredicate<T> contains(TypedField<T, ?> field, String value) {
+        requireField(field);
+        Objects.requireNonNull(value, "value must not be null for contains");
+        return new TypedPredicate<>(Operator.CONTAINS, field, value, null, null, null);
+    }
+
+    public static <T> TypedPredicate<T> matches(TypedField<T, ?> field, String pattern) {
+        requireField(field);
+        Objects.requireNonNull(pattern, "pattern must not be null for matches");
+        return new TypedPredicate<>(Operator.MATCHES, field, pattern, null, null, null);
     }
 
     // --- Static IN factories ---
@@ -339,6 +354,10 @@ public final class TypedPredicate<T> {
                         .toList();
                 yield nePredicates.size() == 1 ? nePredicates.get(0) : compound(Operator.AND, nePredicates);
             }
+            case CONTAINS -> throw new UnsupportedOperationException(
+                    "NOT(CONTAINS) is not supported in TypedQuery. Use SQL-like or filter in application code.");
+            case MATCHES -> throw new UnsupportedOperationException(
+                    "NOT(MATCHES) is not supported in TypedQuery. Use SQL-like or filter in application code.");
             case IN_SUBQUERY -> throw new UnsupportedOperationException(
                     "NOT(IN_SUBQUERY) is not supported in TypedQuery. Use NOT EXISTS instead.");
         };

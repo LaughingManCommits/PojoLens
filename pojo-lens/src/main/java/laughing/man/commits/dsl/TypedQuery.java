@@ -944,6 +944,8 @@ public final class TypedQuery<T> {
             case IN -> QueryRule.of(field, leaf.values(), Clauses.IN);
             case IS_NULL -> QueryRule.of(field, null, Clauses.EQUAL);
             case IS_NOT_NULL -> QueryRule.of(field, null, Clauses.NOT_EQUAL);
+            case CONTAINS -> QueryRule.of(field, (String) leaf.value(), Clauses.CONTAINS);
+            case MATCHES -> QueryRule.of(field, (String) leaf.value(), Clauses.MATCHES);
             case IN_SUBQUERY -> toInSubqueryRule(leaf, joinBindings);
             case EXISTS -> toExistsRule(leaf, joinBindings, false);
             case NOT_EXISTS -> toExistsRule(leaf, joinBindings, true);

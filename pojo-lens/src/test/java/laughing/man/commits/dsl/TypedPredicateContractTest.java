@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.List;
 
 import static laughing.man.commits.dsl.TypedPredicate.Operator.AND;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.EQ;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.GT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.GTE;
@@ -18,6 +19,7 @@ import static laughing.man.commits.dsl.TypedPredicate.Operator.IS_NOT_NULL;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.IS_NULL;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.LT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.LTE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.MATCHES;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.NE;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.NOT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.OR;
@@ -69,6 +71,8 @@ public class TypedPredicateContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "notExists", List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "contains", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "matches", TypedField.class, String.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
     }
@@ -84,6 +88,8 @@ public class TypedPredicateContractTest {
         requirePublicMethod(TypedField.class, "in", Collection.class);
         requirePublicMethod(TypedField.class, "isNull");
         requirePublicMethod(TypedField.class, "isNotNull");
+        requirePublicMethod(TypedField.class, "contains", String.class);
+        requirePublicMethod(TypedField.class, "matches", String.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, List.class, TypedQuery.class);
     }
@@ -142,6 +148,32 @@ public class TypedPredicateContractTest {
         TypedPredicate<Employee> p = SALARY.in(List.of(90_000, 110_000, 130_000));
         assertEquals(IN, p.operator());
         assertEquals(List.of(90_000, 110_000, 130_000), p.values());
+    }
+
+    @Test
+    void containsPredicateCarriesFieldOperatorAndValue() {
+        TypedPredicate<Employee> p = NAME.contains("Ali");
+        assertTrue(p.isLeaf());
+        assertEquals(CONTAINS, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("Ali", p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void matchesPredicateCarriesFieldOperatorAndPattern() {
+        TypedPredicate<Employee> p = NAME.matches("^Al.*");
+        assertTrue(p.isLeaf());
+        assertEquals(MATCHES, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("^Al.*", p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void nullValueForContainsMatchesThrows() {
+        assertThrows(NullPointerException.class, () -> TypedPredicate.contains(NAME, null));
+        assertThrows(NullPointerException.class, () -> TypedPredicate.matches(NAME, null));
     }
 
     @Test

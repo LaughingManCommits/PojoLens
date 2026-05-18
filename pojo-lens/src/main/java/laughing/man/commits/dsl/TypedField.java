@@ -97,6 +97,14 @@ public final class TypedField<T, V> {
         return TypedPredicate.isNotNull(this);
     }
 
+    public TypedPredicate<T> contains(String value) {
+        return TypedPredicate.contains(this, value);
+    }
+
+    public TypedPredicate<T> matches(String pattern) {
+        return TypedPredicate.matches(this, pattern);
+    }
+
     public TypedPredicate<T> inSubquery(TypedField<T, ? extends V> subqueryOutputField, TypedQuery<T> subquery) {
         return TypedPredicate.inSubquery(this, subqueryOutputField, subquery);
     }

@@ -1066,6 +1066,102 @@ public class TypedQueryContractTest {
         assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
     }
 
+    // --- CONTAINS / MATCHES ---
+
+    @Test
+    void containsFiltersRowsWhoseFieldIncludesSubstring() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.contains("li"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIsCaseSensitive() {
+        List<Employee> upper = TypedQuery.from(Employee.class)
+                .where(NAME.contains("LI"))
+                .filter(sampleEmployees());
+        assertTrue(upper.isEmpty());
+    }
+
+    @Test
+    void containsComposesWithAndPredicate() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(DEPT.contains("Eng").and(ACTIVE.eq(true)))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        // Alice (active) and Cara (active) in Engineering; Dan is inactive
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void matchesFiltersRowsByRegexPattern() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.matches("^[AC].*"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void matchesWithExactPattern() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.matches("Bob"))
+                .filter(sampleEmployees());
+        assertEquals(1, result.size());
+        assertEquals("Bob", result.get(0).name);
+    }
+
+    @Test
+    void matchesWithNoMatchReturnsEmpty() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.matches("^Z.*"))
+                .filter(sampleEmployees());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void containsAndMatchesParityWithSqlLike() {
+        List<String> typedContains = TypedQuery.from(Employee.class)
+                .where(NAME.contains("a"))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream().map(e -> e.name).toList();
+
+        List<String> sqlContains = PojoLensSql.parse("WHERE name CONTAINS 'a' ORDER BY name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(sqlContains, typedContains);
+
+        List<String> typedMatches = TypedQuery.from(Employee.class)
+                .where(NAME.matches(".*[aA].*"))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream().map(e -> e.name).toList();
+
+        List<String> sqlMatches = PojoLensSql.parse("WHERE name MATCHES '.*[aA].*' ORDER BY name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(sqlMatches, typedMatches);
+    }
+
+    @Test
+    void notContainsThrowsUnsupportedOperationException() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
+                .where(NAME.contains("Ali").not());
+        assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
+    }
+
+    @Test
+    void notMatchesThrowsUnsupportedOperationException() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
+                .where(NAME.matches("^Al.*").not());
+        assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
+    }
+
     // --- Guard interop ---
 
     @Test

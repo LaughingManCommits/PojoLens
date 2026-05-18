@@ -9,6 +9,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ## [Unreleased]
 
+### Added
+
+- **TypedQuery CONTAINS / MATCHES (WP-2)** — `TypedField.contains(String)` and
+  `TypedField.matches(String)` plus the corresponding `TypedPredicate.contains`
+  and `TypedPredicate.matches` static factories bring string-containment and
+  regex-match predicates to the typed surface, matching the engine's existing
+  `Clauses.CONTAINS` and `Clauses.MATCHES` support already available in
+  SQL-like and natural queries. `NOT(CONTAINS)` and `NOT(MATCHES)` throw with
+  actionable messages.
+
 ### Fixed
 
 - **TypedQuery NOT lowering (WP-1)** — `TypedPredicate.not()` now lowers

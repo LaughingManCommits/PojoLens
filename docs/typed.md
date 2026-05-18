@@ -50,6 +50,22 @@ code. Hand-written `TypedField.of(...)` calls are still useful for quick
 one-offs and for joined-field references that do not belong to the base row
 type.
 
+## String Predicates
+
+`contains(value)` matches rows where the field includes the substring.
+`matches(pattern)` matches rows where the field satisfies the regex pattern.
+Both mirror the SQL-like `CONTAINS` and `MATCHES` operators.
+
+```java
+List<Employee> result = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.NAME.contains("Ali")
+        .and(EmployeeTypedFields.DEPARTMENT.matches("Eng.*")))
+    .filter(employees);
+```
+
+`NOT(CONTAINS)` and `NOT(MATCHES)` are not supported — use SQL-like or
+filter in application code for negated string predicates.
+
 ## Basic Filtering, Ordering, And Limits
 
 `TypedQuery` is immutable. Each fluent call returns a new query definition.
