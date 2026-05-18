@@ -3,30 +3,29 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Work through WP-1 to WP-5 in `TODO.md` (typed-surface gap closure).
-4. Keep the repo-memory helper scripts unless the memory workflow is being replaced too.
+3. Use `TODO.md` for the active typed-surface backlog.
+4. Use `feature-audit.md` for broader product-surface findings.
 
 ## Focus
-- `2026-05-18`: `TODO.md` reset again — `neon` cleanup done, now tracks WP-1 through WP-5 (typed-surface gap closure from feature audit).
-- `2026-05-18`: The extracted local AI runtime, retained runtime artifacts, and stale live-history references are removed from PojoLens.
-- `2026-05-18`: Active changelog and repo-memory history were scrubbed so only the current `neon` boundary remains in the live repo surface.
-- `2026-05-18`: `release-2026.05.18.1353` was backfilled on `main` after Central publish succeeded but the workflow timed out before it could push the tag.
-- `2026-05-18`: The parent `release-central` profile now takes `central.publish.waitUntil` and `central.publish.skipPublishing` from Maven properties, so the workflow only waits for the final `published` state when that input is explicitly selected.
-- `2026-05-18`: `README.md`, `RELEASE.md`, `docs/modules.md`, and `docs/jdbc.md` now use the latest published release tag for install snippets; in-repo example builds still use the checked-in root POM version.
-- `2026-05-18`: `ai/core/repo-purpose.md` still describes PojoLens as a Java library; the stale part was the old state and backlog, not the core product definition.
+- `2026-05-18`: The extracted local AI runtime moved to `neon`; PojoLens now keeps only the Java library plus repo-memory helpers.
+- `2026-05-18`: Release `2026.05.18.1353` was backfilled on `main`; Central wait mode is now selected by workflow input.
+- `2026-05-18`: Consumer install docs point at `2026.05.18.1353`; example builds still track checked-in root POM version `2026.04.29.1809`.
+- `2026-05-18`: `TODO.md` tracks WP-6 through WP-12; WP-6 is done and WP-7 through WP-12 remain open.
+- `2026-05-18`: `feature-audit.md` records the current product-surface audit and recommended roadmap.
 
 ## Facts
-- `2026-05-18`: The surviving `scripts/ai/` tools are the repo-memory helpers: `refresh-ai-memory.*`, `query-ai-memory.*`, and `benchmark-ai-memory.*`.
-- `2026-05-18`: The repo-memory refresh/query helpers no longer index or classify the removed extracted-runtime paths.
-- `2026-05-18`: `scripts/tests/test_refresh_ai_memory.py` is the remaining Python test coverage for the surviving repo-memory helpers.
-- `2026-05-18`: The checked-in POM version is still `2026.04.29.1809` because the failed release workflow never reached its version-bump commit step, but the latest published/tagged baseline is now `release-2026.05.18.1353`.
-- `2026-05-18`: The doc-consistency scripts now validate consumer install snippets against the latest `release-*` tag instead of forcing them to match the checked-in root POM version.
+- `2026-05-18`: Surviving `scripts/ai/` tools are repo-memory helpers: `refresh-ai-memory.*`, `query-ai-memory.*`, and `benchmark-ai-memory.*`.
+- `2026-05-18`: Doc-consistency scripts validate consumer install snippets against the latest `release-*` tag while local examples stay POM-backed.
+- `2026-05-18`: Feature audit found no P0 product blocker.
+- `2026-05-18`: Feature audit P1/P2 gaps are README Java requirement drift, typed parity APIs, case-insensitive matching, hour buckets, mixed-direction sorting, typed reusable reports, and natural pagination parity.
+- `2026-05-18`: AI memory still needs stale-fact cleanup for removed `PojoLens` facade references and old Date-only time-bucket guidance.
 
 ## Validate
-- After removal work that changes Java/runtime behavior: `mvn -B -ntp test`.
-- Re-run only the Python validations that still apply to surviving repo-memory tooling.
+- After Java/runtime behavior changes: `mvn -B -ntp test`.
+- After docs changes: `scripts/docs/check-doc-consistency.ps1`.
 - After AI memory edits: `scripts/ai/refresh-ai-memory.ps1`, then `scripts/ai/refresh-ai-memory.ps1 -Check`.
 
 ## Cold Pointers
-- `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`, `CHANGELOG.md`
-- `README.md`, `scripts/ai/*`, `ai/state/recent-validations.md`
+- `feature-audit.md`, `TODO.md`, `CHANGELOG.md`
+- `README.md`, `docs/product-surface.md`, `docs/typed.md`, `docs/sql-like.md`, `docs/natural.md`
+- `ai/core/documentation-index.md`, `ai/state/recent-validations.md`

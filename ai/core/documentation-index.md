@@ -41,6 +41,7 @@
 ## Process Docs
 
 - `CONTRIBUTING.md`
+- `feature-audit.md`
 - `MIGRATION.md`
 - `RELEASE.md`
 - `TODO.md`

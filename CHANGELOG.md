@@ -11,6 +11,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Feature audit** - added `feature-audit.md`, a source-backed audit of the
+  current product surface, missing parity work, documentation drift, and
+  recommended follow-up roadmap.
+
 - **TypedQuery execution convenience methods (WP-6)** — `count(rows)` → `long`,
   `exists(rows)` → `boolean`, `findFirst(rows)` → `Optional<T>`, and
   `findOne(rows)` → `Optional<T>` (throws if >1 result). All have `DatasetBundle`
