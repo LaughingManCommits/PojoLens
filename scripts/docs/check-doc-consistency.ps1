@@ -19,6 +19,7 @@ $telemetryPath = Join-Path $root "docs/telemetry.md"
 $cachingPath = Join-Path $root "docs/caching.md"
 $metamodelPath = Join-Path $root "docs/metamodel.md"
 $modulesPath = Join-Path $root "docs/modules.md"
+$jdbcPath = Join-Path $root "docs/jdbc.md"
 $sqlLikePath = Join-Path $root "docs/sql-like.md"
 $benchmarkingPath = Join-Path $root "docs/benchmarking.md"
 $benchmarkMainArgsPath = Join-Path $root "scripts/benchmarks/benchmark-suite-main.args"
@@ -57,6 +58,19 @@ function Forbid-Pattern([string]$doc, [string]$name, [string]$pattern, [System.C
     }
 }
 
+function Get-LatestReleaseVersion([string]$defaultVersion) {
+    try {
+        $tags = git tag --list 'release-*' --sort=-v:refname 2>$null
+        foreach ($tag in $tags) {
+            if ($tag -match '^release-(.+)$') {
+                return $Matches[1]
+            }
+        }
+    } catch {
+    }
+    return $defaultVersion
+}
+
 [xml]$pom = Get-Content -Raw -Path $pomPath
 $projectVersion = $pom.project.version
 $readme = Require-File $readmePath
@@ -82,15 +96,20 @@ $benchmarkMainArgs = Require-File $benchmarkMainArgsPath
 $quickstartPom = Require-File $quickstartPomPath
 $riskConsolePom = Require-File $riskConsolePomPath
 $typedCompilerMavenPom = Require-File $typedCompilerMavenPomPath
+$jdbc = Require-File $jdbcPath
 $null = Require-File $typedCompilerGradleJavaBuildPath
 $null = Require-File $typedCompilerGradleKotlinBuildPath
 $errors = [System.Collections.Generic.List[string]]::new()
+$releaseVersion = Get-LatestReleaseVersion $projectVersion
 
-# Current release/version examples should track the root POM version.
-Require-Substring $readme "README.md" "<version>$projectVersion</version>" $errors
-Require-Substring $modules "docs/modules.md" "<version>$projectVersion</version>" $errors
-Require-Substring $release "RELEASE.md" "Maven version: ``$projectVersion``" $errors
-Require-Substring $release "RELEASE.md" "Git tag: ``release-$projectVersion``" $errors
+# Consumer-facing install examples should track the latest published release tag.
+Require-Substring $readme "README.md" "<version>$releaseVersion</version>" $errors
+Require-Substring $modules "docs/modules.md" "<version>$releaseVersion</version>" $errors
+Require-Substring $jdbc "docs/jdbc.md" "<version>$releaseVersion</version>" $errors
+Require-Substring $release "RELEASE.md" "Maven version: ``$releaseVersion``" $errors
+Require-Substring $release "RELEASE.md" "Git tag: ``release-$releaseVersion``" $errors
+
+# In-repo builds and examples should still track the checked-in root POM version.
 Require-Substring $changelog "CHANGELOG.md" "## [$projectVersion]" $errors
 Require-Substring $quickstartPom "examples/spring-boot-starter-quickstart/pom.xml" "<version>$projectVersion</version>" $errors
 Require-Substring $riskConsolePom "examples/spring-boot-starter-risk-console/pom.xml" "<version>$projectVersion</version>" $errors

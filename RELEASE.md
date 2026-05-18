@@ -8,8 +8,8 @@ PojoLens uses date-based releases.
 - Git tag: `release-<version>`
 
 Latest release baseline:
-- Maven version: `2026.04.29.1809`
-- Git tag: `release-2026.04.29.1809`
+- Maven version: `2026.05.18.1353`
+- Git tag: `release-2026.05.18.1353`
 
 ## 1) Pre-Release Validation
 
@@ -65,7 +65,7 @@ After namespace verification and publish credentials are configured in
 `~/.m2/settings.xml`:
 
 ```bash
-mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central clean deploy -DskipTests -DwaitUntil=validated
+mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central clean deploy -DskipTests -Dcentral.publish.waitUntil=validated
 ```
 
 The `release-central` profile attaches source/javadoc jars, signs artifacts,
@@ -98,7 +98,8 @@ Workflow inputs:
 - `dry_run` (optional, default `false`): runs versioning/tests/preflight and
   deploy lifecycle with Central upload/signing skipped.
 - `wait_until` (optional, default `validated`): Central wait mode
-  (`validated` or `published`).
+  (`validated` or `published`). `published` is opt-in and can keep the workflow
+  blocked until Central finishes final publication.
 
 The release job validates `release_version` format with
 `^\d{4}\.\d{2}\.\d{2}\.\d{4}$`, applies the version with `versions:set`,

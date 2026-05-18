@@ -15,6 +15,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   PojoLens stays focused on the Java library and the surviving repo-memory
   helpers.
 
+- Consumer-facing install docs now point at the latest published release
+  (`2026.05.18.1353`) while in-repo example builds continue to track the
+  checked-in root POM version.
+
+### Fixed
+
+- Wired Central publish wait mode through Maven properties and the release
+  workflow input so PojoLens only waits for the final `published` state when
+  that mode is explicitly selected.
+
 ### Removed
 
 - Removed the extracted local AI tooling surface after that runtime moved to
