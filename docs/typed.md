@@ -119,6 +119,37 @@ The underlying engine requires all ORDER BY fields to share the same direction.
 Mixing `asc` and `desc` in a single `orderBy(TypedSortOrder...)` call throws
 `IllegalStateException` at execution time.
 
+## Time Buckets
+
+`timeBucket(dateField, unit, alias)` truncates a date/timestamp field to a
+calendar period, creating a computed group-by column that can be aggregated over:
+
+```java
+List<PeriodCount> result = TypedQuery.from(Event.class)
+    .timeBucket(EventTypedFields.OCCURRED_AT, TimeBucket.MONTH, "period")
+    .count("total")
+    .filter(events, PeriodCount.class);
+```
+
+Accepts a `TimeBucketPreset` for explicit zone and week-start control:
+
+```java
+TimeBucketPreset preset = TimeBucketPreset.of(TimeBucket.WEEK)
+    .withZone("America/New_York")
+    .withWeekStart(DayOfWeek.SUNDAY);
+
+List<PeriodCount> result = TypedQuery.from(Event.class)
+    .timeBucket(EventTypedFields.OCCURRED_AT, preset, "period")
+    .count("total")
+    .filter(events, PeriodCount.class);
+```
+
+Both overloads accept a `TypedField` as the alias argument for type-safe output
+field naming. The bucket alias is automatically added to the GROUP BY — no
+explicit `.groupBy(alias)` is required.
+
+Defaults: UTC zone, Monday week-start.
+
 ## Projection
 
 Use `select(...)` when the output type is a projection rather than the source

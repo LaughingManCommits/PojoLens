@@ -67,7 +67,7 @@ per-field direction — sort needs the same.
 
 ---
 
-### WP-4 — Time bucket on typed surface  [P4]
+### ~~WP-4 — Time bucket on typed surface~~ ✓ DONE 2026-05-18
 
 **Problem:** SQL-like and natural support `bucket(dateField, 'day|week|...')`;
 the typed surface has no equivalent. `QueryTimeBucket` exists internally with

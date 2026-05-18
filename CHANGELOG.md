@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **TypedQuery time bucket (WP-4)** — `TypedQuery.timeBucket(dateField, TimeBucket, alias)`
+  and `timeBucket(dateField, TimeBucketPreset, alias)` bring date-truncation
+  aggregation to the typed surface, matching `bucket(field, 'unit')` in SQL-like.
+  Both overloads accept a `TypedField` as the alias argument. Defaults to UTC
+  zone and Monday week-start; use `TimeBucketPreset` for custom zone/week-start.
+
 - **TypedQuery per-field sort direction (WP-3)** — `TypedSortOrder` (field +
   direction) pairs replace the global-direction model. `TypedQuery.orderBy(TypedSortOrder...)`
   accepts one or more `TypedSortOrder.asc(field)` / `TypedSortOrder.desc(field)`

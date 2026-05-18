@@ -5,7 +5,10 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.enums.WindowFunction;
+import laughing.man.commits.internal.builder.QueryTimeBucket;
+import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.internal.builder.QueryBuilder;
@@ -40,7 +43,7 @@ import java.util.Objects;
  *
  * <p>Current limitations:
  * <ul>
- *   <li>Sort direction is global - the last {@code orderByDesc} or {@code orderBy} call wins.</li>
+ *   <li>All ORDER BY fields must share the same direction; mixed directions throw {@code IllegalStateException}.</li>
  *   <li>Explicit window-frame configuration is available only for aggregate
  *       windows and {@code COUNT(*)}; rank windows keep their default
  *       semantics.</li>
@@ -60,6 +63,7 @@ public final class TypedQuery<T> {
     private final TypedPredicate<?> havingPredicate;
     private final List<TypedWindow> windows;
     private final TypedPredicate<?> qualifyPredicate;
+    private final List<QueryTimeBucket> timeBuckets;
     private final List<TypedSortOrder> sortOrders;
     private final int limit;
     private final int offset;
@@ -74,6 +78,7 @@ public final class TypedQuery<T> {
                        TypedPredicate<?> havingPredicate,
                        List<TypedWindow> windows,
                        TypedPredicate<?> qualifyPredicate,
+                       List<QueryTimeBucket> timeBuckets,
                        List<TypedSortOrder> sortOrders,
                        int limit,
                        int offset,
@@ -87,6 +92,7 @@ public final class TypedQuery<T> {
         this.havingPredicate = havingPredicate;
         this.windows = List.copyOf(windows);
         this.qualifyPredicate = qualifyPredicate;
+        this.timeBuckets = List.copyOf(timeBuckets);
         this.sortOrders = List.copyOf(sortOrders);
         this.limit = limit;
         this.offset = offset;
@@ -98,7 +104,7 @@ public final class TypedQuery<T> {
     public static <T> TypedQuery<T> from(Class<T> entityClass) {
         Objects.requireNonNull(entityClass, "entityClass must not be null");
         return new TypedQuery<>(entityClass, List.of(), null, List.of(), List.of(), List.of(),
-                null, List.of(), null, List.of(), UNSET, UNSET, null);
+                null, List.of(), null, List.of(), List.of(), UNSET, UNSET, null);
     }
 
     // --- Fluent configuration ---
@@ -108,14 +114,14 @@ public final class TypedQuery<T> {
         Objects.requireNonNull(fields, "fields must not be null");
         return new TypedQuery<>(entityClass, List.of(fields), wherePredicate, joins, groupByFieldNames, metrics,
                 havingPredicate, windows, qualifyPredicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> where(TypedPredicate<T> predicate) {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, predicate, joins, groupByFieldNames, metrics,
                 havingPredicate, windows, qualifyPredicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
     }
 
     public <J, K> TypedQuery<T> join(String sourceName,
@@ -134,7 +140,7 @@ public final class TypedQuery<T> {
         ));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, updated, groupByFieldNames, metrics,
                 havingPredicate, windows, qualifyPredicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> groupBy(TypedField<T, ?> field) {
@@ -143,7 +149,7 @@ public final class TypedQuery<T> {
         updated.add(field.fieldName());
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 updated, metrics, havingPredicate, windows, qualifyPredicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> count(String alias) {
@@ -151,7 +157,7 @@ public final class TypedQuery<T> {
         updated.add(TypedMetric.count(normalizeAlias(alias)));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, updated, havingPredicate, windows, qualifyPredicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> count(TypedField<?, ?> outputField) {
@@ -166,7 +172,7 @@ public final class TypedQuery<T> {
         updated.add(TypedMetric.of(field.fieldName(), metric, normalizeAlias(alias)));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, updated, havingPredicate, windows, qualifyPredicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
     }
 
     public <V> TypedQuery<T> metric(TypedField<T, V> field, Metric metric, TypedField<?, ?> outputField) {
@@ -178,7 +184,7 @@ public final class TypedQuery<T> {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, predicate, windows, qualifyPredicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
     }
 
     @SafeVarargs
@@ -299,7 +305,35 @@ public final class TypedQuery<T> {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, predicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
+    }
+
+    public TypedQuery<T> timeBucket(TypedField<T, ?> dateField, TimeBucket unit, String alias) {
+        Objects.requireNonNull(dateField, "dateField must not be null");
+        Objects.requireNonNull(unit, "unit must not be null");
+        Objects.requireNonNull(alias, "alias must not be null");
+        return timeBucket(dateField, TimeBucketPreset.of(unit), alias);
+    }
+
+    public TypedQuery<T> timeBucket(TypedField<T, ?> dateField, TimeBucket unit, TypedField<?, ?> outputField) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return timeBucket(dateField, unit, outputField.fieldName());
+    }
+
+    public TypedQuery<T> timeBucket(TypedField<T, ?> dateField, TimeBucketPreset preset, String alias) {
+        Objects.requireNonNull(dateField, "dateField must not be null");
+        Objects.requireNonNull(preset, "preset must not be null");
+        Objects.requireNonNull(alias, "alias must not be null");
+        ArrayList<QueryTimeBucket> updated = new ArrayList<>(timeBuckets);
+        updated.add(QueryTimeBucket.of(dateField.fieldName(), preset, alias));
+        return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
+                groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
+                updated, sortOrders, limit, offset, executionGuard);
+    }
+
+    public TypedQuery<T> timeBucket(TypedField<T, ?> dateField, TimeBucketPreset preset, TypedField<?, ?> outputField) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return timeBucket(dateField, preset, outputField.fieldName());
     }
 
     public TypedQuery<T> orderBy(TypedField<?, ?> field) {
@@ -308,7 +342,7 @@ public final class TypedQuery<T> {
         updated.add(TypedSortOrder.asc(field));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                updated, limit, offset, executionGuard);
+                timeBuckets, updated, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> orderByDesc(TypedField<?, ?> field) {
@@ -317,7 +351,7 @@ public final class TypedQuery<T> {
         updated.add(TypedSortOrder.desc(field));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                updated, limit, offset, executionGuard);
+                timeBuckets, updated, limit, offset, executionGuard);
     }
 
     @SafeVarargs
@@ -333,7 +367,7 @@ public final class TypedQuery<T> {
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                updated, limit, offset, executionGuard);
+                timeBuckets, updated, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> limit(int n) {
@@ -342,7 +376,7 @@ public final class TypedQuery<T> {
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                sortOrders, n, offset, executionGuard);
+                timeBuckets, sortOrders, n, offset, executionGuard);
     }
 
     public TypedQuery<T> offset(int n) {
@@ -351,14 +385,14 @@ public final class TypedQuery<T> {
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                sortOrders, limit, n, executionGuard);
+                timeBuckets, sortOrders, limit, n, executionGuard);
     }
 
     public TypedQuery<T> executionGuard(QueryExecutionGuard guard) {
         Objects.requireNonNull(guard, "guard must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                sortOrders, limit, offset, guard);
+                timeBuckets, sortOrders, limit, offset, guard);
     }
 
     // --- Accessors ---
@@ -439,6 +473,14 @@ public final class TypedQuery<T> {
 
     public boolean hasMetrics() {
         return !metrics.isEmpty();
+    }
+
+    public boolean hasTimeBuckets() {
+        return !timeBuckets.isEmpty();
+    }
+
+    public List<QueryTimeBucket> timeBuckets() {
+        return timeBuckets;
     }
 
     public boolean hasLimit() {
@@ -609,6 +651,7 @@ public final class TypedQuery<T> {
         applyJoins(builder, joinBindings);
         applySelect(builder);
         applyWhere(builder, joinBindings);
+        applyTimeBuckets(builder);
         applyGroupBy(builder);
         applyMetrics(builder);
         applyHaving(builder);
@@ -716,6 +759,12 @@ public final class TypedQuery<T> {
     private void applyOrderBy(QueryBuilder builder) {
         for (TypedSortOrder order : sortOrders) {
             builder.addOrder(order.fieldName());
+        }
+    }
+
+    private void applyTimeBuckets(QueryBuilder builder) {
+        for (QueryTimeBucket bucket : timeBuckets) {
+            builder.addTimeBucket(bucket.getDateField(), bucket.getPreset(), bucket.getAlias());
         }
     }
 
@@ -918,7 +967,7 @@ public final class TypedQuery<T> {
         updated.add(window);
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, updated, qualifyPredicate,
-                sortOrders, limit, offset, executionGuard);
+                timeBuckets, sortOrders, limit, offset, executionGuard);
     }
 
     private static <T> List<List<QueryRule>> toDisjunctiveNormalForm(TypedPredicate<T> node,

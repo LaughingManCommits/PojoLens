@@ -4,7 +4,11 @@ import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.enums.WindowFunction;
+import laughing.man.commits.time.TimeBucketPreset;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.EmployeePoint;
 import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
@@ -22,7 +26,9 @@ import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowRankProjection;
 import org.junit.jupiter.api.Test;
 
+import java.time.DayOfWeek;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Comparator;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -32,6 +38,7 @@ import java.util.Map;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -66,6 +73,8 @@ public class TypedQueryContractTest {
             TypedField.of("runningSum", Long.class);
     private static final TypedField<WindowMetricProjection, Long> RUNNING_COUNT_ALL =
             TypedField.of("runningCountAll", Long.class);
+    private static final TypedField<EmployeePoint, java.util.Date> HIRE_DATE =
+            TypedField.of("hireDate", java.util.Date.class);
 
     // fixtures: Alice(Eng,120k,active), Bob(Fin,90k,active), Cara(Eng,130k,active), Dan(Eng,110k,inactive)
 
@@ -106,6 +115,10 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "windowCountAll",
                 TypedField.class, QueryWindowFrame.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "qualify", TypedPredicate.class);
+        requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucket.class, String.class);
+        requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucket.class, TypedField.class);
+        requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucketPreset.class, String.class);
+        requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucketPreset.class, TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedSortOrder[].class);
@@ -1369,6 +1382,64 @@ public class TypedQueryContractTest {
                 .schema(sampleEmployees(), DepartmentRank.class);
 
         assertEquals(List.of("department", "name", "salary", "rn"), s.names());
+    }
+
+    // --- Time bucket ---
+
+    @Test
+    void timeBucketGroupsByMonthAndAggregates() {
+        List<DepartmentPeriodAgg> result = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, TimeBucket.MONTH, "period")
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        assertEquals(2, result.size());
+        List<String> periods = result.stream().map(r -> r.period).sorted().toList();
+        assertEquals(List.of("2025-01", "2025-02"), periods);
+        long janTotal = result.stream().filter(r -> "2025-01".equals(r.period)).mapToLong(r -> r.total).sum();
+        assertEquals(2L, janTotal);
+    }
+
+    @Test
+    void timeBucketParityWithSqlLike() {
+        List<DepartmentPeriodAgg> typed = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, TimeBucket.MONTH, "period")
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        List<DepartmentPeriodAgg> sql = laughing.man.commits.PojoLensSql
+                .parse("select bucket(hireDate,'month') as period, count(*) as total group by period")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        assertEquals(
+                sql.stream().map(r -> r.period + "|" + r.total).sorted().toList(),
+                typed.stream().map(r -> r.period + "|" + r.total).sorted().toList()
+        );
+    }
+
+    @Test
+    void timeBucketWithPresetAcceptsZone() {
+        TimeBucketPreset preset = TimeBucketPreset.of(TimeBucket.MONTH).withZone("UTC");
+        List<DepartmentPeriodAgg> result = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, preset, "period")
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        assertFalse(result.isEmpty());
+    }
+
+    @Test
+    void timeBucketWithOutputFieldOverload() {
+        TypedField<DepartmentPeriodAgg, String> PERIOD = TypedField.of("period", String.class);
+        List<DepartmentPeriodAgg> result = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, TimeBucket.MONTH, PERIOD)
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void timeBucketIsImmutable() {
+        TypedQuery<EmployeePoint> base = TypedQuery.from(EmployeePoint.class);
+        TypedQuery<EmployeePoint> withBucket = base.timeBucket(HIRE_DATE, TimeBucket.MONTH, "period");
+        assertFalse(base.hasTimeBuckets());
+        assertTrue(withBucket.hasTimeBuckets());
     }
 
     // --- Helpers ---
