@@ -1,8 +1,8 @@
 # 2026-03 Archive Summary
 
-- entries: 110
-- range: 2026-03-12T10:20:00+01:00 to 2026-03-31T21:45:09.0897652+02:00
-- event types: maintenance=28, planning=20, feature=18, implementation=14, benchmark=9, documentation=6, process=4, release=4, testing=2, validation=2, analysis=1, bootstrap=1, performance=1
+- entries: 109
+- range: 2026-03-12T10:20:00+01:00 to 2026-03-31T19:30:00+02:00
+- event types: maintenance=28, planning=20, feature=18, implementation=14, benchmark=9, documentation=6, release=4, process=3, testing=2, validation=2, analysis=1, bootstrap=1, performance=1
 
 ## Event Snapshots
 - `2026-03-12T10:20:00+01:00`: Initialized AI memory from repository scan and recorded first known full-test baseline.
@@ -114,4 +114,3 @@
 - `2026-03-31T13:25:00+02:00`: Completed the warmed chart stability follow-up under `target/benchmarks/2026-03-31-followup-stability/`. With `-wi 3 -i 5 -w 200ms -r 200ms`, the corrected chart suite passed thresholds and `15/15` chart parity rows; the earlier single-iteration scatter failure was measurement noise, while the remaining chart-specific issue is SQL-like scatter allocation overhead shown in the paired GC spot-checks.
 - `2026-03-31T16:18:00+02:00`: Added reusable non-join `SqlLikeBoundQuery` execution so repeated bind-first SQL-like runs keep materialized source rows, added `sqlLikeBoundScatterMapping` to `ChartVisualizationJmhBenchmark`, and validated the follow-up with `mvn -q -pl pojo-lens-benchmarks -am test` plus targeted JMH runs saved to `target/benchmarks/2026-03-31-bound-scatter-threshold.json` and `target/benchmarks/2026-03-31-followup-stability/chart-scatter-bound-gc.json`. The bound scatter path cuts direct repeated-path allocation by about `1.32x` (`1k`), `1.39x` (`10k`), and `1.89x` (`100k`).
 - `2026-03-31T19:30:00+02:00`: Added a simple direct-source SQL-like chart fast path in `SqlLikeExecutionFlowSupport` so plain no-join/no-filter/no-order/no-alias charts skip `QueryRow` materialization. The refreshed scatter artifacts in `target/benchmarks/2026-03-31-followup-stability/chart-scatter-bound-gc.json` now show direct and bound SQL-like scatter at near-allocation parity, shifting the remaining gap to shared SQL-like-vs-fluent overhead.
-- `2026-03-31T21:45:09.0897652+02:00`: Added a local Claude orchestration MVP: tracked control plane under `ai/orchestrator/`, Python and PowerShell coordinator entrypoints in `scripts/claude-orchestrator*`, coordinator/worker ownership rules in the AGENTS guides, dry-run validation for plan/run flows, and AI memory indexing/query support for `ai-orchestrator` docs.

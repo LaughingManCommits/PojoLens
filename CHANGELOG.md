@@ -11,399 +11,17 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Changed
 
-- Reset `TODO.md` and hot AI memory away from the stale in-repo orchestrator
-  roadmap. The active repo focus is now removing the local multi-agent stack
-  after it moved to the separate `neon` codebase, while keeping PojoLens
-  centered on the Java library and repo-memory helpers.
+- Reset `TODO.md` and hot AI memory around the `neon` extraction cleanup so
+  PojoLens stays focused on the Java library and the surviving repo-memory
+  helpers.
 
 ### Removed
 
-- Removed the in-repo `pojolens-agents` Python package and CLI shims:
-  `pyproject.toml`, `scripts/ai/claude-orchestrator.py`,
-  `scripts/ai/claude-orchestrator.ps1`, `scripts/ai/pojo_lens_agents/**`, and
-  `scripts/ai/pojolens_agents.egg-info/**` are gone from PojoLens after the
-  multi-agent runtime moved to the separate `neon` codebase.
+- Removed the extracted local AI tooling surface after that runtime moved to
+  the separate `neon` codebase.
 
-- Removed the orchestrator-only Python test suite under `scripts/tests/`,
-  leaving only the repo-memory helper coverage in place.
-
-- Removed the remaining extracted control-plane and retained run artifacts:
-  `ai/orchestrator/**`, repo-local `.claude-orchestrator/**`, `runs/**`, and
-  `ai/state/run-ledger.jsonl` are no longer tracked in PojoLens.
-
-### Added
-
-- **HITL TUI live gate integration** (WP75) - `_read_gate_manifest` pure function
-  reads retained run manifest to extract completed/failed/pending batch task IDs,
-  task costs, and stale-sentinel age (> 30 min raises ⚠ warning);
-  `HitlGateScreen` now populates batch-log, pending-table, and cost bar from the
-  live manifest instead of placeholder stubs; `OrchestratorApp.wait_for_hitl_decision`
-  auto-pushes `HitlGateScreen` via `push_screen` + callback Future when a gate fires,
-  so the operator sees full gate detail without any extra navigation; approve/abort
-  dismiss the screen and resolve the decision immediately; Back/Escape dismisses
-  without deciding and falls back to sentinel-file polling; 17 regression tests
-  (12 pure unit tests for manifest parsing, 5 Textual integration tests); 1129
-  tests pass.
-
-- **Scheduled and event-triggered runs** (WP65) - added `pojo_lens_agents.schedule`
-  with `start_schedule` (cron via `apscheduler>=3`, file-watch via `watchdog>=3`,
-  or `--once` one-shot), `stop_schedule` (SIGTERM via PID file), and
-  `get_schedule_status`; atomic JSON status file; append-only schedule log;
-  dep guards with `pip install 'pojolens-agents[schedule]'` hints; `schedule
-  start/stop/status` subcommands wired into the CLI and `_build_handlers`;
-  `schedule` added to `KNOWN_COMMANDS`; `schedule` optional extras group in
-  `pyproject.toml`; 38 regression tests in `test_schedule.py`; 5 dispatch
-  tests in `test_orchestrator_app.py`; 2 KNOWN_COMMANDS tests in
-  `test_console.py`; 1112 tests pass.
-
-- **Persistent operator console** - added `pojo_lens_agents.console` with a
-  `pojolens-agents console` session mode that stays alive until `/exit`;
-  supports `/help`, `/jobs`, `/focus [job-id]`, and `/clear` meta-commands;
-  routes all orchestrator commands inline; dispatches `run` / `resume` /
-  `retry` as managed background jobs so the operator can issue further commands
-  while a long run proceeds; waits for background jobs on exit; handles
-  `EOFError` and `KeyboardInterrupt` gracefully; reuses existing handler
-  dispatch and `command_dispatch.print_payload`; and does not replace the
-  one-shot CLI contract.
-
-- **Human diff view before promote** - added `pojo_lens_agents.diff_run` plus
-  the `diff-run` command for retained runs, with task and path filters,
-  `--stat` summaries, structured per-file unified diff JSON payloads, ANSI or
-  Rich-style diff rendering in text mode, graceful missing-workspace handling,
-  and wizard promote-gate diff preview plus optional full diff display before
-  promotion.
-
-- **Guided wizard mode** - added `pojo_lens_agents.wizard`, default no-args
-  `pojolens-agents` entry into a guided validate/run/review/promote/validate
-  lifecycle, explicit `wizard` / `--resume` / `--retry` entry points,
-  natural-language goal routing with tracked-plan matching or generated
-  runtime plans via hard-coded `claude-haiku-4-5-20251001`, and compact
-  wizard receipts/next-action suggestions for failed, blocked, dry-run, and
-  promotion-gated flows.
-
-- **TUI dashboard** - added optional `[tui]` / `textual` dependency support,
-  new `pojo_lens_agents.tui_app` with a live task grid, rolling cost and
-  elapsed summary, active-task stderr tailing, TUI-driven HITL approve/abort
-  controls, `--tui` on `run` / `resume` / `retry`, automatic interactive
-  dashboard enablement, and `--watch` fallback when textual is unavailable.
-
-- **Dynamic plan mutation** - added tracked `runPolicy.followUpBehavior`,
-  `--follow-up-mode` on `run` / `resume`, structured worker `followUpTasks`,
-  runtime task injection between batches, persisted `injectedFrom` lineage in
-  task records and `selected-plan.json`, and `task-injected` retained events
-  for injected follow-up work.
-
-- **Pre-flight cost estimation** - added tracked `ai/orchestrator/model-pricing.json`,
-  new `pojo_lens_agents.cost_estimation` heuristics for per-task and per-plan
-  token/USD estimation, `costEstimate` in validate/dry-run/run manifests,
-  `run --estimate` for estimate-only operator checks, and validate-time
-  warnings when `runPolicy.runBudgetUsd` is already below the minimum
-  estimated spend.
-
-- **OpenTelemetry observability** - added optional `[otel]` dependencies
-  (`opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http`), new
-  `pojo_lens_agents.otel_spans` emission support, `--otel-endpoint` on
-  `run` / `resume` / `retry` / `export-trace`, OTLP HTTP export activated by
-  `OTEL_EXPORTER_OTLP_ENDPOINT`, and OTEL task span attributes for model,
-  effort, output profile, token usage, and cost. The retained
-  `pojo-lens-orchestrator-trace/v1` graph remains the source of truth, with
-  extra lineage parents mapped to OTEL span links.
-
-- **Human-in-the-loop approval gates** - added HITL run-policy fields
-  (`hitl`, `hitlMode`), `--hitl`, `--hitl-mode`, and
-  `--hitl-auto-approve` for `run` / `resume`; runs can now emit
-  `hitl-gate`, `hitl-approved`, and `hitl-aborted` events at batch
-  boundaries, persist the manifest before waiting, use an interactive prompt
-  or `hitl-gate.lock` sentinel file for operator decisions, and block pending
-  tasks cleanly when a gate is aborted.
-
-- **Typed orchestrator contracts** - added Pydantic v2 as a core tooling
-  dependency, introduced `pojo_lens_agents.orchestrator_models` for typed
-  task-plan, agent, run-policy, manifest, task-record, prompt, validation, and
-  dependency-layer contracts, converted existing orchestrator contract
-  dataclasses to Pydantic-backed dataclasses while preserving `asdict`
-  compatibility, added typed validation at plan/agent loading and manifest
-  serialization boundaries, published `py.typed`, and added mypy coverage plus
-  model round-trip tests.
-
-- **Skill registry and router for orchestrator workers** - added a tracked
-  `ai/orchestrator/skills/registry.json` plus `skills/<name>/SKILL.md`
-  folders, task-level `skills` support in task plans, bounded docs/release/
-  benchmark/orchestrator skill inference, and resolved per-task skill
-  visibility in validate/run/manifest surfaces. Worker invocations now pass a
-  task-specific selected-agent payload so task-local skill additions do not
-  require cloning whole role definitions.
-
-- **File-backed orchestrator role prompts** - `ai/orchestrator/agents.json`
-  now supports `promptFile` alongside the legacy inline `prompt`, and the
-  tracked planner, analyst, implementer, and reviewer role instructions now
-  live in `ai/orchestrator/agents/<role>/prompt.md` so role customization can
-  evolve without large escaped JSON strings.
-
-- **Realistic role/skill prompt budgets** - tracked orchestrator role prompts
-  now warn above `6 KB` and fail above `8 KB`, tracked skill files warn above
-  `3 KB` and fail above `4 KB`, and validate topology warns when a task
-  resolves more than `4` skills so prompt assembly stays bounded before runtime
-  prompt budgets are hit.
-
-- **Async task execution** - replaced `ThreadPoolExecutor` + `concurrent.futures.as_completed` with `asyncio.Semaphore` + `asyncio.as_completed` in `run_ops.py`; converted `execute_task`, `execute_task_with_retry`, and `run_loaded_plan` to `async def`; added `async_run_process` / `async_run_subprocess` in `provider.py` using `asyncio.create_subprocess_exec`; added `run_subprocess_async` in `provider_worker.py`; SDK provider call wrapped with `asyncio.to_thread`; sync CLI entry points preserved via `asyncio.run()` wrapper; all test fakes and direct calls updated.
-
-- **Low-cost worker profiles and output discipline** - added
-  `outputProfile` support to agent/task definitions, lean docs-oriented
-  `docs-implementer` / `docs-reviewer` worker profiles, tighter `lean` worker
-  JSON caps for `summary` / `notes` / `followUps` / validation intents,
-  retained-run visibility for unexpectedly verbose tasks, and the tracked
-  `ai/orchestrator/tasks/example-cheap-proof-docs.json` plan for repeated
-  low-cost orchestration proofs.
-
-- **Docs/text quality guardrails** - reviewer diff summaries now surface
-  `textQualityFindings` for docs-like text files, block promotion on common
-  mojibake patterns, warn when new non-ASCII doc text is introduced into an
-  ASCII baseline, add `text-quality-blocked` retained-run lifecycle visibility,
-  and teach `validate-run` to synthesize
-  `scripts/docs/check-doc-consistency.ps1` as a coordinator helper for
-  docs-only retained changes when no equivalent validation was already
-  suggested.
-
-- **Structured reviewer findings and promotion governance** - reviewer worker
-  output now supports a structured `findings` array with `severity` (`info`,
-  `warn`, `block`) and `message` fields; blocking findings from reviewer tasks
-  refuse promotion by default, surface in dry-run summaries, add a
-  `review-blocked` lifecycle state to retained runs, and are counted per
-  severity in review-run reports. `ReviewFinding` is persisted in task records
-  and manifests and round-trips cleanly through existing JSON contracts.
-
-- **Quickstart grouped salary summary** - the Spring Boot starter quickstart
-  example now exposes a department salary-summary endpoint backed by a grouped
-  PojoLens query, with README curl docs and coverage in both default and
-  virtual-thread integration tests.
-
-- **Quickstart onboarding docs** - the Spring Boot starter quickstart README
-  now includes a guided "try these first" flow, code-structure pointers, and
-  extension guidance so developers can understand the example faster without
-  reading the whole repo.
-
-- **Quickstart implementer-reviewer sample plan** - added
-  `ai/orchestrator/tasks/example-implement-review-quickstart.json` as the
-  smallest tracked coding-plus-review orchestration sample tied to a real repo
-  example module.
-
-- **Quickstart salary-range endpoint** - the Spring Boot starter quickstart
-  example now exposes `/api/employees/by-salary-range`, with README coverage,
-  focused controller and virtual-thread integration tests, and two tracked
-  orchestration proofs for the feature plus its docs/tests fix-up.
-
-- **Orchestrator trace export** - added `pojo_lens_agents.trace_export` and
-  the `export-trace` command, which writes a stable
-  `pojo-lens-orchestrator-trace/v1` JSON span graph for retained runs using
-  existing event lineage plus persisted review, validation, and promotion
-  checkpoints.
-
-- **Orchestrator command decomposition** - split retained-run summary/lifecycle,
-  review/export/promote, validation/checkpoint persistence, and eval logic into
-  `pojo_lens_agents.run_summary`, `review_ops`, `validation_ops`, and `evals`
-  while keeping `scripts/ai/claude-orchestrator.py` as the compatibility
-  entrypoint with the existing CLI and JSON contracts.
-
-- **Lazy orchestrator layer loading** - the compatibility entrypoint now uses
-  on-demand loading for extracted `pojo_lens_agents` modules so the full split
-  stack is not imported until a command path actually touches it.
-
-- **Thin orchestrator compatibility shim** - `scripts/ai/claude-orchestrator.py`
-  is now a small compatibility wrapper that delegates to
-  `pojo_lens_agents.orchestrator_app`, keeping the operator entrypoint well
-  below the 1000-line target while preserving existing callers and tests.
-
-- **Orchestrator planner/runtime-admin decomposition** - extracted planner
-  prompt/invocation flow into `pojo_lens_agents.planner_ops`, cleanup/status/
-  inventory/prune logic into `runtime_admin`, and retained run-record coercion
-  plus branch-context helpers into `manifest_records` so the oversized
-  `orchestrator_app` stops owning those command surfaces inline.
-
-- **Orchestrator prompt/execution/manifest decomposition** - extracted prompt
-  and worker-contract logic into `prompt_contracts`, `worker_contracts`, and
-  `validate_cli`, task execution/workspace prep into `task_execution`, and run
-  manifest serialization into `manifest_io`, reducing the remaining
-  `pojo_lens_agents.orchestrator_app` control-plane surface again.
-
-- **Orchestrator task-plan governance decomposition** - extracted run-policy,
-  agent/task-plan loading, effective read/write scope helpers, and scope
-  validation into `pojo_lens_agents.task_plan_ops`, further reducing the
-  remaining orchestration app surface while keeping CLI contracts and focused
-  tests intact.
-
-- **Orchestrator app hard split** - continued WP36 past the 50-line
-  compatibility shim by extracting shared contracts, parser wiring, common
-  utilities, plan/scope support, and retained-run workspace/review/provider
-  support into dedicated `pojo_lens_agents` modules; the remaining
-  `pojo_lens_agents.orchestrator_app` is now 863 lines and the focused
-  orchestrator suite is green again.
-
-- **Crash-safe manifest flushing** - all orchestrator writes now go through
-  `write_text()` / `write_json()` in `orchestrator_utils.py`, which writes
-  to a unique `.tmp` sibling then `os.replace()` (atomic on POSIX and
-  Windows NTFS). `_atomic_replace()` retries on transient Windows
-  `PermissionError`. `recover_orphaned_write_temps()` cleans crash-left
-  temps recursively; called before loading a run manifest so stale temps
-  from prior crashes are always cleared.
-
-- **Within-run task retry** - added `pojo_lens_agents.retry_policy` with a
-  transient-error classifier (rate-limit 429, timeout, 5xx, overload, SDK
-  typed error strings) vs permanent (scope violation, auth, JSON parse,
-  prompt budget). `execute_task_with_retry` in `orchestrator_app.py` wraps
-  task execution with exponential backoff (1s/2s/4s + jitter, capped 30s),
-  records `attempt`/`attempt_errors`/`retry_delay_ms` in `TaskRunRecord`,
-  emits `task-retry-attempt` events to the run trace, and supports
-  `--max-task-retries` CLI override plus `maxRetries` on task/agent JSON
-  definitions.
-
-- **Direct Anthropic SDK provider** - added `pojo_lens_agents.sdk_provider`
-  with a bounded agentic tool loop (4 workspace tools: `read_file`,
-  `write_file`, `str_replace_based_edit_tool`, `bash`), streaming via
-  `client.messages.stream()` when stderr is a TTY, per-turn usage
-  accumulation, and path-traversal protection. Provider mode is selected by
-  `POJO_LENS_PROVIDER=sdk` or auto-detected when the `anthropic` package is
-  importable and `ANTHROPIC_API_KEY` is set; the `claude` subprocess path
-  remains the default. SDK exceptions are captured as error strings that
-  match WP42 `classify_failure()` transient/permanent patterns without any
-  change to the retry policy. Added `anthropic>=0.40.0` as `[sdk]` optional
-  dep in `pyproject.toml` and 65 new regression tests (484 total).
-
-### Fixed
-
-- **External worker workspace isolation** - copy/worktree runs now allocate
-  default worker sandboxes in an external temp-backed workspace root recorded
-  in `workspacesDir` instead of under repo-local `.claude-orchestrator`,
-  closing the live-repo escape that let a failed parallel implementer run
-  mutate tracked files outside its sandbox.
-
-- **Orchestrator live-run contract hardening** - `validate` now warns about
-  reviewer prompt-budget risk for multi-dependency `apply-reviewed` review
-  tasks, worker prompts now require explicit parameter-semantic notes and
-  contract-aligned tests/docs, promotion now dedupes exact duplicate reviewer
-  materialization instead of blocking on safe duplicates, and promoted coding
-  runs remain `awaiting_validation` until repo-scope validation is recorded
-  after promotion.
-
-- **Live parallel coding proof** - the tracked
-  `example-parallel-implement-review-quickstart.json` run now completes with
-  two parallel implementers plus a reviewer, promotes the reviewed quickstart
-  README and test changes, and revalidates with the quickstart Maven test
-  suite.
-
-- **Approval lifecycle state machine** - retained runs now expose explicit
-  `lifecycleState` / `lifecycleStateReason` plus `approvalSummary`, and the
-  coordinator persists `coordinatorReview`, `coordinatorValidation`, and
-  `coordinatorPromotion` checkpoints with run-local summary artifacts so
-  review, validation, and promotion gates are resumable and inspectable.
-
-- **Retained-run corpus evaluation** - added `evaluate-corpus` so the
-  orchestrator can aggregate retained-run `scoreSummary` status, average score
-  percent, and benchmark-dimension counts across the runtime root.
-
-- **Orchestrator score summary and eval fixture** - added a compact
-  `scoreSummary` to `evaluate-run` so retained runs expose trendable
-  pass/warn/fail counts and a simple quality percentage, and added the tracked
-  `example-eval-readonly-review` fixture as the first WP32 eval-corpus anchor.
-
-- **Atomic AI memory publish handshake** - `refresh-ai-memory` now stages
-  derived artifacts before publishing them, updates a derived
-  `ai/indexes/publish-state.json` marker, and lets `refresh-ai-memory -Check`
-  wait/retry across an in-flight publish instead of reporting a false stale
-  state during concurrent refresh/check runs.
-
-- **Effort override and visibility for orchestration** - added `--effort` to
-  `plan`, `run`, `resume`, and `retry`; retained manifests and retained-run
-  views now surface resolved per-task effort/source plus `effortCounts`; and
-  `evaluate-run` now warns when read-only tasks use high effort on non-complex
-  model profiles.
-
-- **Run-event lineage trace** - added manifest-backed run events for orchestration
-  start, ready batches, task completion/blocking, parent-task lineage, and run
-  finish so retained runs can be debugged and evaluated without inferring
-  scheduler behavior from task records alone.
-
-- **Trace summaries in retained-run views** - added compact `traceSummary`
-  rollups to run inventory and status payloads so operators can see event
-  counts, phase counts, latest phase, and referenced task lineage without
-  opening full manifest event arrays.
-
-- **Branch-context lineage and run evaluation** - added task-level
-  `branch_context_id` lineage, compact `branchSummary` rollups, branch-aware
-  dependency handoff text, an `evaluate-run` command for orchestration quality
-  checks, and the tracked `example-trace-multibatch` regression fixture.
-
-- **Run visibility and operator UX** - added a `status` command for retained
-  runs, richer inventory flags and counts, grouped review summaries, dry-run
-  promotion allow/refuse summaries, and documented operator flow for validate,
-  run, review, validate-run, promote, cleanup, and prune.
-
-- **LangGraph execution spike** - added
-  `pojo_lens_agents.langgraph_spike` and focused tests to map the current
-  orchestrator lifecycle onto candidate graph nodes, compare manifest-backed
-  `resume`/`retry` semantics and review/promotion interrupts, simulate
-  checkpointed parallel execution, and record the decision to keep the custom
-  scheduler and manifest model as the production path for now.
-
-- **Typed authoring compiler integration** - added
-  `@GeneratePojoLensTypedFields` and `PojoLensTypedFieldsProcessor` so javac
-  can emit IDE-visible `TypedField<T,V>` constants during compilation without
-  Lombok-style AST rewriting. The existing `FieldMetamodelGenerator` remains
-  the documented manual fallback.
-
-- **Typed-field processor hardening** - expanded compiler-generation coverage
-  across primitive, boxed, enum, time, nested, excluded, static/final, no-field,
-  duplicate-target, invalid-target, and graph-depth cases, and documented the
-  processor-path opt-in policy.
-
-- **Typed compiler example** - added `examples/typed-compiler-maven` as a
-  standalone Maven project that compiles an annotated model and consumes the
-  generated typed constants from the same module.
-
-- **Gradle and Kotlin typed-generation support** - added service-loader and
-  Gradle incremental annotation-processor descriptors for
-  `PojoLensTypedFieldsProcessor`, plus standalone Gradle Java and Kotlin/JVM
-  kapt examples. Kotlin support is intentionally field-model based in this
-  slice: `@JvmField var` fields are supported, while Kotlin property/data-class
-  generation remains a future KSP or property-metadata decision.
-
-### Changed
-
-- **Risk-console typed DSL** - switched the retained Spring risk-console Query
-  Studio typed query from hand-written `TypedField.of(...)` constants to
-  compiler-generated `TransactionRecordTypedFields` constants.
-
-- **Orchestrator CLI global options** - all 12 subcommands now accept
-  `--verbose`/`-v`, `--provider-bin` (with `--claude-bin` as a legacy alias),
-  `--dry-run`, and `--json` consistently. Previously several commands lacked
-  `--dry-run` (`validate`, `review`, `export-patch`, `inventory`, `cleanup`) or
-  `--json` (`cleanup`). `--max-parallel` is now documented in the root CLI
-  description as the primary feature for independent parallel task execution.
-
-- **Orchestrator exit codes** - `main()` now returns distinct codes:
-  `EXIT_SUCCESS` (0), `EXIT_ERROR` (1), `EXIT_BOOTSTRAP` (2, reserved for
-  `cli.py`), `EXIT_VALIDATION` (3, plan schema invalid), `EXIT_WORKER_FAILURE`
-  (4, tasks returned "failed"), `EXIT_BLOCKED` (5, tasks blocked), 
-  `EXIT_UNSAFE_PROMOTION` (6, promotion refused), and `EXIT_CRASH` (7,
-  unexpected Python exception). `PromotionBlockedError` and `ValidationError`
-  are new `OrchestratorError` subclasses that route to their respective codes.
-
-- **Orchestrator runtime layering** - split the monolithic local multi-agent
-  script behind package layers for scheduling, provider subprocess/JSON
-  handling, path safety, run manifests, workspace review primitives, and
-  run-governance checks while preserving the existing CLI JSON contracts and
-  bounded parallel execution semantics.
-
-### Removed
-
-- **Redundant Spring dashboard example** - removed
-  `examples/spring-boot-starter-basic` so the example set has a clearer
-  progression: Spring quickstart for onboarding, risk console for the full
-  dashboard/showcase, and typed compiler examples split by build tool.
-
-- **Risk-console reviewer packet references** - removed the stale reviewer-doc
-  consistency test and README handoff references from the retained risk-console
-  example so the example stays focused on runnable app behavior.
+- Removed the leftover extracted runtime artifacts and obsolete Python-only
+  validation coverage from PojoLens.
 
 ## [2026.04.29.1809] - 2026-04-29
 
@@ -557,7 +175,6 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   pushed first-phase rows and let PojoLens finish unsupported stages in memory.
   Added `PUSHDOWN` telemetry and JMH coverage for pure in-memory, pushed, and
 
-## [Unreleased]
   split completion paths.
 
 - **Reflection hotspot guardrails** (`STRAT-WP5` first slice) - added
@@ -725,14 +342,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   semantics, and generated typed-source compilation. Typed grouping,
   aggregation, joins, windows, and subqueries are deferred.
 
-- **Cooperative query cancellation** (`STRAT-WP2` completion) — added
+- **Cooperative query cancellation** (`STRAT-WP2` completion) â€” added
   `QueryCancellationToken` (@FunctionalInterface) to the `sqllike` package with
   `ofAtomic(AtomicBoolean)` and `ofThread(Thread)` static factories. Attach via
   `QueryExecutionGuard.Builder#cancellationToken(token)`. The library polls the
   token at execution start (eager paths) and between every row in lazy
   (stream/iterator) paths. When the token fires, a `QueryExecutionGuardException`
   is thrown with block code `GUARD_CANCELLED`. `QueryGuardOutcome#cancelled()`
-  factory carries `rowsReturnedBeforeAbort` — the exact number of rows the caller
+  factory carries `rowsReturnedBeforeAbort` â€” the exact number of rows the caller
   already received before the abort, providing deterministic aborted-query
   metadata. `auditMetadata()` includes `rowsReturnedBeforeAbort` for telemetry
   and structured logging. `QueryExecutionGuard#hasPreExecutionLimits()` added to
@@ -741,7 +358,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   input cancellation, stable public API contract coverage, and public docs
   alignment.
 
-- **Production query governance and audit** (`STRAT-WP2`) — added
+- **Production query governance and audit** (`STRAT-WP2`) â€” added
   `QueryExecutionGuard`, `QueryGuardOutcome`, `QueryComplexitySummary`, and
   `QueryExecutionGuardException` to the `sqllike` package. `QueryExecutionGuard`
   enforces bounded execution via pre-execution checks (max rows scanned, max
@@ -759,7 +376,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   remain host-application responsibilities. Contract coverage added to
   `StablePublicApiContractTest`.
 
-- **Stable embedded reporting contract** (`STRAT-WP1`) — added `SavedReport`
+- **Stable embedded reporting contract** (`STRAT-WP1`) â€” added `SavedReport`
   and `SavedReportKind` to the `report` package. `SavedReport` is a versioned,
   serialization-friendly contract carrying query text, default parameters,
   optional chart spec, and optional schema. Supports SQL-like and natural
@@ -770,7 +387,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `StablePublicApiContractTest`.
 
 - **Better error suggestions** (`QOL-WP5`) - extracted `NameSuggestions` helper
-  (Levenshtein ≤ 2 + prefix match, up to 3 candidates, case-normalised) into
+  (Levenshtein â‰¤ 2 + prefix match, up to 3 candidates, case-normalised) into
   `laughing.man.commits.internal`. Wired deterministic "Did you mean" suggestions
   into SQL-like unknown-field errors (WHERE/SELECT/ORDER BY/QUALIFY/HAVING
   aggregate/JOIN child/JOIN source/JOIN flexible resolve/subquery source),
@@ -796,10 +413,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `PlanPreviewOrder`, `PlanPreviewPaging`, `PlanPreviewPredicate`) in the
   `sqllike` package. New
   `SqlLikeQuery.planPreview()` entry point returns a deterministic structural
-  description of a query's execution shape — selected fields with aliases,
+  description of a query's execution shape â€” selected fields with aliases,
   metrics, time buckets, and window function details; WHERE/HAVING/QUALIFY
   predicates with operator and value-kind; JOIN clauses; ORDER BY fields; paging
-  config; and required parameters — all without executing against rows or
+  config; and required parameters â€” all without executing against rows or
   requiring a source class. Does not include cost estimates or row counts.
 - **Grouped plan preview predicates** (`QOL-WP3` hardening) - added
   `PlanPreviewPredicate` plus `filterExpression()`, `havingExpression()`, and
@@ -871,16 +488,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
-- **Natural language query surface** — `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery`, and `PojoLensRuntime.natural()` provide a controlled plain-English query path (`show`, `where`, `sort by`, `group by`, `having`, `limit`, `bucket by`, `as chart`) that lowers deterministically into the shared engine. Includes runtime-scoped `NaturalVocabulary` for field aliases, reusable `NaturalTemplate` parameter schemas, and parity with fluent/SQL-like for aggregates, joins, window analytics, time buckets, and chart output.
-- **Natural subquery and existence predicates** — natural grammar accepts bounded `is in query … end query`, `exists query … end query`, and `not exists query … end query` predicates with `and`/`or` connectors; lowers onto fluent/core subquery predicates.
-- **CSV boundary adapter** — `PojoLensCsv` loads UTF-8 CSV into typed rows at the file boundary with strict header-based coercion, multiline quoted-record support, CRLF/BOM handling, `CsvCoercionPolicy` for blank/null/locale/date/enum rules, `CsvLoadReport`/`CsvLoadResult` diagnostics, and `runtime.csv().read(...)` / `readWithReport(...)` integration. Dynamic schema remains deferred (`CSV-WP6`).
-- **Bounded window frames** — public `QueryWindowFrame` adds explicit `ROWS BETWEEN` frame control (`UNBOUNDED PRECEDING / CURRENT ROW / <n> PRECEDING / UNBOUNDED FOLLOWING`) for aggregate window functions alongside the existing running-window default.
-- **Immutable fluent prepared wrapper** — `PojoLensCore.prepare(...)` returns an immutable `FluentQueryDefinition<T>` that rebuilds a fresh `QueryBuilder` per execution; exposes `rows(...)`, `schema()`, `explain()`, and promotes to `ReportDefinition<T>`.
-- **Bounded subquery and existence predicates** — fluent `QueryBuilder` exposes `addInSubquery(...)`, `addExists(...)`, and `addNotExists(...)` with self-source and explicit-source execution-snapshot resolution. `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and `QueryRule.notExists(...)` participate in `allOf(...)` / `anyOf(...)` groups. SQL-like `WHERE … IN (select …)` and `WHERE [NOT] EXISTS (select …)` bind onto fluent/core predicates; bounded OR/DNF subquery shapes lower onto grouped fluent predicates.
-- **Aggregate ORDER BY diagnostics** — SQL-like queries now surface useful error messages distinguishing known-raw-field ORDER BY references from unknown-field typos and correctly scope HAVING wording.
-- **Natural joined-schema vocabulary** — runtime `schema(...)` resolves registered vocabulary aliases against projection/source type at explain time; new overloads accept `DatasetBundle` or `JoinBindings` for join-source schema resolution.
-- **Natural QUALIFY** — natural `qualify` accepts controlled inline window phrases, multiple partitions, and supported aggregate ROWS frames; `NaturalQuery` caches resolved delegates by execution shape.
-- **Tree row shaping** — `PojoLensTree` selects deterministic subtrees from flat parent-ID POJO lists before normal fluent or SQL-like execution, with optional depth metadata through `TreeEntry`.
+- **Natural language query surface** â€” `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery`, and `PojoLensRuntime.natural()` provide a controlled plain-English query path (`show`, `where`, `sort by`, `group by`, `having`, `limit`, `bucket by`, `as chart`) that lowers deterministically into the shared engine. Includes runtime-scoped `NaturalVocabulary` for field aliases, reusable `NaturalTemplate` parameter schemas, and parity with fluent/SQL-like for aggregates, joins, window analytics, time buckets, and chart output.
+- **Natural subquery and existence predicates** â€” natural grammar accepts bounded `is in query â€¦ end query`, `exists query â€¦ end query`, and `not exists query â€¦ end query` predicates with `and`/`or` connectors; lowers onto fluent/core subquery predicates.
+- **CSV boundary adapter** â€” `PojoLensCsv` loads UTF-8 CSV into typed rows at the file boundary with strict header-based coercion, multiline quoted-record support, CRLF/BOM handling, `CsvCoercionPolicy` for blank/null/locale/date/enum rules, `CsvLoadReport`/`CsvLoadResult` diagnostics, and `runtime.csv().read(...)` / `readWithReport(...)` integration. Dynamic schema remains deferred (`CSV-WP6`).
+- **Bounded window frames** â€” public `QueryWindowFrame` adds explicit `ROWS BETWEEN` frame control (`UNBOUNDED PRECEDING / CURRENT ROW / <n> PRECEDING / UNBOUNDED FOLLOWING`) for aggregate window functions alongside the existing running-window default.
+- **Immutable fluent prepared wrapper** â€” `PojoLensCore.prepare(...)` returns an immutable `FluentQueryDefinition<T>` that rebuilds a fresh `QueryBuilder` per execution; exposes `rows(...)`, `schema()`, `explain()`, and promotes to `ReportDefinition<T>`.
+- **Bounded subquery and existence predicates** â€” fluent `QueryBuilder` exposes `addInSubquery(...)`, `addExists(...)`, and `addNotExists(...)` with self-source and explicit-source execution-snapshot resolution. `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and `QueryRule.notExists(...)` participate in `allOf(...)` / `anyOf(...)` groups. SQL-like `WHERE â€¦ IN (select â€¦)` and `WHERE [NOT] EXISTS (select â€¦)` bind onto fluent/core predicates; bounded OR/DNF subquery shapes lower onto grouped fluent predicates.
+- **Aggregate ORDER BY diagnostics** â€” SQL-like queries now surface useful error messages distinguishing known-raw-field ORDER BY references from unknown-field typos and correctly scope HAVING wording.
+- **Natural joined-schema vocabulary** â€” runtime `schema(...)` resolves registered vocabulary aliases against projection/source type at explain time; new overloads accept `DatasetBundle` or `JoinBindings` for join-source schema resolution.
+- **Natural QUALIFY** â€” natural `qualify` accepts controlled inline window phrases, multiple partitions, and supported aggregate ROWS frames; `NaturalQuery` caches resolved delegates by execution shape.
+- **Tree row shaping** â€” `PojoLensTree` selects deterministic subtrees from flat parent-ID POJO lists before normal fluent or SQL-like execution, with optional depth metadata through `TreeEntry`.
 
 ### Changed
 
@@ -900,18 +517,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Input-safety guidance** - SQL-like and natural docs now call out parameter
   binding, allowed-field exposure, lint mode, strict typing, and authorization
   boundaries for user-authored query text.
-- **`ReflectionUtil` cleanup** — renamed `isPlatformType` → `isUserDefinedType`; removed dead `extractQueryFields` and `buildSchema` methods; `DirectFieldReadPlan` now includes `final` fields via a dedicated `READABLE_FIELD_BY_NAME_CACHE`; `collectFieldGraph` uses an array-backed path stack instead of per-node list allocation; `buildMutableFieldByNameMap` uses `LinkedHashMap` for consistent field ordering.
-- **`FastArrayQuerySupport` cleanup** — replaced `stream().findFirst()` with direct iterator in `canUseFastJoinPath`; `visitingComputedNames` allocated once per `compileJoinPlan` call instead of per field; dead 3-arg `orderRows` overload deleted; `andMatched`/`andFailed` renamed to `andAnyPassed`/`andAnyFailed` with clarifying comment.
+- **`ReflectionUtil` cleanup** â€” renamed `isPlatformType` â†’ `isUserDefinedType`; removed dead `extractQueryFields` and `buildSchema` methods; `DirectFieldReadPlan` now includes `final` fields via a dedicated `READABLE_FIELD_BY_NAME_CACHE`; `collectFieldGraph` uses an array-backed path stack instead of per-node list allocation; `buildMutableFieldByNameMap` uses `LinkedHashMap` for consistent field ordering.
+- **`FastArrayQuerySupport` cleanup** â€” replaced `stream().findFirst()` with direct iterator in `canUseFastJoinPath`; `visitingComputedNames` allocated once per `compileJoinPlan` call instead of per field; dead 3-arg `orderRows` overload deleted; `andMatched`/`andFailed` renamed to `andAnyPassed`/`andAnyFailed` with clarifying comment.
 
 ---
 
-## [2026.03.28.1919] — 2026-03-28
+## [2026.03.28.1919] â€” 2026-03-28
 
 Initial public release.
 
 ### Core engine
 
-- In-memory query execution over existing Java POJOs (`List<T>`) — no ORM rewrite, no database required.
+- In-memory query execution over existing Java POJOs (`List<T>`) â€” no ORM rewrite, no database required.
 - Filtering with AND/OR rule groups, field path traversal, computed fields, and optional equality index hints.
 - Ordering, grouping, aggregates (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`), HAVING, and DISTINCT.
 - JOIN execution across multiple sources via `JoinBindings` with fast-array join path for single-key equality joins.
@@ -923,7 +540,7 @@ Initial public release.
 
 ### Window analytics
 
-- `ROW_NUMBER()`, `RANK()`, and `DENSE_RANK()` with `OVER (PARTITION BY … ORDER BY …)`.
+- `ROW_NUMBER()`, `RANK()`, and `DENSE_RANK()` with `OVER (PARTITION BY â€¦ ORDER BY â€¦)`.
 - Aggregate window functions (`SUM`, `AVG`, `MIN`, `MAX`, `COUNT`) with running-window frame.
 - `QUALIFY` clause for post-window row filtering.
 - Fluent parity: `addWindow(...)`, `addQualify(...)`, qualify rule groups.
@@ -931,23 +548,23 @@ Initial public release.
 
 ### Query surfaces
 
-- **Fluent API** (`PojoLensCore`, `QueryBuilder`) — type-safe Java composition; canonical capability layer.
-- **SQL-like API** (`PojoLensSql`, `SqlLikeQuery`) — dynamic/config-driven query strings; SQL-like parsing, validation, and binding onto the fluent/core path.
-- `SqlLikeBoundQuery` — reusable bound execution with materialized source rows for repeated runs.
+- **Fluent API** (`PojoLensCore`, `QueryBuilder`) â€” type-safe Java composition; canonical capability layer.
+- **SQL-like API** (`PojoLensSql`, `SqlLikeQuery`) â€” dynamic/config-driven query strings; SQL-like parsing, validation, and binding onto the fluent/core path.
+- `SqlLikeBoundQuery` â€” reusable bound execution with materialized source rows for repeated runs.
 
 ### Output helpers
 
-- **Chart mapping** — `PojoLensChart` and `ChartQueryPreset` for chart payload generation; built-in Chart.js dataset mapping (`ChartJsDataset`, `ChartSpec`) including `withType(...)` for `BAR`/`PIE`/`LINE`/`AREA` switching.
-- **Stats presets** — `StatsViewPresets` (`summary`/`by`/`topNBy`), `StatsViewPreset`, `StatsTable`, and `StatsTablePayload`/`TabularRows`/`tablePayload(...)` for grouped table output.
-- **Report definitions** — `ReportDefinition<T>` as the canonical reusable-query contract with chart and stats promotion.
-- **Dataset bundles** — `DatasetBundle` as the reusable snapshot form for multi-source execution.
-- **Snapshot comparison** — regression fixture and snapshot diff support.
+- **Chart mapping** â€” `PojoLensChart` and `ChartQueryPreset` for chart payload generation; built-in Chart.js dataset mapping (`ChartJsDataset`, `ChartSpec`) including `withType(...)` for `BAR`/`PIE`/`LINE`/`AREA` switching.
+- **Stats presets** â€” `StatsViewPresets` (`summary`/`by`/`topNBy`), `StatsViewPreset`, `StatsTable`, and `StatsTablePayload`/`TabularRows`/`tablePayload(...)` for grouped table output.
+- **Report definitions** â€” `ReportDefinition<T>` as the canonical reusable-query contract with chart and stats promotion.
+- **Dataset bundles** â€” `DatasetBundle` as the reusable snapshot form for multi-source execution.
+- **Snapshot comparison** â€” regression fixture and snapshot diff support.
 
 ### Runtime and integration
 
-- `PojoLensRuntime` — instance-scoped policy, cache tuning, DI support, and optional multi-tenant query behavior. Only public cache-tuning surface.
-- **Spring Boot autoconfigure and starter** — `pojo-lens-spring-boot-autoconfigure` and `pojo-lens-spring-boot-starter` auto-configure `PojoLensRuntime` via `pojo-lens.*` properties; optional Micrometer telemetry listener bridge; published alongside the runtime artifact.
-- **Spring Boot examples** — `examples/spring-boot-starter-quickstart` (minimal onboarding) and `examples/spring-boot-starter-basic` (advanced dashboard with Chart.js, Bootstrap, REST endpoints, and Java Playwright E2E tests).
+- `PojoLensRuntime` â€” instance-scoped policy, cache tuning, DI support, and optional multi-tenant query behavior. Only public cache-tuning surface.
+- **Spring Boot autoconfigure and starter** â€” `pojo-lens-spring-boot-autoconfigure` and `pojo-lens-spring-boot-starter` auto-configure `PojoLensRuntime` via `pojo-lens.*` properties; optional Micrometer telemetry listener bridge; published alongside the runtime artifact.
+- **Spring Boot examples** â€” `examples/spring-boot-starter-quickstart` (minimal onboarding) and `examples/spring-boot-starter-basic` (advanced dashboard with Chart.js, Bootstrap, REST endpoints, and Java Playwright E2E tests).
 
 ### Build and quality
 

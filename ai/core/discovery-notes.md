@@ -7,4 +7,4 @@
 - `target/` contains generated outputs and is not source of truth.
 - Maven Central publishing is implemented via `release-central` profile in `pom.xml` and `.github/workflows/release.yml`.
 - Benchmark runner usage should resolve `target/*-benchmarks.jar` dynamically instead of hardcoding a versioned filename.
-- The remaining repo-memory helpers live under `scripts/ai/refresh-ai-memory.*`, `scripts/ai/query-ai-memory.*`, and `scripts/ai/benchmark-ai-memory.*`; the local `pojolens-agents` package, tracked `ai/orchestrator/**` control-plane files, and retained run artifacts are already removed after the move to `neon`, so only historical references remain to trim if needed.
+- The remaining repo-memory helpers live under `scripts/ai/refresh-ai-memory.*`, `scripts/ai/query-ai-memory.*`, and `scripts/ai/benchmark-ai-memory.*`; the extracted local AI runtime, retained run artifacts, and the old live-history trail for that runtime were removed after the move to `neon`.

@@ -2,12 +2,11 @@
 
 ## Current Goal
 
-- Remove the in-repo multi-agent and orchestrator stack from PojoLens. That
-  code has moved to its own codebase: `neon`.
+- The `neon` extraction cleanup is complete.
 - Keep PojoLens focused on the Java library, examples, benchmarks, release
   flow, docs, and repo-memory helpers.
 - Keep `scripts/ai/refresh-ai-memory.*` and `scripts/ai/query-ai-memory.*`
-  only if they are still needed for this repo's memory workflow.
+  only while they are still needed for this repo's memory workflow.
 
 ---
 
@@ -54,8 +53,8 @@
 
 - [x] Remove or rewrite active orchestrator references in `README.md`,
   `CHANGELOG.md`, `CLAUDE.md`, `MAINTENANCE.md`, `AGENTS.md`, and related docs.
-- [ ] Decide how much old orchestrator history should stay in this repo's
-  changelog versus moving to `neon`.
+- [x] Remove old extracted-runtime history from this repo's active changelog
+  and repo-memory ledgers.
 - [x] Remove editor or CI assumptions that still expect the Python package to
   exist.
 
@@ -89,6 +88,8 @@
 - [x] `2026-05-18`: Removed legacy tracked control-plane files, retained run
   directories, and stale active repo-memory references to the extracted
   runtime.
+- [x] `2026-05-18`: Removed old extracted-runtime history from the active
+  changelog and repo-memory history files that now belong with `neon`.
 - [x] `2026-05-18`: Kept the repo-memory helper scripts plus
   `scripts/tests/test_refresh_ai_memory.py`, and re-ran the surviving
   validation set.
