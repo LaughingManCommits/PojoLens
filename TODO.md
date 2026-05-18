@@ -65,7 +65,7 @@ and natural both expose `stream()`. Callers doing downstream `flatMap`,
 
 ---
 
-### WP-9 — `TypedPredicate.any()` / `.none()` sentinels  [P2]
+### ~~WP-9 — `TypedPredicate.any()` / `.none()` sentinels~~ ✓ DONE 2026-05-18
 
 **Problem:** Building conditional predicate chains without null guards requires
 boilerplate. Spring Data `Specification.where(null)`, jOOQ `trueCondition()`,
@@ -264,3 +264,4 @@ Callers who want prefix/suffix matching must write regex patterns by hand.
 - [x] `2026-05-18`: WP-6 — `count`, `exists`, `findFirst`, `findOne` on TypedQuery; 1183 tests.
 - [x] `2026-05-18`: WP-7 — `containsIgnoreCase` on TypedField/TypedPredicate; lowers to `MATCHES(?i)`; 1191 tests.
 - [x] `2026-05-18`: WP-8 — `stream()` overloads on TypedQuery (4 overloads, wraps `filter`); 1197 tests.
+- [x] `2026-05-18`: WP-9 — `TypedPredicate.any()` / `none()` sentinels with identity/absorption laws; 1211 tests.

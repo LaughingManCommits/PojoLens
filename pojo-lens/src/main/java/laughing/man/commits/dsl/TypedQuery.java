@@ -671,6 +671,9 @@ public final class TypedQuery<T> {
         Objects.requireNonNull(rows, "rows must not be null");
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        if (wherePredicate != null && wherePredicate.operator() == TypedPredicate.Operator.NONE) {
+            return List.of();
+        }
         if (executionGuard != null) {
             applyPreExecutionGuard(rows.size());
         }
@@ -765,11 +768,12 @@ public final class TypedQuery<T> {
     }
 
     private void applyWhere(QueryBuilder builder, JoinBindings joinBindings) {
-        if (wherePredicate != null) {
-            List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(wherePredicate, joinBindings);
-            for (List<QueryRule> conjunction : disjunction) {
-                builder.allOf(conjunction.toArray(new QueryRule[0]));
-            }
+        if (wherePredicate == null || wherePredicate.operator() == TypedPredicate.Operator.ANY) {
+            return;
+        }
+        List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(wherePredicate, joinBindings);
+        for (List<QueryRule> conjunction : disjunction) {
+            builder.allOf(conjunction.toArray(new QueryRule[0]));
         }
     }
 
@@ -1044,6 +1048,12 @@ public final class TypedQuery<T> {
     private static <T> List<List<QueryRule>> toDisjunctiveNormalForm(TypedPredicate<T> node,
                                                                      JoinBindings joinBindings) {
         switch (node.operator()) {
+            case ANY -> {
+                return List.of(List.of()); // one empty conjunction = always-true identity
+            }
+            case NONE -> {
+                return List.of(); // no disjuncts = always-false (caller must short-circuit)
+            }
             case AND -> {
                 return combineAnd(node.children(), joinBindings);
             }

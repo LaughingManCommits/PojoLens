@@ -110,6 +110,39 @@ List<Employee> excluded = TypedQuery.from(Employee.class)
 
 `NOT(IN_SUBQUERY)` is not supported — use `NOT EXISTS` instead.
 
+## Sentinel Predicates
+
+`TypedPredicate.any()` and `TypedPredicate.none()` are always-true and always-false
+sentinels useful for building predicate chains conditionally without null guards:
+
+```java
+// build a predicate chain; any() is the identity for and()
+TypedPredicate<Employee> filter = TypedPredicate.any();
+if (onlyActive) {
+    filter = filter.and(EmployeeTypedFields.ACTIVE.eq(true));
+}
+if (department != null) {
+    filter = filter.and(EmployeeTypedFields.DEPARTMENT.eq(department));
+}
+List<Employee> result = TypedQuery.from(Employee.class)
+    .where(filter)
+    .filter(employees);
+```
+
+Identity and absorption laws hold at composition time:
+
+| Expression | Simplifies to |
+|---|---|
+| `pred.and(any())` | `pred` |
+| `pred.or(none())` | `pred` |
+| `pred.and(none())` | `none()` |
+| `pred.or(any())` | `any()` |
+| `any().not()` | `none()` |
+| `none().not()` | `any()` |
+
+`any()` applied as the sole WHERE predicate returns all rows.
+`none()` applied as the sole WHERE predicate returns no rows.
+
 ## Execution Convenience
 
 Beyond `filter(rows)` that returns a `List<T>`, `TypedQuery` provides short-circuit

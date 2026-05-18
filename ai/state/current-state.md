@@ -11,7 +11,7 @@
 - `2026-05-18`: `TODO.md` reset with WP-7 through WP-18 plus quick fixes from both audits; WP-6 done.
 
 ## Verified
-- `2026-05-18`: `mvn -B -ntp test` passes (1197 tests) after WP-1 through WP-8.
+- `2026-05-18`: `mvn -B -ntp test` passes (1211 tests) after WP-1 through WP-9.
 - `2026-05-18`: `scripts/docs/check-doc-consistency.ps1` passes after all WP doc updates.
 - `2026-05-18`: all three scripts (`check-doc-consistency.ps1`, `refresh-ai-memory.ps1`, `refresh-ai-memory.ps1 -Check`) pass after WP-7.
 
@@ -29,7 +29,7 @@
 - Quick fix: repo-memory drift in `ai/core/module-index.md`, `ai/core/architecture-map.md`, `ai/core/system-boundaries.md`.
 - ~~WP-7~~: DONE 2026-05-18 — `containsIgnoreCase` on TypedField/TypedPredicate; lowers to MATCHES(?i); 1191 tests pass.
 - ~~WP-8~~: DONE 2026-05-18 — `stream()` overloads on TypedQuery (4 overloads, wraps filter); 1197 tests pass.
-- WP-9 (P2): `TypedPredicate.any()` / `.none()` sentinels.
+- ~~WP-9~~: DONE 2026-05-18 — `TypedPredicate.any()` / `none()` sentinels with identity laws; 1211 tests pass.
 - WP-10 (P2): `computedFields(ComputedFieldRegistry)` on TypedQuery.
 - WP-11 (P2): `filterPage()` / `PageResult<T>` on TypedQuery + assess NaturalQuery parity.
 - WP-12 (P2): `TimeBucket.HOUR` granularity.

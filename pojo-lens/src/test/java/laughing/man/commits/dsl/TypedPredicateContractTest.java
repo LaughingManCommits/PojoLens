@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.List;
 
 import static laughing.man.commits.dsl.TypedPredicate.Operator.AND;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.ANY;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS_IGNORE_CASE;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.EQ;
@@ -22,6 +23,7 @@ import static laughing.man.commits.dsl.TypedPredicate.Operator.LT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.LTE;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.MATCHES;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.NE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.NONE;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.NOT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.OR;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -78,6 +80,8 @@ public class TypedPredicateContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "between", TypedField.class, Object.class, Object.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
+        requirePublicStaticMethod(TypedPredicate.class, "any");
+        requirePublicStaticMethod(TypedPredicate.class, "none");
     }
 
     @Test
@@ -363,6 +367,70 @@ public class TypedPredicateContractTest {
     void emptyAllOfAnyOfThrowsIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () -> TypedPredicate.allOf());
         assertThrows(IllegalArgumentException.class, () -> TypedPredicate.anyOf());
+    }
+
+    // --- any() / none() sentinels ---
+
+    @Test
+    void anyPredicateHasCorrectOperatorAndNoFieldOrValue() {
+        TypedPredicate<Employee> p = TypedPredicate.any();
+        assertEquals(ANY, p.operator());
+        assertTrue(p.isLeaf());
+        assertNull(p.field());
+        assertNull(p.value());
+        assertTrue(p.values().isEmpty());
+        assertTrue(p.children().isEmpty());
+    }
+
+    @Test
+    void nonePredicateHasCorrectOperatorAndNoFieldOrValue() {
+        TypedPredicate<Employee> p = TypedPredicate.none();
+        assertEquals(NONE, p.operator());
+        assertTrue(p.isLeaf());
+        assertNull(p.field());
+        assertNull(p.value());
+    }
+
+    @Test
+    void andWithAnyIsIdentity() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        assertSame(pred, pred.and(TypedPredicate.any()));
+        assertEquals(pred.operator(), TypedPredicate.<Employee>any().and(pred).operator());
+        assertEquals(pred.value(), TypedPredicate.<Employee>any().and(pred).value());
+    }
+
+    @Test
+    void orWithNoneIsIdentity() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        assertSame(pred, pred.or(TypedPredicate.none()));
+        assertEquals(pred.operator(), TypedPredicate.<Employee>none().or(pred).operator());
+        assertEquals(pred.value(), TypedPredicate.<Employee>none().or(pred).value());
+    }
+
+    @Test
+    void andWithNoneAbsorbs() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = pred.and(TypedPredicate.none());
+        assertEquals(NONE, result.operator());
+    }
+
+    @Test
+    void orWithAnyAbsorbs() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = pred.or(TypedPredicate.any());
+        assertEquals(ANY, result.operator());
+    }
+
+    @Test
+    void negateAnyIsNone() {
+        TypedPredicate<Employee> p = TypedPredicate.<Employee>any().not();
+        assertEquals(NONE, p.operator());
+    }
+
+    @Test
+    void negateNoneIsAny() {
+        TypedPredicate<Employee> p = TypedPredicate.<Employee>none().not();
+        assertEquals(ANY, p.operator());
     }
 
     // --- Helpers ---

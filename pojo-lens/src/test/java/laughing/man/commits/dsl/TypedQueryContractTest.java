@@ -1618,6 +1618,72 @@ public class TypedQueryContractTest {
         assertEquals(List.of("Alice", "Cara"), names);
     }
 
+    // --- any() / none() sentinels ---
+
+    @Test
+    void anyReturnsAllRows() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.any())
+                .filter(sampleEmployees());
+        assertEquals(sampleEmployees().size(), result.size());
+    }
+
+    @Test
+    void noneReturnsEmptyList() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.none())
+                .filter(sampleEmployees());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void predAndAnyEquivalentToPred() {
+        TypedPredicate<Employee> pred = DEPT.eq("Engineering");
+        List<Employee> withAnd = TypedQuery.from(Employee.class)
+                .where(pred.and(TypedPredicate.any()))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> plain = TypedQuery.from(Employee.class)
+                .where(pred)
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(plain.stream().map(e -> e.name).toList(),
+                withAnd.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void predOrNoneEquivalentToPred() {
+        TypedPredicate<Employee> pred = DEPT.eq("Engineering");
+        List<Employee> withOr = TypedQuery.from(Employee.class)
+                .where(pred.or(TypedPredicate.none()))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> plain = TypedQuery.from(Employee.class)
+                .where(pred)
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(plain.stream().map(e -> e.name).toList(),
+                withOr.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void anyWithDatasetBundleReturnsAllRows() {
+        DatasetBundle bundle = DatasetBundle.of(sampleEmployees());
+        long count = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.any())
+                .count(bundle);
+        assertEquals(sampleEmployees().size(), count);
+    }
+
+    @Test
+    void noneWithDatasetBundleReturnsEmpty() {
+        DatasetBundle bundle = DatasetBundle.of(sampleEmployees());
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.none())
+                .filter(bundle);
+        assertTrue(result.isEmpty());
+    }
+
     // --- Between ---
 
     @Test

@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **`TypedPredicate.any()` / `none()` sentinels (WP-9)** — always-true and always-false sentinel
+  predicates for null-free conditional predicate chain building. Identity and absorption laws are
+  applied eagerly at composition time: `pred.and(any())` → `pred`, `pred.or(none())` → `pred`,
+  `pred.and(none())` → `none()`, `pred.or(any())` → `any()`. `any().not()` → `none()` and vice
+  versa. `any()` as a WHERE predicate returns all rows; `none()` returns zero rows.
+
 - **`TypedQuery.stream()` overloads (WP-8)** — `stream(List<T>)`, `stream(DatasetBundle)`,
   `stream(List<T>, JoinBindings)`, and `stream(List<T>, JoinBindings, Class<P>)` expose query
   results as `Stream<T>` / `Stream<P>`. Current implementation wraps `filter(...).stream()`;

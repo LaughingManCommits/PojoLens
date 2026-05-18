@@ -19,7 +19,8 @@ public final class TypedPredicate<T> {
         EQ, NE, GT, GTE, LT, LTE, IN, IS_NULL, IS_NOT_NULL,
         CONTAINS, CONTAINS_IGNORE_CASE, MATCHES,
         IN_SUBQUERY, EXISTS, NOT_EXISTS,
-        AND, OR, NOT
+        AND, OR, NOT,
+        ANY, NONE
     }
 
     private final Operator operator;
@@ -77,15 +78,25 @@ public final class TypedPredicate<T> {
 
     public TypedPredicate<T> and(TypedPredicate<T> other) {
         Objects.requireNonNull(other, "other must not be null");
+        if (this.operator == Operator.ANY) return other;
+        if (other.operator() == Operator.ANY) return this;
+        if (this.operator == Operator.NONE) return this;
+        if (other.operator() == Operator.NONE) return other;
         return compound(Operator.AND, List.of(this, other));
     }
 
     public TypedPredicate<T> or(TypedPredicate<T> other) {
         Objects.requireNonNull(other, "other must not be null");
+        if (this.operator == Operator.ANY) return this;
+        if (other.operator() == Operator.ANY) return other;
+        if (this.operator == Operator.NONE) return other;
+        if (other.operator() == Operator.NONE) return this;
         return compound(Operator.OR, List.of(this, other));
     }
 
     public TypedPredicate<T> not() {
+        if (this.operator == Operator.ANY) return TypedPredicate.none();
+        if (this.operator == Operator.NONE) return TypedPredicate.any();
         return compound(Operator.NOT, List.of(this));
     }
 
@@ -310,6 +321,16 @@ public final class TypedPredicate<T> {
         return compound(Operator.OR, copyPredicateList(predicates));
     }
 
+    /** Always-true sentinel: lowers to no WHERE clause, returning all rows. */
+    public static <T> TypedPredicate<T> any() {
+        return new TypedPredicate<>(Operator.ANY, null, null, List.of(), List.of(), null);
+    }
+
+    /** Always-false sentinel: lowers to an empty result, returning no rows. */
+    public static <T> TypedPredicate<T> none() {
+        return new TypedPredicate<>(Operator.NONE, null, null, List.of(), List.of(), null);
+    }
+
     // --- Package-private helpers used by TypedQuery lowering ---
 
     boolean hasSubqueryDescriptor() {
@@ -367,6 +388,8 @@ public final class TypedPredicate<T> {
                         .toList();
                 yield nePredicates.size() == 1 ? nePredicates.get(0) : compound(Operator.AND, nePredicates);
             }
+            case ANY -> TypedPredicate.none();
+            case NONE -> TypedPredicate.any();
             case CONTAINS -> throw new UnsupportedOperationException(
                     "NOT(CONTAINS) is not supported in TypedQuery. Use SQL-like or filter in application code.");
             case CONTAINS_IGNORE_CASE -> throw new UnsupportedOperationException(
