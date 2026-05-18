@@ -64,8 +64,22 @@ List<Employee> rows = TypedQuery.from(Employee.class)
     .filter(employees);
 ```
 
-Use negated operators such as `ne(...)`, `lte(...)`, or `isNotNull()` instead
-of relying on `NOT` as a first-class typed query shape.
+`.not()` composes a NOT predicate and is lowered via DeMorgan's laws at
+execution time. Negated convenience operators (`ne(...)`, `lte(...)`,
+`isNotNull()`) are equivalent and preferred for simple cases, but `.not()` is
+useful when negating a compound or externally-built predicate:
+
+```java
+TypedPredicate<Employee> baseFilter =
+    EmployeeTypedFields.DEPARTMENT.eq("Engineering")
+        .and(EmployeeTypedFields.ACTIVE.eq(true));
+
+List<Employee> excluded = TypedQuery.from(Employee.class)
+    .where(baseFilter.not())
+    .filter(employees);
+```
+
+`NOT(IN_SUBQUERY)` is not supported — use `NOT EXISTS` instead.
 
 ## Projection
 
@@ -228,6 +242,7 @@ the source row type.
 - Sort direction is global; the last `orderBy(...)` or `orderByDesc(...)` call wins.
 - `having(...)` only accepts grouped fields and metric aliases.
 - `qualify(...)` only accepts selected window aliases.
+- `NOT(IN_SUBQUERY)` is not supported; use `NOT EXISTS` instead.
 - Correlated/scalar subqueries and broader named-source planning remain on
   [sql-like.md](sql-like.md) or [natural.md](natural.md).
 - Field generation lives in [metamodel.md](metamodel.md); build-time catalog

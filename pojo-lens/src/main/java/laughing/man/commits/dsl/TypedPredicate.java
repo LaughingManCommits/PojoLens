@@ -292,6 +292,58 @@ public final class TypedPredicate<T> {
         return subquery;
     }
 
+    /**
+     * Negates {@code node} using DeMorgan's laws, distributing NOT down to leaves.
+     * Called by TypedQuery lowering when a NOT compound is encountered.
+     * <p>
+     * Rules:
+     * <ul>
+     *   <li>NOT(NOT(x)) → x</li>
+     *   <li>NOT(AND(a,b,...)) → OR(NOT(a), NOT(b), ...)</li>
+     *   <li>NOT(OR(a,b,...)) → AND(NOT(a), NOT(b), ...)</li>
+     *   <li>NOT(EQ) → NE, NOT(NE) → EQ, NOT(GT) → LTE, NOT(GTE) → LT,
+     *       NOT(LT) → GTE, NOT(LTE) → GT</li>
+     *   <li>NOT(IS_NULL) → IS_NOT_NULL, NOT(IS_NOT_NULL) → IS_NULL</li>
+     *   <li>NOT(EXISTS) → NOT_EXISTS, NOT(NOT_EXISTS) → EXISTS</li>
+     *   <li>NOT(IN(v1,v2,...)) → AND(NE(v1), NE(v2), ...)</li>
+     *   <li>NOT(IN_SUBQUERY) → throws; use NOT EXISTS instead</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    static <T> TypedPredicate<T> negate(TypedPredicate<T> node) {
+        return switch (node.operator()) {
+            case NOT -> (TypedPredicate<T>) node.children().get(0);
+            case AND -> {
+                List<TypedPredicate<T>> negated = node.children().stream()
+                        .map(c -> TypedPredicate.negate(c)).toList();
+                yield negated.size() == 1 ? negated.get(0) : compound(Operator.OR, negated);
+            }
+            case OR -> {
+                List<TypedPredicate<T>> negated = node.children().stream()
+                        .map(c -> TypedPredicate.negate(c)).toList();
+                yield negated.size() == 1 ? negated.get(0) : compound(Operator.AND, negated);
+            }
+            case EQ -> new TypedPredicate<>(Operator.NE, node.field(), node.value(), null, null, null);
+            case NE -> new TypedPredicate<>(Operator.EQ, node.field(), node.value(), null, null, null);
+            case GT -> new TypedPredicate<>(Operator.LTE, node.field(), node.value(), null, null, null);
+            case GTE -> new TypedPredicate<>(Operator.LT, node.field(), node.value(), null, null, null);
+            case LT -> new TypedPredicate<>(Operator.GTE, node.field(), node.value(), null, null, null);
+            case LTE -> new TypedPredicate<>(Operator.GT, node.field(), node.value(), null, null, null);
+            case IS_NULL -> new TypedPredicate<>(Operator.IS_NOT_NULL, node.field(), null, null, null, null);
+            case IS_NOT_NULL -> new TypedPredicate<>(Operator.IS_NULL, node.field(), null, null, null, null);
+            case EXISTS -> new TypedPredicate<>(Operator.NOT_EXISTS, null, null, null, null, node.subqueryDescriptor());
+            case NOT_EXISTS -> new TypedPredicate<>(Operator.EXISTS, null, null, null, null, node.subqueryDescriptor());
+            case IN -> {
+                List<TypedPredicate<T>> nePredicates = node.values().stream()
+                        .map(v -> new TypedPredicate<T>(Operator.NE, node.field(), v, null, null, null))
+                        .toList();
+                yield nePredicates.size() == 1 ? nePredicates.get(0) : compound(Operator.AND, nePredicates);
+            }
+            case IN_SUBQUERY -> throw new UnsupportedOperationException(
+                    "NOT(IN_SUBQUERY) is not supported in TypedQuery. Use NOT EXISTS instead.");
+        };
+    }
+
     // --- Private helpers ---
 
     private static <T, V> TypedPredicate<T> scalar(Operator op, TypedField<T, V> field, V value) {

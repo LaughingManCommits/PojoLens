@@ -2,94 +2,122 @@
 
 ## Current Goal
 
-- The `neon` extraction cleanup is complete.
-- Keep PojoLens focused on the Java library, examples, benchmarks, release
-  flow, docs, and repo-memory helpers.
-- Keep `scripts/ai/refresh-ai-memory.*` and `scripts/ai/query-ai-memory.*`
-  only while they are still needed for this repo's memory workflow.
+Close typed-surface gaps identified in the 2026-05-18 feature audit.
+Keep PojoLens focused on the Java library, benchmarks, release flow, docs,
+and repo-memory helpers.
+
+---
+
+## Work Packages
+
+### ~~WP-1 — Fix `TypedPredicate.not()` footgun~~ ✓ DONE 2026-05-18
+
+**Problem:** `TypedPredicate.not()` compiles and builds a valid descriptor, but
+`TypedQuery` throws `UnsupportedOperationException` at execution time
+(`TypedQuery.java:898`). Silent API trap.
+
+**Options (pick one):**
+- Implement lowering via DeMorgan: flip EQ→NE, NE→EQ, GT→LTE, GTE→LT,
+  LT→GTE, LTE→GT, IN→multi-NE, IS_NULL→IS_NOT_NULL, etc.
+- Remove `TypedPredicate.not()` and `Operator.NOT` from the public surface
+  until a full implementation is ready; update docs.
+
+**Files:**
+- `TypedPredicate.java` — `not()` / `Operator.NOT`
+- `TypedQuery.java` — lowering switch ~line 898, `toDisjunctiveNormalForm`
+- `TypedPredicateContractTest.java`, `TypedQueryContractTest.java`
+- `docs/typed.md` — update boundaries section
+
+---
+
+### WP-2 — `contains()` and `matches()` on typed surface  [P2]
+
+**Problem:** Engine (`Clauses.CONTAINS`, `Clauses.MATCHES`) and SQL-like both
+support string containment and regex matching; the typed surface has neither.
+
+**Work:**
+- Add `Operator.CONTAINS` and `Operator.MATCHES` to `TypedPredicate.Operator`
+- Add static factories `TypedPredicate.contains(field, value)` and
+  `TypedPredicate.matches(field, pattern)`
+- Add instance methods `TypedField.contains(String)` and
+  `TypedField.matches(String)`
+- Wire into lowering switch in `TypedQuery.java` → `Clauses.CONTAINS` /
+  `Clauses.MATCHES`
+- Add contract tests and fluent/sql-like parity coverage
+- Update `docs/typed.md`
+
+---
+
+### WP-3 — Per-field sort direction on `TypedQuery`  [P3]
+
+**Problem:** `orderBy(field)` forces `Sort.ASC` globally; `orderByDesc(field)`
+forces `Sort.DESC` globally. Last call wins for all order fields. Cannot
+express `ORDER BY salary DESC, name ASC`. `TypedWindowOrder` already models
+per-field direction — sort needs the same.
+
+**Work:**
+- Introduce `TypedSortOrder` (field + direction) mirroring `TypedWindowOrder`
+- Add `TypedQuery.orderBy(TypedSortOrder...)` vararg overload
+- Keep existing `orderBy(field)` / `orderByDesc(field)` for single-field
+  backward compat, but deprecate or document the global-direction limitation
+- Update lowering in `TypedQuery.java` to pass per-field directions to the
+  engine
+- Add parity tests vs SQL-like `ORDER BY a DESC, b ASC`
+- Update `docs/typed.md`
+
+---
+
+### WP-4 — Time bucket on typed surface  [P4]
+
+**Problem:** SQL-like and natural support `bucket(dateField, 'day|week|...')`;
+the typed surface has no equivalent. `QueryTimeBucket` exists internally with
+no typed entry point.
+
+**Work:**
+- Add `TypedQuery.timeBucket(TypedField<T,?> dateField, TimeBucket unit,
+  String alias)` fluent method
+- Optionally accept a zone and week-start via overloads matching
+  `TimeBucketPreset` capabilities
+- Wire into `TypedQuery` builder state and lowering
+- Add typed time-bucket tests and fluent/sql-like parity coverage
+- Update `docs/typed.md`
+
+---
+
+### WP-5 — `between()` convenience on `TypedField` / `TypedPredicate`  [P5]
+
+**Problem:** Common range check requires `field.gte(a).and(field.lte(b))`.
+No first-class `BETWEEN` operator exists on any surface. Engine can express it
+as two rules already.
+
+**Work:**
+- Add `TypedField.between(V lo, V hi)` returning `gte(lo).and(lte(hi))`
+- Add static `TypedPredicate.between(field, lo, hi)` factory for symmetry
+- Add contract tests
+- Update `docs/typed.md` with a `between(...)` example
 
 ---
 
 ## Working Rules
 
-- Do not add new orchestrator features in this repo.
-- Prefer deleting stale compatibility layers over preserving the
-  `pojolens-agents` surface here.
-- Remove code, tests, docs, packaging, and retained runtime data together so
-  the repo does not keep broken references.
-
----
-
-## Removal Backlog
-
-### 1. Package and CLI surface
-
-- [x] Remove `pyproject.toml` packaging for `pojolens-agents`.
-- [x] Remove `scripts/ai/claude-orchestrator.py`.
-- [x] Remove `scripts/ai/claude-orchestrator.ps1`.
-- [x] Remove `scripts/ai/pojo_lens_agents/**`.
-- [x] Remove `scripts/ai/pojolens_agents.egg-info/**`.
-
-### 2. Tracked control-plane files
-
-- [x] Remove `ai/orchestrator/**` after any PojoLens-only facts are preserved
-  elsewhere.
-- [x] Remove stale orchestrator roadmap/history references from `ai/state/*`
-  and other repo-memory files.
-
-### 3. Runtime artifacts and retained data
-
-- [x] Remove repo-local retained run data under `.claude-orchestrator/**`.
-- [x] Remove orchestrator-generated run data under `runs/**` if it is not
-  needed for any remaining PojoLens workflow.
-
-### 4. Tests and Python-only tooling
-
-- [x] Remove orchestrator-only tests under `scripts/tests/`.
-- [x] Keep or replace only the tests that still cover repo-memory helpers.
-- [x] Re-run the surviving validation set after the removals land.
-
-### 5. Docs and metadata
-
-- [x] Remove or rewrite active orchestrator references in `README.md`,
-  `CHANGELOG.md`, `CLAUDE.md`, `MAINTENANCE.md`, `AGENTS.md`, and related docs.
-- [x] Remove old extracted-runtime history from this repo's active changelog
-  and repo-memory ledgers.
-- [x] Remove editor or CI assumptions that still expect the Python package to
-  exist.
-
----
-
-## Keep
-
-- The Java library modules and Maven build.
-- Example applications and benchmark tooling.
-- Repo-memory workflow files under `ai/core/*`, `ai/state/*`, and the memory
-  refresh/query scripts, unless they are explicitly replaced.
-
----
-
-## Out Of Scope
-
-- No new work on the extracted multi-agent runtime in this repo.
-- No attempt to keep `pojolens-agents` backwards compatible here.
-- No `neon` feature tracking here beyond the removal work needed for
-  PojoLens.
+- Do not add unrelated services, runtime infrastructure, or extra subsystems.
+- Each WP ships as its own commit with a `CHANGELOG.md` entry under
+  `[Unreleased]`.
+- Run `mvn -B -ntp test` before marking a WP done.
+- After any `docs/**` change run `scripts/docs/check-doc-consistency.ps1`.
+- After any `ai/**` change run `scripts/ai/refresh-ai-memory.ps1` and
+  `scripts/ai/refresh-ai-memory.ps1 -Check`.
 
 ---
 
 ## Done Recently
 
-- [x] `2026-05-18`: Replaced the stale WP backlog with a cleanup backlog
-  focused on removing the in-repo multi-agent stack after the move to `neon`.
-- [x] `2026-05-18`: Removed the in-repo `pojolens-agents` package, the
-  `claude-orchestrator` CLI shims, and the orchestrator-only Python test
-  suite.
-- [x] `2026-05-18`: Removed legacy tracked control-plane files, retained run
-  directories, and stale active repo-memory references to the extracted
-  runtime.
-- [x] `2026-05-18`: Removed old extracted-runtime history from the active
-  changelog and repo-memory history files that now belong with `neon`.
-- [x] `2026-05-18`: Kept the repo-memory helper scripts plus
-  `scripts/tests/test_refresh_ai_memory.py`, and re-ran the surviving
-  validation set.
+- [x] `2026-05-18`: Replaced stale WP roadmap with `neon` extraction cleanup
+  backlog.
+- [x] `2026-05-18`: Completed `neon` extraction — removed agents package, CLI
+  shims, orchestrator tests, retained artifacts, and stale repo-memory
+  references.
+- [x] `2026-05-18`: Repaired `release-2026.05.18.1353` after Central publish
+  timed out; wired wait mode through Maven properties.
+- [x] `2026-05-18`: Consumer install docs now point at published release tag;
+  in-repo example builds track checked-in POM version.

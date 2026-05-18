@@ -25,4 +25,9 @@
 - No active extracted-runtime risks remain in the live changelog or hot/warm repo-memory files.
 
 ## Next
-- `2026-05-18`: The `neon` extraction cleanup is complete; continue with normal PojoLens library work unless deeper archive scrubbing is requested.
+- `2026-05-18`: Feature audit complete; `TODO.md` reset with WP-1 through WP-5 targeting typed-surface gaps.
+- ~~WP-1~~: DONE 2026-05-18 — `TypedPredicate.not()` now lowers via DeMorgan; 1141 tests pass.
+- WP-2 (P2): Add `contains()` / `matches()` to typed surface — engine already supports both.
+- WP-3 (P3): Per-field sort direction (`TypedSortOrder`) for `TypedQuery`.
+- WP-4 (P4): Time bucket entry point on typed surface.
+- WP-5 (P5): `between()` convenience on `TypedField` / `TypedPredicate`.

@@ -9,6 +9,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **TypedQuery NOT lowering (WP-1)** — `TypedPredicate.not()` now lowers
+  correctly via DeMorgan's laws instead of throwing
+  `UnsupportedOperationException` at execution time. Leaf operators flip
+  (EQ↔NE, GT↔LTE, GTE↔LT, IS_NULL↔IS_NOT_NULL, EXISTS↔NOT_EXISTS), compound
+  AND/OR are distributed recursively, double negation is eliminated, and
+  `NOT(IN)` expands to an AND of NE rules. `NOT(IN_SUBQUERY)` throws with an
+  actionable message directing callers to `NOT EXISTS`.
+
 ### Changed
 
 - Reset `TODO.md` and hot AI memory around the `neon` extraction cleanup so

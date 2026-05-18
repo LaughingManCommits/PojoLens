@@ -3,11 +3,11 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Continue normal PojoLens work; the `neon` extraction cleanup is complete.
+3. Work through WP-1 to WP-5 in `TODO.md` (typed-surface gap closure).
 4. Keep the repo-memory helper scripts unless the memory workflow is being replaced too.
 
 ## Focus
-- `2026-05-18`: `TODO.md` no longer tracks the stale WP roadmap; it now tracks the `neon` extraction cleanup.
+- `2026-05-18`: `TODO.md` reset again — `neon` cleanup done, now tracks WP-1 through WP-5 (typed-surface gap closure from feature audit).
 - `2026-05-18`: The extracted local AI runtime, retained runtime artifacts, and stale live-history references are removed from PojoLens.
 - `2026-05-18`: Active changelog and repo-memory history were scrubbed so only the current `neon` boundary remains in the live repo surface.
 - `2026-05-18`: `release-2026.05.18.1353` was backfilled on `main` after Central publish succeeded but the workflow timed out before it could push the tag.

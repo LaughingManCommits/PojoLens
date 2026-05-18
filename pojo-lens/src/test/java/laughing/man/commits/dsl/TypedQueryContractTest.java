@@ -927,10 +927,142 @@ public class TypedQueryContractTest {
         assertTrue(ex.getMessage().contains("windows are only supported for non-aggregate query shapes"));
     }
 
+    // --- NOT / DeMorgan lowering ---
+
     @Test
-    void notPredicateThrowsUnsupportedOperationException() {
+    void notEqIsEquivalentToNe() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true).not())
+                .filter(sampleEmployees());
+        List<Employee> withNe = TypedQuery.from(Employee.class)
+                .where(ACTIVE.ne(true))
+                .filter(sampleEmployees());
+        assertEquals(1, withNot.size());
+        assertEquals(withNe.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notNeIsEquivalentToEq() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(ACTIVE.ne(true).not())
+                .filter(sampleEmployees());
+        List<Employee> withEq = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .filter(sampleEmployees());
+        assertEquals(withEq.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notGtIsEquivalentToLte() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(SALARY.gt(120_000).not())
+                .filter(sampleEmployees());
+        List<Employee> withLte = TypedQuery.from(Employee.class)
+                .where(SALARY.lte(120_000))
+                .filter(sampleEmployees());
+        assertEquals(withLte.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notGteIsEquivalentToLt() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(SALARY.gte(120_000).not())
+                .filter(sampleEmployees());
+        List<Employee> withLt = TypedQuery.from(Employee.class)
+                .where(SALARY.lt(120_000))
+                .filter(sampleEmployees());
+        assertEquals(withLt.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notLtIsEquivalentToGte() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(SALARY.lt(120_000).not())
+                .filter(sampleEmployees());
+        List<Employee> withGte = TypedQuery.from(Employee.class)
+                .where(SALARY.gte(120_000))
+                .filter(sampleEmployees());
+        assertEquals(withGte.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notLteIsEquivalentToGt() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(SALARY.lte(120_000).not())
+                .filter(sampleEmployees());
+        List<Employee> withGt = TypedQuery.from(Employee.class)
+                .where(SALARY.gt(120_000))
+                .filter(sampleEmployees());
+        assertEquals(withGt.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notIsNullIsEquivalentToIsNotNull() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(NAME.isNull().not())
+                .filter(sampleEmployees());
+        List<Employee> withIsNotNull = TypedQuery.from(Employee.class)
+                .where(NAME.isNotNull())
+                .filter(sampleEmployees());
+        assertEquals(withIsNotNull.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notAndDeMorganEqualsOrOfNots() {
+        // NOT(dept == "Engineering" AND active == true)
+        // = OR(dept != "Engineering", active != true)  → Bob (Finance+active) and Dan (Eng+inactive)
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Engineering").and(ACTIVE.eq(true)).not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Bob", "Dan"), withNot.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void notOrDeMorganEqualsAndOfNots() {
+        // NOT(dept == "Finance" OR active == false)
+        // = AND(dept != "Finance", active != false)  → Alice and Cara
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Finance").or(ACTIVE.eq(false)).not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice", "Cara"), withNot.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void doubleNotEliminatesNegation() {
+        List<Employee> withDoubleNot = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true).not().not())
+                .filter(sampleEmployees());
+        List<Employee> withEq = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .filter(sampleEmployees());
+        assertEquals(withEq.stream().map(e -> e.name).sorted().toList(),
+                withDoubleNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notInExpandsToAllNe() {
+        // NOT(name IN ("Alice", "Bob")) → Cara and Dan
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(NAME.in("Alice", "Bob").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Cara", "Dan"), withNot.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void notInSubqueryThrowsUnsupportedOperationException() {
         TypedQuery<Employee> q = TypedQuery.from(Employee.class)
-                .where(ACTIVE.eq(true).not());
+                .where(NAME.inSubquery(NAME,
+                        TypedQuery.from(Employee.class).where(ACTIVE.eq(true))).not());
         assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
     }
 

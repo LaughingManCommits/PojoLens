@@ -41,11 +41,10 @@ import java.util.Objects;
  * <p>Current limitations:
  * <ul>
  *   <li>Sort direction is global - the last {@code orderByDesc} or {@code orderBy} call wins.</li>
- *   <li>{@code NOT} predicates are not supported; use negated operators ({@code ne}, {@code lte},
- *       {@code isNotNull}) instead.</li>
  *   <li>Explicit window-frame configuration is available only for aggregate
  *       windows and {@code COUNT(*)}; rank windows keep their default
  *       semantics.</li>
+ *   <li>{@code NOT(IN_SUBQUERY)} is not supported; use {@code NOT EXISTS} instead.</li>
  * </ul>
  */
 public final class TypedQuery<T> {
@@ -895,9 +894,10 @@ public final class TypedQuery<T> {
             case OR -> {
                 return combineOr(node.children(), joinBindings);
             }
-            case NOT -> throw new UnsupportedOperationException(
-                    "NOT predicates are not supported in TypedQuery. "
-                    + "Use negated operators (ne, lte, gte, isNotNull) instead.");
+            case NOT -> {
+                TypedPredicate<T> child = node.children().get(0);
+                return toDisjunctiveNormalForm(TypedPredicate.negate(child), joinBindings);
+            }
             default -> {
                 return List.of(List.of(toQueryRule(node, joinBindings)));
             }
