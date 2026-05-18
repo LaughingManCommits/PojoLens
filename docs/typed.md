@@ -52,19 +52,32 @@ type.
 
 ## String Predicates
 
-`contains(value)` matches rows where the field includes the substring.
+`contains(value)` matches rows where the field includes the substring (case-sensitive).
+`containsIgnoreCase(value)` is the case-insensitive equivalent — lowers to a
+`MATCHES` pattern using `(?i)` and `Pattern.quote` so regex special characters in
+the value are treated as literals.
 `matches(pattern)` matches rows where the field satisfies the regex pattern.
-Both mirror the SQL-like `CONTAINS` and `MATCHES` operators.
+`contains` and `matches` mirror the SQL-like `CONTAINS` and `MATCHES` operators.
 
 ```java
+// case-sensitive: "Ali" matches "Alice", not "alice"
 List<Employee> result = TypedQuery.from(Employee.class)
     .where(EmployeeTypedFields.NAME.contains("Ali")
         .and(EmployeeTypedFields.DEPARTMENT.matches("Eng.*")))
     .filter(employees);
+
+// case-insensitive: "ALI", "ali", and "Ali" all match "Alice"
+List<Employee> result2 = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.NAME.containsIgnoreCase("ALI"))
+    .filter(employees);
+
+// static factory equivalent
+TypedPredicate<Employee> pred = TypedPredicate.containsIgnoreCase(
+    EmployeeTypedFields.NAME, "ali");
 ```
 
-`NOT(CONTAINS)` and `NOT(MATCHES)` are not supported — use SQL-like or
-filter in application code for negated string predicates.
+`NOT(CONTAINS)`, `NOT(CONTAINS_IGNORE_CASE)`, and `NOT(MATCHES)` are not
+supported — use SQL-like or filter in application code for negated string predicates.
 
 ## Basic Filtering, Ordering, And Limits
 
@@ -359,6 +372,7 @@ the source row type.
 - `orderBy(TypedSortOrder...)` requires all fields to share the same direction; mixed directions throw `IllegalStateException`.
 - `having(...)` only accepts grouped fields and metric aliases.
 - `qualify(...)` only accepts selected window aliases.
+- `NOT(CONTAINS)`, `NOT(CONTAINS_IGNORE_CASE)`, and `NOT(MATCHES)` are not supported; use SQL-like or application-code filtering instead.
 - `NOT(IN_SUBQUERY)` is not supported; use `NOT EXISTS` instead.
 - Correlated/scalar subqueries and broader named-source planning remain on
   [sql-like.md](sql-like.md) or [natural.md](natural.md).

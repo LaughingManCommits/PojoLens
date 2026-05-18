@@ -17,7 +17,7 @@ public final class TypedPredicate<T> {
 
     public enum Operator {
         EQ, NE, GT, GTE, LT, LTE, IN, IS_NULL, IS_NOT_NULL,
-        CONTAINS, MATCHES,
+        CONTAINS, CONTAINS_IGNORE_CASE, MATCHES,
         IN_SUBQUERY, EXISTS, NOT_EXISTS,
         AND, OR, NOT
     }
@@ -148,6 +148,12 @@ public final class TypedPredicate<T> {
         requireField(field);
         Objects.requireNonNull(value, "value must not be null for contains");
         return new TypedPredicate<>(Operator.CONTAINS, field, value, null, null, null);
+    }
+
+    public static <T> TypedPredicate<T> containsIgnoreCase(TypedField<T, ?> field, String value) {
+        requireField(field);
+        Objects.requireNonNull(value, "value must not be null for containsIgnoreCase");
+        return new TypedPredicate<>(Operator.CONTAINS_IGNORE_CASE, field, value, null, null, null);
     }
 
     public static <T> TypedPredicate<T> matches(TypedField<T, ?> field, String pattern) {
@@ -363,6 +369,8 @@ public final class TypedPredicate<T> {
             }
             case CONTAINS -> throw new UnsupportedOperationException(
                     "NOT(CONTAINS) is not supported in TypedQuery. Use SQL-like or filter in application code.");
+            case CONTAINS_IGNORE_CASE -> throw new UnsupportedOperationException(
+                    "NOT(CONTAINS_IGNORE_CASE) is not supported in TypedQuery. Use SQL-like or filter in application code.");
             case MATCHES -> throw new UnsupportedOperationException(
                     "NOT(MATCHES) is not supported in TypedQuery. Use SQL-like or filter in application code.");
             case IN_SUBQUERY -> throw new UnsupportedOperationException(

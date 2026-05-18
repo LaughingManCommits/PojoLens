@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Immutable typed query builder that lowers into the shared PojoLens filter engine.
@@ -1082,6 +1083,8 @@ public final class TypedQuery<T> {
             case IS_NULL -> QueryRule.of(field, null, Clauses.EQUAL);
             case IS_NOT_NULL -> QueryRule.of(field, null, Clauses.NOT_EQUAL);
             case CONTAINS -> QueryRule.of(field, (String) leaf.value(), Clauses.CONTAINS);
+            case CONTAINS_IGNORE_CASE -> QueryRule.of(field,
+                    "(?i).*" + Pattern.quote((String) leaf.value()) + ".*", Clauses.MATCHES);
             case MATCHES -> QueryRule.of(field, (String) leaf.value(), Clauses.MATCHES);
             case IN_SUBQUERY -> toInSubqueryRule(leaf, joinBindings);
             case EXISTS -> toExistsRule(leaf, joinBindings, false);

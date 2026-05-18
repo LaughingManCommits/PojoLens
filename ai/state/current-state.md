@@ -11,9 +11,9 @@
 - `2026-05-18`: `TODO.md` reset with WP-7 through WP-18 plus quick fixes from both audits; WP-6 done.
 
 ## Verified
-- `2026-05-18`: `mvn -B -ntp test` passes (1183 tests) after WP-1 through WP-6.
+- `2026-05-18`: `mvn -B -ntp test` passes (1191 tests) after WP-1 through WP-7.
 - `2026-05-18`: `scripts/docs/check-doc-consistency.ps1` passes after all WP doc updates.
-- `2026-05-18`: `scripts/docs/check-doc-consistency.ps1`, `scripts/ai/refresh-ai-memory.ps1`, and `scripts/ai/refresh-ai-memory.ps1 -Check` pass after adding `feature-audit.md`.
+- `2026-05-18`: all three scripts (`check-doc-consistency.ps1`, `refresh-ai-memory.ps1`, `refresh-ai-memory.ps1 -Check`) pass after WP-7.
 
 ## Release
 - Latest published cut/tag: `2026.05.18.1353`.
@@ -27,7 +27,7 @@
 - Quick fix: README JDK requirement (17+ → Java 25).
 - Quick fix: mixed-sort error text in `TypedQuery.resolveGlobalSort()`.
 - Quick fix: repo-memory drift in `ai/core/module-index.md`, `ai/core/architecture-map.md`, `ai/core/system-boundaries.md`.
-- WP-7 (P1): `containsIgnoreCase` on TypedField/TypedPredicate.
+- ~~WP-7~~: DONE 2026-05-18 — `containsIgnoreCase` on TypedField/TypedPredicate; lowers to MATCHES(?i); 1191 tests pass.
 - WP-8 (P1): `stream()` lazy execution on TypedQuery.
 - WP-9 (P2): `TypedPredicate.any()` / `.none()` sentinels.
 - WP-10 (P2): `computedFields(ComputedFieldRegistry)` on TypedQuery.

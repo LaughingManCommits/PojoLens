@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-18T20:10:39.865064+02:00",
-  "generation": "20260518T181039-30220-1779127839868341200",
+  "generatedAt": "2026-05-18T20:33:33.092911+02:00",
+  "generation": "20260518T183333-42232-1779129213095931200",
   "git": {
-    "headCommit": "8afde35725918e2e5f228beeb4ae1297ce0ae1a5",
+    "headCommit": "479c50aa4141be1943251ce270b30e4d365365dd",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "9b942890a5a0bb7f02f15d1febb244961537a7cb96e4a0d60161bfc07496b2bb",
+  "inputsHash": "9fd50cabc00597c9cd743a8133674057246862d1006ea96b0795825e9f1b3d45",
   "hotContext": {
     "files": [
       {
@@ -142,25 +142,25 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "2b8ea889060772a0a2f9cb078493b503815bc1950288d6df62d174ae2fbbfe72",
+        "inputHash": "93f6f7b124dd7948516aee861632ea9df08de10bacb761fa3c009d09622499c1",
         "inputFiles": 58
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "5f6b7ded1ebd88cc145847c55b092aed1228a191312db6e2c625c3784f322eb7",
+        "inputHash": "f3c08a5ddfc80ede9bf500d524e007d8629b0de5befc7e3fe950b8c99594ca33",
         "inputFiles": 530
       },
       {
         "path": "ai/indexes/symbols-index.json",
-        "status": "reused",
-        "inputHash": "488279e990862f053f2b33e69f83fd6a4ac16f374276e51f719419dc25b491d9",
+        "status": "rebuilt",
+        "inputHash": "8fdcedc05ca5daa2b1cb3e1fa4c16c73c159b1b57836bb992a609b46780de42c",
         "inputFiles": 286
       },
       {
         "path": "ai/indexes/test-index.json",
-        "status": "reused",
-        "inputHash": "5f86b5d8d2a365686deb4cd8f89425ddfd4dab823b5239636e3958b546f5db87",
+        "status": "rebuilt",
+        "inputHash": "8dad72de6c500b1ed3e87bd29cdfb7d325512c699eb0603542bdd8135f628973",
         "inputFiles": 162
       },
       {

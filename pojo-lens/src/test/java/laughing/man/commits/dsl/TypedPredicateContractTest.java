@@ -11,6 +11,7 @@ import java.util.List;
 
 import static laughing.man.commits.dsl.TypedPredicate.Operator.AND;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS_IGNORE_CASE;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.EQ;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.GT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.GTE;
@@ -72,6 +73,7 @@ public class TypedPredicateContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "notExists", List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "contains", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "containsIgnoreCase", TypedField.class, String.class);
         requirePublicStaticMethod(TypedPredicate.class, "matches", TypedField.class, String.class);
         requirePublicStaticMethod(TypedPredicate.class, "between", TypedField.class, Object.class, Object.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
@@ -90,6 +92,7 @@ public class TypedPredicateContractTest {
         requirePublicMethod(TypedField.class, "isNull");
         requirePublicMethod(TypedField.class, "isNotNull");
         requirePublicMethod(TypedField.class, "contains", String.class);
+        requirePublicMethod(TypedField.class, "containsIgnoreCase", String.class);
         requirePublicMethod(TypedField.class, "matches", String.class);
         requirePublicMethod(TypedField.class, "between", Object.class, Object.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
@@ -173,8 +176,27 @@ public class TypedPredicateContractTest {
     }
 
     @Test
+    void containsIgnoreCasePredicateCarriesFieldOperatorAndValue() {
+        TypedPredicate<Employee> p = NAME.containsIgnoreCase("ali");
+        assertTrue(p.isLeaf());
+        assertEquals(CONTAINS_IGNORE_CASE, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("ali", p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void containsIgnoreCaseFieldInstanceMethodMatchesStaticFactory() {
+        TypedPredicate<Employee> fromField = NAME.containsIgnoreCase("ali");
+        TypedPredicate<Employee> fromStatic = TypedPredicate.containsIgnoreCase(NAME, "ali");
+        assertEquals(fromStatic.operator(), fromField.operator());
+        assertEquals(fromStatic.value(), fromField.value());
+    }
+
+    @Test
     void nullValueForContainsMatchesThrows() {
         assertThrows(NullPointerException.class, () -> TypedPredicate.contains(NAME, null));
+        assertThrows(NullPointerException.class, () -> TypedPredicate.containsIgnoreCase(NAME, null));
         assertThrows(NullPointerException.class, () -> TypedPredicate.matches(NAME, null));
     }
 

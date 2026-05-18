@@ -1250,6 +1250,66 @@ public class TypedQueryContractTest {
         assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
     }
 
+    @Test
+    void containsIgnoreCaseMatchesUppercaseValue() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("LI"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIgnoreCaseMatchesLowercaseValue() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("li"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIgnoreCaseMixedCaseValueMatchesSameAsLower() {
+        List<Employee> upper = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("LI"))
+                .filter(sampleEmployees());
+        List<Employee> lower = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("li"))
+                .filter(sampleEmployees());
+        assertEquals(upper.stream().map(e -> e.name).sorted().toList(),
+                lower.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void containsIgnoreCaseParityWithStreamReferenceFilter() {
+        List<Employee> typed = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("A"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> ref = sampleEmployees().stream()
+                .filter(e -> e.name != null && e.name.toLowerCase().contains("a"))
+                .sorted(java.util.Comparator.comparing(e -> e.name))
+                .toList();
+        assertEquals(ref.stream().map(e -> e.name).toList(),
+                typed.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIgnoreCaseComposesWithAnd() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(DEPT.containsIgnoreCase("ENGINEERING").and(ACTIVE.eq(true)))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void notContainsIgnoreCaseThrowsUnsupportedOperationException() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("ali").not());
+        assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
+    }
+
     // --- Guard interop ---
 
     @Test

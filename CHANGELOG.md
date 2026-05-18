@@ -11,6 +11,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Case-insensitive string matching (WP-7)** — `TypedField.containsIgnoreCase(String)`
+  and `TypedPredicate.containsIgnoreCase(field, String)` match substrings without regard
+  to case. Lowers to a `MATCHES` rule with `(?i).*Pattern.quote(value).*` — no engine
+  changes required, and regex special characters in the value are always treated as literals.
+  `NOT(CONTAINS_IGNORE_CASE)` throws `UnsupportedOperationException`, consistent with
+  `NOT(CONTAINS)` and `NOT(MATCHES)`.
+
 - **Feature audit** - added `feature-audit.md`, a source-backed audit of the
   current product surface, missing parity work, documentation drift, and
   recommended follow-up roadmap.

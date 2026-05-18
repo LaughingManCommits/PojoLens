@@ -105,6 +105,10 @@ public final class TypedField<T, V> {
         return TypedPredicate.contains(this, value);
     }
 
+    public TypedPredicate<T> containsIgnoreCase(String value) {
+        return TypedPredicate.containsIgnoreCase(this, value);
+    }
+
     public TypedPredicate<T> matches(String pattern) {
         return TypedPredicate.matches(this, pattern);
     }

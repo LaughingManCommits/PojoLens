@@ -28,7 +28,7 @@ release flow, docs, and repo-memory helpers.
 
 ---
 
-### WP-7 — Case-insensitive string matching  [P1]
+### ~~WP-7 — Case-insensitive string matching~~ ✓ DONE 2026-05-18
 
 **Problem:** `TypedField.contains(value)` is case-sensitive. The single most
 common reason callers fall back from typed to SQL-like. No `icontains`
@@ -262,3 +262,4 @@ Callers who want prefix/suffix matching must write regex patterns by hand.
 - [x] `2026-05-18`: WP-4 — `TypedQuery.timeBucket(…)` wired to engine; 1165 tests.
 - [x] `2026-05-18`: WP-5 — `TypedField.between(lo, hi)` / `TypedPredicate.between(…)`; 1171 tests.
 - [x] `2026-05-18`: WP-6 — `count`, `exists`, `findFirst`, `findOne` on TypedQuery; 1183 tests.
+- [x] `2026-05-18`: WP-7 — `containsIgnoreCase` on TypedField/TypedPredicate; lowers to `MATCHES(?i)`; 1191 tests.
