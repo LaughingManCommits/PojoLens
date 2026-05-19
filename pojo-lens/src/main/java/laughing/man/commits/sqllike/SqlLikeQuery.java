@@ -852,6 +852,7 @@ public final class SqlLikeQuery {
             throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_LIMIT_INVALID,
                     "filterPage requires LIMIT to be greater than zero");
         }
+        long totalRows = executeTotalRows(pojos, joinSources, cls);
         QueryAst lookaheadAst = withLookaheadLimit(ast, pageSize);
         ExecutionContext context = prepareExecution(lookaheadAst, telemetryListener, pojos, joinSources, cls);
         long startedNanos = System.nanoTime();
@@ -859,12 +860,34 @@ public final class SqlLikeQuery {
         int resultSize = Math.min(lookaheadRows.size(), pageSize);
         checkPostExecution(resultSize, startedNanos);
         if (lookaheadRows.size() <= pageSize) {
-            return new PageResult<>(lookaheadRows, false, null);
+            return new PageResult<>(lookaheadRows, totalRows, false, null);
         }
         List<T> pageRows = List.copyOf(lookaheadRows.subList(0, pageSize));
         T lastRow = pageRows.get(pageSize - 1);
         SqlLikeCursor cursor = buildPageCursor(lastRow, cls);
-        return new PageResult<>(pageRows, true, cursor);
+        return new PageResult<>(pageRows, totalRows, true, cursor);
+    }
+
+    private <T> long executeTotalRows(List<?> pojos,
+                                      Map<String, List<?>> joinSources,
+                                      Class<T> cls) {
+        QueryAst countAst = withoutPagination(ast);
+        SqlLikeQuery countQuery = new SqlLikeQuery(
+                source,
+                normalizedQuery,
+                queryType,
+                countAst,
+                strictParameterTypes,
+                lintMode,
+                suppressedLintCodes,
+                null,
+                computedFieldRegistry,
+                executionPlanCache,
+                exposurePolicy,
+                QueryExecutionGuard.unrestricted()
+        );
+        ExecutionContext countContext = countQuery.prepareExecution(pojos, joinSources, cls);
+        return countQuery.executeFilter(countContext, cls).size();
     }
 
     private <T> SqlLikeCursor buildPageCursor(T lastRow, Class<T> cls) {

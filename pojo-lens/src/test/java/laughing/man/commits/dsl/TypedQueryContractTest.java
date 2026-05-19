@@ -12,6 +12,7 @@ import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
 import laughing.man.commits.testutil.TimeBucketTestFixtures.EmployeePoint;
 import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PageResult;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.table.TabularSchema;
@@ -132,6 +133,12 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", DatasetBundle.class, Class.class);
         requirePublicMethod(TypedQuery.class, "count", List.class);
         requirePublicMethod(TypedQuery.class, "count", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "exists", List.class);
@@ -288,6 +295,46 @@ public class TypedQueryContractTest {
                 .limit(2)
                 .filter(sampleEmployees());
         assertEquals(2, result.size());
+    }
+
+    @Test
+    void filterPageReturnsTotalRowsAndOffsetPage() {
+        PageResult<Employee> page = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .orderByDesc(SALARY)
+                .limit(1)
+                .offset(1)
+                .filterPage(sampleEmployees());
+
+        assertEquals(3, page.totalRows());
+        assertEquals(List.of("Alice"), page.rows().stream().map(row -> row.name).toList());
+        assertTrue(page.hasMore());
+        assertFalse(page.nextCursor().isPresent());
+    }
+
+    @Test
+    void filterPageSupportsDatasetBundleAndProjectionOutput() {
+        PageResult<DepartmentCount> page = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .orderBy(DEPT)
+                .limit(1)
+                .filterPage(DatasetBundle.of(sampleEmployees()), DepartmentCount.class);
+
+        assertEquals(2, page.totalRows());
+        assertEquals(1, page.rows().size());
+        assertEquals("Engineering", page.rows().get(0).department);
+        assertEquals(2L, page.rows().get(0).total);
+        assertTrue(page.hasMore());
+    }
+
+    @Test
+    void filterPageRequiresPositiveLimit() {
+        assertThrows(IllegalStateException.class, () ->
+                TypedQuery.from(Employee.class).filterPage(sampleEmployees()));
+        assertThrows(IllegalStateException.class, () ->
+                TypedQuery.from(Employee.class).limit(0).filterPage(sampleEmployees()));
     }
 
     @Test
@@ -1828,6 +1875,22 @@ public class TypedQueryContractTest {
         assertEquals(List.of("2025-01", "2025-02"), periods);
         long janTotal = result.stream().filter(r -> "2025-01".equals(r.period)).mapToLong(r -> r.total).sum();
         assertEquals(2L, janTotal);
+    }
+
+    @Test
+    void timeBucketGroupsByHour() {
+        List<DepartmentPeriodAgg> result = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, TimeBucket.HOUR, "period")
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+
+        assertEquals(List.of(
+                        "2025-01-15T10|1",
+                        "2025-01-20T12|1",
+                        "2025-02-01T00|1",
+                        "2025-02-05T08|1"
+                ),
+                result.stream().map(row -> row.period + "|" + row.total).sorted().toList());
     }
 
     @Test

@@ -1,5 +1,7 @@
 # Recent Validations
 
+- `2026-05-19`: Focused Maven slice passed after typed/natural pagination and HOUR bucket work: `TypedQueryContractTest`, `NaturalQueryContractTest`, `SqlLikePageResultTest`, `SqlLikeParserTest`, `TimeBucketAggregationTest`, `TimeBucketUtilTest`, `StablePublicApiContractTest`, and `PublicApiEcosystemCoverageTest`.
+- `2026-05-19`: `scripts/docs/check-doc-consistency.ps1` and `mvn -B -ntp test` passed after WP-12, WP-13, WP-16, quick fixes, docs, and repo-memory updates. Maven reported 1231 runtime tests plus Spring and benchmark module tests.
 - `2026-05-18`: `scripts/docs/check-doc-consistency.ps1`, `scripts/ai/refresh-ai-memory.ps1`, and `scripts/ai/refresh-ai-memory.ps1 -Check` passed after adding `feature-audit.md` and updating docs index plus hot handoff memory.
 - `2026-05-18`: `scripts/docs/check-doc-consistency.ps1` and `py -3 scripts/docs/check-doc-consistency.py` passed after updating consumer install docs to `2026.05.18.1353` and teaching the doc checker to validate published-version docs separately from the checked-in POM-backed example builds.
 - `2026-05-18`: `mvn -B -ntp test`, `scripts/docs/check-doc-consistency.ps1`, `scripts/ai/refresh-ai-memory.ps1`, and `scripts/ai/refresh-ai-memory.ps1 -Check` passed after wiring release wait mode through Maven properties, backfilling `release-2026.05.18.1353`, and updating release docs/state.

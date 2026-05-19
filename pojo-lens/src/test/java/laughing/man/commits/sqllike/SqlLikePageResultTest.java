@@ -31,6 +31,7 @@ public class SqlLikePageResultTest {
                 .filterPage(source(), BusinessFixtures.Employee.class);
 
         assertEquals(2, page.rows().size());
+        assertEquals(4, page.totalRows());
         assertEquals("Cara", page.rows().get(0).name);
         assertEquals("Alice", page.rows().get(1).name);
         assertTrue(page.hasMore());
@@ -98,6 +99,7 @@ public class SqlLikePageResultTest {
                 .filterPage(source(), BusinessFixtures.Employee.class);
 
         assertEquals(2, secondPage.rows().size());
+        assertEquals(2, secondPage.totalRows());
         assertEquals("Dan", secondPage.rows().get(0).name);
         assertEquals("Bob", secondPage.rows().get(1).name);
         assertFalse(secondPage.hasMore());

@@ -1,13 +1,13 @@
 # Architecture Map
 
-- `PojoLens` is the compatibility facade over `PojoLensCore`, `PojoLensSql`, and `PojoLensChart`.
+- Public query entry points are `PojoLensSql`, `PojoLensNatural`, and `TypedQuery`; the old `PojoLens` and public fluent facades are removed.
 - `PojoLensRuntime` adds instance-scoped caches, computed-field defaults, telemetry, and lint or strict-typing configuration.
 
 Fluent path:
 
-- fluent/core query primitives are the canonical capability layer; SQL-like and
-  natural should normally lower onto this path instead of owning independent
-  semantics
+- internal fluent/core query primitives are the canonical capability layer; SQL-like,
+  natural, and typed should normally lower onto this path instead of owning
+  independent semantics
 - `builder/FilterQueryBuilder` captures query shape, source schemas, and materialization decisions
 - `filter/FilterExecutionPlan` compiles reusable execution metadata for both legacy row execution and schema-driven array execution
 - `filter/FilterImpl` dispatches between the legacy `QueryRow` engine and `filter/FastArrayQuerySupport` for the selective single-join computed/filter/projection hot path
@@ -25,6 +25,11 @@ Natural path:
   AST shape
 - runtime-owned natural queries resolve vocabulary, then reuse SQL-like
   validation/binding/execution behavior
+
+Typed path:
+
+- `dsl/TypedQuery` keeps Java-owned query composition immutable, then lowers to
+  the internal fluent engine for execution
 
 Feature layers:
 

@@ -11,6 +11,7 @@ import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSuppo
 import laughing.man.commits.natural.parser.NaturalQueryParser;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PageResult;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
@@ -233,6 +234,22 @@ public final class NaturalQuery {
     public <T> List<T> filter(List<?> pojos, JoinBindings joinBindings, Class<T> projectionClass) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         return resolvedDelegate(pojos, joinBindings.asMap(), projectionClass).filter(pojos, joinBindings, projectionClass);
+    }
+
+    public <T> PageResult<T> filterPage(List<?> pojos, Class<T> projectionClass) {
+        return resolvedDelegate(pojos, Map.of(), projectionClass).filterPage(pojos, projectionClass);
+    }
+
+    public <T> PageResult<T> filterPage(DatasetBundle datasetBundle, Class<T> projectionClass) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return resolvedDelegate(datasetBundle.primaryRows(), datasetBundle.joinBindings().asMap(), projectionClass)
+                .filterPage(datasetBundle, projectionClass);
+    }
+
+    public <T> PageResult<T> filterPage(List<?> pojos, JoinBindings joinBindings, Class<T> projectionClass) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return resolvedDelegate(pojos, joinBindings.asMap(), projectionClass)
+                .filterPage(pojos, joinBindings, projectionClass);
     }
 
     public <T> Iterator<T> iterator(List<?> pojos, Class<T> projectionClass) {

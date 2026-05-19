@@ -34,6 +34,11 @@ public final class TimeBucketUtil {
     private static final int DATE_BUF_SEP2_INDEX = 7;
     private static final int DATE_BUF_DAY_OFFSET = 8;
 
+    // formatYearMonthDayHour buffer layout: YYYY-MM-DDTHH (13 chars)
+    private static final int HOUR_BUF_LENGTH = 13;
+    private static final int HOUR_BUF_T_INDEX = 10;
+    private static final int HOUR_BUF_HOUR_OFFSET = 11;
+
     // formatYearWeek buffer layout: YYYY-Www (8 chars)
     private static final int WEEK_BUF_LENGTH = 8;
     private static final int WEEK_BUF_SEP_INDEX = 4;
@@ -87,6 +92,9 @@ public final class TimeBucketUtil {
         if (preset == null) {
             throw new IllegalArgumentException("preset must not be null");
         }
+        if (preset.bucket() == TimeBucket.HOUR) {
+            return formatBucketHour(normalizeBucketDateTime(rawValue, preset));
+        }
         return formatBucketDate(normalizeBucketDate(rawValue, preset), preset);
     }
 
@@ -110,8 +118,26 @@ public final class TimeBucketUtil {
         return instant.atZone(preset.zoneId()).toLocalDate();
     }
 
+    private static LocalDateTime normalizeBucketDateTime(Object rawValue, TimeBucketPreset preset) {
+        return switch (rawValue) {
+            case Date date -> normalizeInstantBucketDateTime(Instant.ofEpochMilli(date.getTime()), preset);
+            case Instant instant -> normalizeInstantBucketDateTime(instant, preset);
+            case LocalDate localDate -> localDate.atStartOfDay();
+            case LocalDateTime localDateTime -> localDateTime;
+            case OffsetDateTime offsetDateTime -> normalizeInstantBucketDateTime(offsetDateTime.toInstant(), preset);
+            case ZonedDateTime zonedDateTime -> normalizeInstantBucketDateTime(zonedDateTime.toInstant(), preset);
+            default -> throw new IllegalArgumentException(
+                    "Time bucket requires " + SUPPORTED_TIME_BUCKET_TYPES + " values");
+        };
+    }
+
+    private static LocalDateTime normalizeInstantBucketDateTime(Instant instant, TimeBucketPreset preset) {
+        return instant.atZone(preset.zoneId()).toLocalDateTime();
+    }
+
     private static String formatBucketDate(LocalDate date, TimeBucketPreset preset) {
         return switch (preset.bucket()) {
+            case HOUR -> formatBucketHour(date.atStartOfDay());
             case DAY -> formatYearMonthDay(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
             case WEEK -> {
                 WeekFields weekFields = WeekFields.of(preset.weekStart(), MIN_DAYS_IN_FIRST_WEEK);
@@ -127,6 +153,38 @@ public final class TimeBucketUtil {
             case YEAR -> formatYear(date.getYear());
             default -> throw new IllegalArgumentException("Unsupported time bucket: " + preset.bucket());
         };
+    }
+
+    private static String formatBucketHour(LocalDateTime dateTime) {
+        return formatYearMonthDayHour(
+                dateTime.getYear(),
+                dateTime.getMonthValue(),
+                dateTime.getDayOfMonth(),
+                dateTime.getHour()
+        );
+    }
+
+    private static String formatYearMonthDayHour(int year, int month, int day, int hour) {
+        if (year >= MIN_FOUR_DIGIT_YEAR && year <= MAX_FOUR_DIGIT_YEAR) {
+            byte[] buf = new byte[HOUR_BUF_LENGTH];
+            writeYear(buf, 0, year);
+            buf[DATE_BUF_SEP1_INDEX] = '-';
+            writeTwoDigits(buf, DATE_BUF_MONTH_OFFSET, month);
+            buf[DATE_BUF_SEP2_INDEX] = '-';
+            writeTwoDigits(buf, DATE_BUF_DAY_OFFSET, day);
+            buf[HOUR_BUF_T_INDEX] = 'T';
+            writeTwoDigits(buf, HOUR_BUF_HOUR_OFFSET, hour);
+            return new String(buf, 0, HOUR_BUF_LENGTH, StandardCharsets.ISO_8859_1);
+        }
+        StringBuilder sb = new StringBuilder(HOUR_BUF_LENGTH);
+        appendPaddedInt(sb, year, YEAR_BUF_LENGTH);
+        sb.append('-');
+        appendTwoDigits(sb, month);
+        sb.append('-');
+        appendTwoDigits(sb, day);
+        sb.append('T');
+        appendTwoDigits(sb, hour);
+        return sb.toString();
     }
 
     private static String formatYearMonthDay(int year, int month, int day) {

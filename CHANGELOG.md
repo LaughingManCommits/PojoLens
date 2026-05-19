@@ -11,6 +11,19 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Typed and natural pagination parity (WP-12/WP-16)** - `TypedQuery` now exposes
+  `filterPage(...)` overloads for lists, dataset bundles, join bindings, and
+  projection output. Typed pages run an unpaged count pass, execute the configured
+  `limit/offset` page, and return `PageResult<T>` with `rows()`, `totalRows()`,
+  `hasMore()`, and an empty `nextCursor()`. `NaturalQuery.filterPage(...)`
+  delegates to the resolved SQL-like page helper. `PageResult` now exposes
+  `totalRows()` and a public `of(...)` factory for non-cursor pages.
+
+- **Hourly time buckets (WP-13)** - `TimeBucket.HOUR` and `TimeBucketPreset.hour()`
+  are supported across fluent, SQL-like, natural, and typed query paths. Hour
+  buckets format as `YYYY-MM-DDTHH` and honor the same timezone interpretation
+  rules as other bucket granularities.
+
 - **Typed-surface hardening (WP-11)** — follow-up pass closing the remaining gaps from WP-7–10:
   - `applyToBuilder` now applies `computedFields` immediately after `applyJoins`, before `applyWhere`,
     `applyTimeBuckets`, `applyGroupBy`, `applyMetrics`, and `applyHaving`; previously it was applied
@@ -85,6 +98,9 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   actionable messages.
 
 ### Fixed
+
+- Corrected README Java requirement text to JDK 25 and replaced the typed
+  mixed-sort error hint that incorrectly suggested SQL-like as an escape hatch.
 
 - **TypedQuery NOT lowering (WP-1)** — `TypedPredicate.not()` now lowers
   correctly via DeMorgan's laws instead of throwing

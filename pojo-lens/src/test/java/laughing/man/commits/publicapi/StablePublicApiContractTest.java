@@ -292,8 +292,10 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryExposurePolicy.class, "allowsField", String.class);
         requirePublicMethod(QueryExposurePolicy.class, "allowsSource", String.class);
         requirePublicMethod(PageResult.class, "rows");
+        requirePublicMethod(PageResult.class, "totalRows");
         requirePublicMethod(PageResult.class, "hasMore");
         requirePublicMethod(PageResult.class, "nextCursor");
+        requirePublicStaticMethod(PageResult.class, "of", List.class, long.class, boolean.class);
 
         requirePublicMethod(SqlLikePlanPreview.class, "source");
         requirePublicMethod(SqlLikePlanPreview.class, "isWildcard");
@@ -397,6 +399,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalQuery.class, "filter", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "filter", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "filter", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "filterPage", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "filterPage", DatasetBundle.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "filterPage", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "iterator", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "iterator", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
@@ -619,6 +624,12 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", DatasetBundle.class, Class.class);
         requirePublicMethod(TypedQuery.class, "stream", List.class);
         requirePublicMethod(TypedQuery.class, "stream", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class);

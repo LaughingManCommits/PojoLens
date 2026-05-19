@@ -90,6 +90,32 @@ public class TimeBucketAggregationTest {
     }
 
     @Test
+    public void hourBucketShouldGroupRowsIntoHourSlots() {
+        List<EmployeePoint> rows = sampleRows();
+
+        List<DepartmentPeriodAgg> fluent = FluentEngine.newQueryBuilder(rows)
+                .addGroup("department")
+                .addTimeBucket("hireDate", TimeBucket.HOUR, "period")
+                .addCount("total")
+                .addMetric("salary", Metric.SUM, "payroll")
+                .initFilter()
+                .filter(DepartmentPeriodAgg.class);
+
+        List<DepartmentPeriodAgg> sqlLike = PojoLensSql.parse("select department, bucket(hireDate,'hour') as period, count(*) as total, sum(salary) as payroll "
+                        + "group by department, period")
+                .filter(rows, DepartmentPeriodAgg.class);
+
+        assertEquals(List.of(
+                        "Engineering|2025-01-15T10|1|100",
+                        "Engineering|2025-01-20T12|1|200",
+                        "Engineering|2025-02-01T00|1|150",
+                        "Finance|2025-02-05T08|1|300"
+                ),
+                normalized(fluent));
+        assertEquals(normalized(fluent), normalized(sqlLike));
+    }
+
+    @Test
     public void fluentTimeBucketShouldAcceptInstantInputFields() {
         List<InstantEmployeePoint> rows = sampleInstantRows();
 

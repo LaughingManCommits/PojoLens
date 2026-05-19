@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
@@ -432,13 +433,11 @@ public class SqlLikeParserTest {
     }
 
     @Test
-    public void shouldRejectUnsupportedBucketGranularity() {
-        try {
-            SqlLikeParser.parse("select bucket(hireDate,'hour') as period, count(*) as total group by period");
-            fail("Expected parse error");
-        } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Unsupported time bucket"));
-        }
+    public void shouldParseHourBucketGranularity() {
+        QueryAst ast = SqlLikeParser.parse("select bucket(hireDate,'hour') as period, count(*) as total group by period");
+
+        assertEquals("period", ast.select().fields().get(0).outputName());
+        assertEquals(TimeBucket.HOUR, ast.select().fields().get(0).timeBucket());
     }
 
     @Test

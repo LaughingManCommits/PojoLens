@@ -3,13 +3,14 @@
 `PojoLens` time buckets default to deterministic `UTC` + ISO-week behavior.
 
 Use `TimeBucketPreset` when you need explicit calendar semantics:
-- bucket granularity: `DAY`, `WEEK`, `MONTH`, `QUARTER`, `YEAR`
+- bucket granularity: `HOUR`, `DAY`, `WEEK`, `MONTH`, `QUARTER`, `YEAR`
 - timezone: `ZoneId`
 - week start: `MONDAY` by default, configurable for `WEEK`
 
 ## SQL-like
 
 Supported forms:
+- `bucket(dateField, 'hour') as period`
 - `bucket(dateField, 'month') as period`
 - `bucket(dateField, 'month', 'Europe/Amsterdam') as period`
 - `bucket(dateField, 'week', 'Europe/Amsterdam', 'sunday') as period`
@@ -22,6 +23,7 @@ List<WeeklyHeadcount> rows = PojoLensSql
 
 Notes:
 - bucket source fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`
+- hour buckets are formatted as `YYYY-MM-DDTHH`
 - `LocalDate` and `LocalDateTime` inputs are interpreted in the active bucket preset timezone
 - `Date`, `Instant`, `OffsetDateTime`, and `ZonedDateTime` inputs are normalized into the active bucket preset timezone before bucketing
 - timezone is optional; default is `UTC`
@@ -31,6 +33,7 @@ Notes:
 ## Natural
 
 Supported forms:
+- `bucket hire date by hour as period`
 - `bucket hire date by month as period`
 - `bucket hire date by month in Europe/Amsterdam as period`
 - `bucket hire date by week in Europe/Amsterdam starting sunday as period`

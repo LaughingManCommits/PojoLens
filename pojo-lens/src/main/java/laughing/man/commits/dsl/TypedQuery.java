@@ -17,6 +17,7 @@ import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PageResult;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.sqllike.QueryGuardOutcome;
@@ -541,6 +542,31 @@ public final class TypedQuery<T> {
         return filterInternal(rows, joinBindings, projectionClass);
     }
 
+    public PageResult<T> filterPage(List<T> rows) {
+        return filterPage(rows, JoinBindings.empty(), entityClass);
+    }
+
+    public <P> PageResult<P> filterPage(List<T> rows, Class<P> projectionClass) {
+        return filterPage(rows, JoinBindings.empty(), projectionClass);
+    }
+
+    public PageResult<T> filterPage(List<T> rows, JoinBindings joinBindings) {
+        return filterPage(rows, joinBindings, entityClass);
+    }
+
+    public PageResult<T> filterPage(DatasetBundle datasetBundle) {
+        return filterPage(datasetBundle, entityClass);
+    }
+
+    public <P> PageResult<P> filterPage(DatasetBundle datasetBundle, Class<P> projectionClass) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return filterPageInternal(datasetBundle.primaryRows(), datasetBundle.joinBindings(), projectionClass);
+    }
+
+    public <P> PageResult<P> filterPage(List<T> rows, JoinBindings joinBindings, Class<P> projectionClass) {
+        return filterPageInternal(rows, joinBindings, projectionClass);
+    }
+
     public long count(List<T> rows) {
         return filter(rows).size();
     }
@@ -670,6 +696,21 @@ public final class TypedQuery<T> {
         return limit(n);
     }
 
+    private TypedQuery<T> withoutPaginationAndGuard() {
+        return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
+                groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
+                timeBuckets, sortOrders, UNSET, UNSET, computedFieldRegistry, null);
+    }
+
+    private void validatePageShape() {
+        if (!hasLimit()) {
+            throw new IllegalStateException("TypedQuery.filterPage(...) requires limit(...) to define page size.");
+        }
+        if (limit <= 0) {
+            throw new IllegalStateException("TypedQuery.filterPage(...) requires limit(...) to be greater than zero.");
+        }
+    }
+
     // --- Guard helpers ---
 
     private void applyPreExecutionGuard(int rowCount) {
@@ -715,6 +756,22 @@ public final class TypedQuery<T> {
             }
         }
         return result;
+    }
+
+    private <P> PageResult<P> filterPageInternal(List<?> rows,
+                                                 JoinBindings joinBindings,
+                                                 Class<P> projectionClass) {
+        Objects.requireNonNull(rows, "rows must not be null");
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        validatePageShape();
+        long totalRows = withoutPaginationAndGuard()
+                .filterInternal(rows, joinBindings, projectionClass)
+                .size();
+        List<P> pageRows = filterInternal(rows, joinBindings, projectionClass);
+        long pageStart = hasOffset() ? offset : 0L;
+        boolean hasMore = pageStart + pageRows.size() < totalRows;
+        return PageResult.of(pageRows, totalRows, hasMore);
     }
 
     private Map<String, Object> explainInternal(List<?> rows, JoinBindings joinBindings) {
@@ -848,7 +905,7 @@ public final class TypedQuery<T> {
                 throw new IllegalStateException(
                         "Mixed ORDER BY directions are not supported. "
                         + "All fields must be ASC or all DESC. "
-                        + "Use separate queries or SQL-like for mixed directions.");
+                        + "Split the query or keep one direction until engine-level mixed sorting is available.");
             }
         }
         return first;

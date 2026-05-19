@@ -11,7 +11,7 @@
 - `GROUP BY`
 - `HAVING` (`AND`/`OR` predicates)
 - `QUALIFY` (`AND`/`OR` predicates against window outputs)
-- time bucket function: `bucket(dateField, 'day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
+- time bucket function: `bucket(dateField, 'hour|day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
 - `ORDER BY`
 - `LIMIT`
 - `OFFSET`
@@ -368,6 +368,7 @@ PageResult<Employee> page = PojoLensSql
     .filterPage(source, Employee.class);
 
 List<Employee> rows = page.rows();     // up to 20 rows
+long totalRows      = page.totalRows(); // count before LIMIT/cursor page trim
 boolean more       = page.hasMore();   // true when more rows exist
 
 // Next page — apply cursor from previous result
@@ -381,6 +382,8 @@ page.nextCursor().ifPresent(cursor -> {
 
 Page result contract:
 - `rows()` contains at most `LIMIT` rows (the extra lookahead row is never returned)
+- `totalRows()` is the row count after query filters and cursor boundaries, before
+  `LIMIT` is applied
 - `hasMore()` is `true` when at least one row exists beyond the current page
 - `nextCursor()` is empty when `hasMore()` is `false`
 - the cursor contains one entry per `ORDER BY` field taken from the last visible row
@@ -1048,7 +1051,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-VAL-005` | Invalid, ambiguous, or unsupported `HAVING` reference. | Restrict `HAVING` to grouped fields and aggregate outputs. |
 | `EQ-SQL-VAL-006` | Aggregate or `GROUP BY` semantics are invalid. | Add required aggregates/groups or remove unsupported combinations. |
 | `EQ-SQL-VAL-007` | Computed `SELECT` projection is invalid. | Use computed expressions only in non-aggregate queries and add `AS`. |
-| `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a `Date` field, give it an alias, and include the alias in `GROUP BY`. |
+| `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a supported date/time field, give it an alias, and include the alias in `GROUP BY`. |
 | `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use valid numeric expressions and supported comparison operators. |
 | `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` or `WHERE [NOT] EXISTS (select ...)` subqueries; named `FROM` / subquery `JOIN` sources must be bound. |
 | `EQ-SQL-VAL-011` | Field reference is ambiguous in a multi-join context. | Qualify the field with `<source>.<field>` or use the deterministic merged field name. |
@@ -1185,7 +1188,7 @@ Meaning:
 - Time-bucket configuration is invalid.
 
 Fix:
-- Bucket only `Date` fields, alias the bucket output, and group by that alias.
+- Bucket only supported date/time fields, alias the bucket output, and group by that alias.
 
 ### Error Code EQ-SQL-VAL-009
 

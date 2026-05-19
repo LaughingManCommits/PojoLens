@@ -31,6 +31,10 @@ public final class TimeBucketPreset {
         return new TimeBucketPreset(requireBucket(bucket), DEFAULT_ZONE, DEFAULT_WEEK_START);
     }
 
+    public static TimeBucketPreset hour() {
+        return of(TimeBucket.HOUR);
+    }
+
     public static TimeBucketPreset day() {
         return of(TimeBucket.DAY);
     }

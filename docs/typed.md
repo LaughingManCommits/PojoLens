@@ -174,6 +174,31 @@ Optional<Employee> alice = TypedQuery.from(Employee.class)
 All methods have `DatasetBundle` overloads. `exists` and `findFirst` apply
 `limit(1)` internally; `findOne` applies `limit(2)` to detect ambiguity cheaply.
 
+## Pagination
+
+`filterPage(...)` executes a count pass without `limit/offset`, then executes the
+configured paged query. Use a positive `limit(...)`; `offset(...)` is optional
+and defaults to the first page.
+
+```java
+PageResult<Employee> page = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .limit(20)
+    .offset(40)
+    .filterPage(employees);
+
+List<Employee> rows = page.rows();
+long totalRows = page.totalRows();
+boolean more = page.hasMore();
+```
+
+Typed pages are offset-based. `nextCursor()` is empty; advance by creating the
+next query with a larger `offset(...)`. Projection and multi-source overloads
+mirror `filter(...)`, including `filterPage(rows, Projection.class)`,
+`filterPage(rows, joins, Projection.class)`, and `filterPage(datasetBundle,
+Projection.class)`.
+
 ## Stream Execution
 
 `stream(rows)` executes the query and exposes results through a `Stream<T>`,
@@ -278,6 +303,9 @@ field naming. The bucket alias is automatically added to the GROUP BY — no
 explicit `.groupBy(alias)` is required.
 
 Defaults: UTC zone, Monday week-start.
+
+Supported granularities are `HOUR`, `DAY`, `WEEK`, `MONTH`, `QUARTER`, and
+`YEAR`. Hour buckets are formatted as `YYYY-MM-DDTHH`.
 
 ## Projection
 

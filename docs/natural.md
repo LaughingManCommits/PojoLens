@@ -58,7 +58,7 @@ Canonical aggregate phrases:
 - `maximum of` / `max`
 
 Canonical time-bucket phrase:
-- `bucket <date field> by day|week|month|quarter|year as <alias>`
+- `bucket <date field> by hour|day|week|month|quarter|year as <alias>`
 - optional timezone: `bucket <date field> by month in Europe/Amsterdam as <alias>`
 - optional week start for week buckets: `bucket <date field> by week in Europe/Amsterdam starting sunday as <alias>`
 
@@ -203,6 +203,23 @@ If runtime vocabulary or computed fields should apply, parse through
 `ReportDefinition.natural(...)`.
 
 Natural queries lower into the same shared execution engine used by SQL-like execution.
+
+## Pagination
+
+`filterPage(...)` delegates to the resolved SQL-like page helper. Use a natural
+query with deterministic `sort by` fields and a positive `limit`; the returned
+`PageResult<T>` contains the visible rows, `totalRows()`, `hasMore()`, and a
+SQL-like cursor for the next page when more rows exist.
+
+```java
+PageResult<Employee> page = PojoLensNatural
+    .parse("show employees where active is true sort by salary descending limit 20")
+    .filterPage(source, Employee.class);
+
+List<Employee> rows = page.rows();
+long totalRows = page.totalRows();
+boolean more = page.hasMore();
+```
 
 ## Joins and Multi-source Queries
 

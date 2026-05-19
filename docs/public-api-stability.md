@@ -173,7 +173,7 @@ The default first-read story is SQL-like first:
 - `SqlLikeCursor`:
   - `builder`, `fromToken`, `toToken`
 - `PageResult<T>`:
-  - `rows`, `hasMore`, `nextCursor`
+  - `of`, `rows`, `totalRows`, `hasMore`, `nextCursor`
 - `JoinBindings`:
   - `empty`, `of`, `from`, `builder`, `asMap`
 
@@ -187,7 +187,7 @@ The default first-read story is SQL-like first:
   - combinators/factories: `and`, `or`, `not`, `allOf`, `anyOf`, `inSubquery`, `exists`, `notExists`
 - `TypedQuery<T>`:
   - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `having`, `window`, `windowCountAll`, `qualify`, `orderBy`, `orderByDesc`, `limit`, `offset`
-  - `executionGuard`, `filter`, `explain`, `schema`
+  - `executionGuard`, `filter`, `filterPage`, `explain`, `schema`
   - current stable foundation covers projection, filters, join declarations,
     `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
     `HAVING` over grouped fields and metric aliases, rank windows, aggregate
@@ -212,7 +212,7 @@ The default first-read story is SQL-like first:
   - `parse`, `template`
 - `NaturalQuery`:
   - `of`, `source`, `equivalentSqlLike`, `params`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`
+  - `bindTyped`, `filter`, `filterPage`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`
   - chart execution supports either explicit `ChartSpec` or parsed natural chart phrases
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `NaturalTemplate`:

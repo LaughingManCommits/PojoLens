@@ -558,6 +558,8 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
     @Test
     public void timeBucketPresetShouldBeUsableFromPublicApi() {
+        assertEquals("HOUR", TimeBucketPreset.hour().bucket().name());
+
         TimeBucketPreset preset = TimeBucketPreset.week()
                 .withZone("Europe/Amsterdam")
                 .withWeekStart("sunday");

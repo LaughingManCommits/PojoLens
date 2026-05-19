@@ -8,6 +8,7 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PageResult;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
@@ -43,6 +44,29 @@ public class NaturalQueryContractTest {
                 .filter(sampleEmployees(), Employee.class);
 
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void filterPageShouldDelegateToSqlLikePagination() {
+        PageResult<Employee> page = PojoLensNatural
+                .parse("show employees where active is true sort by salary descending limit 2")
+                .filterPage(sampleEmployees(), Employee.class);
+
+        assertEquals(3, page.totalRows());
+        assertEquals(List.of("Cara", "Alice"), page.rows().stream().map(row -> row.name).toList());
+        assertTrue(page.hasMore());
+        assertTrue(page.nextCursor().isPresent());
+    }
+
+    @Test
+    public void filterPageShouldSupportDatasetBundleExecution() {
+        PageResult<Employee> page = PojoLensNatural
+                .parse("show employees where active is true sort by salary descending limit 5")
+                .filterPage(DatasetBundle.of(sampleEmployees()), Employee.class);
+
+        assertEquals(3, page.totalRows());
+        assertEquals(List.of("Cara", "Alice", "Bob"), page.rows().stream().map(row -> row.name).toList());
+        assertFalse(page.hasMore());
     }
 
     @Test
@@ -172,6 +196,22 @@ public class NaturalQueryContractTest {
                         "Engineering|2025-01|2|300",
                         "Engineering|2025-02|1|150",
                         "Finance|2025-02|1|300"
+                ),
+                normalizeDepartmentPeriodAgg(rows));
+    }
+
+    @Test
+    public void shouldExecuteNaturalHourTimeBucketAggregation() {
+        List<DepartmentPeriodAgg> rows = PojoLensNatural
+                .parse("show department, bucket hire date by hour as period, count of employees as total, "
+                        + "sum of salary as payroll group by department, period sort by period ascending")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+
+        assertEquals(List.of(
+                        "Engineering|2025-01-15T10|1|100",
+                        "Engineering|2025-01-20T12|1|200",
+                        "Engineering|2025-02-01T00|1|150",
+                        "Finance|2025-02-05T08|1|300"
                 ),
                 normalizeDepartmentPeriodAgg(rows));
     }

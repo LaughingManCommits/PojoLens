@@ -7,18 +7,19 @@ Expand typed-surface completeness and cross-surface parity identified in the
 (`feature-audit.md`). Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
-Next priority: complete WP-11 before starting the remaining feature-parity
-packages. WP-11 is the single follow-up package from the TODO-work audit.
+Next priority: choose between WP-14 mixed-direction sorting, WP-15 typed
+report definitions, WP-17 typed diagnostics, WP-18 file loader stream
+overloads, and WP-19 prefix/suffix matching.
 
 ### Quick fixes (no WP needed)
 
-- [ ] **README JDK requirement** — README says `JDK 17+`; root POM uses
+- [x] **README JDK requirement** — README says `JDK 17+`; root POM uses
   `<maven.compiler.release>25</maven.compiler.release>`. Update to Java 25,
   or intentionally lower the build target.
-- [ ] **Mixed-sort error text** — `TypedQuery.resolveGlobalSort()` tells
+- [x] **Mixed-sort error text** — `TypedQuery.resolveGlobalSort()` tells
   callers to "Use SQL-like for mixed directions", but SQL-like has the same
   global-direction limit. Fix the error text to reflect reality.
-- [ ] **Repo-memory drift** — `ai/core/module-index.md` and
+- [x] **Repo-memory drift** — `ai/core/module-index.md` and
   `ai/core/architecture-map.md` mention a removed `PojoLens` facade;
   `ai/core/system-boundaries.md` says time buckets require `java.util.Date`.
   Scrub those files.
@@ -100,7 +101,7 @@ switch surfaces just for computed fields.
 
 ---
 
-### WP-11 - TODO-work audit follow-up hardening  [P1]
+### ~~WP-11 - TODO-work audit follow-up hardening~~ ✓ DONE 2026-05-18
 
 **Problem:** The 2026-05-18 TODO-work audit found that WP-7 through WP-10 are
 mostly complete, but the follow-up work should be closed as one hardening PR
@@ -136,7 +137,7 @@ before starting new feature packages.
 
 ---
 
-### WP-12 — `filterPage()` / `PageResult<T>` on `TypedQuery`  [P2]
+### ~~WP-12 — `filterPage()` / `PageResult<T>` on `TypedQuery`~~ ✓ DONE 2026-05-19
 
 **Problem:** SQL-like exposes `filterPage(…)` → `PageResult<T>`. TypedQuery
 has `limit()` and `offset()` but no `filterPage()`, so callers run two queries
@@ -154,7 +155,7 @@ manually. Also: assess whether Natural should gain `filterPage()` for parity.
 
 ---
 
-### WP-13 — `TimeBucket.HOUR` granularity  [P2]
+### ~~WP-13 — `TimeBucket.HOUR` granularity~~ ✓ DONE 2026-05-19
 
 **Problem:** `TimeBucket` has DAY → YEAR but no HOUR. Event-stream workloads
 routinely bucket by hour. `ObjectUtil` already parses `DATE_HOUR` and
@@ -211,7 +212,7 @@ queries for reusable report definitions, schema review, replay, and validation.
 
 ---
 
-### WP-16 — `NaturalQuery.filterPage(…)` pagination parity  [P2]
+### ~~WP-16 — `NaturalQuery.filterPage(…)` pagination parity~~ ✓ DONE 2026-05-19
 
 **Problem:** SQL-like has `filterPage()` / `PageResult<T>` but natural queries
 do not, despite natural being a first-class endpoint/query-studio surface.
@@ -305,3 +306,7 @@ Callers who want prefix/suffix matching must write regex patterns by hand.
 - [x] `2026-05-18`: WP-8 — `stream()` overloads on TypedQuery (4 overloads, wraps `filter`); 1197 tests.
 - [x] `2026-05-18`: WP-9 — `TypedPredicate.any()` / `none()` sentinels with identity/absorption laws; 1211 tests.
 - [x] `2026-05-18`: WP-10 — `computedFields(ComputedFieldRegistry)` on TypedQuery; 1215 tests.
+- [x] `2026-05-18`: WP-11 — typed-surface hardening for computed-field ordering and sentinel laws; 1223 tests.
+- [x] `2026-05-19`: WP-12 — `TypedQuery.filterPage(...)` offset pages with `PageResult.totalRows()`.
+- [x] `2026-05-19`: WP-13 — `TimeBucket.HOUR` across fluent, SQL-like, natural, and typed paths.
+- [x] `2026-05-19`: WP-16 — `NaturalQuery.filterPage(...)` delegates to SQL-like page helper.
