@@ -7,6 +7,9 @@ import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chartjs.ChartJsPayload;
+import laughing.man.commits.dsl.TypedField;
+import laughing.man.commits.dsl.TypedQuery;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.report.ReportDefinition;
@@ -147,6 +150,59 @@ public class ReportDefinitionTest {
         assertEquals(List.of("Engineering", "Finance"), rows.stream().map(row -> row.department).toList());
         assertEquals(List.of(2L, 1L), rows.stream().map(row -> row.total).toList());
         assertEquals(List.of("department", "total"), report.schema().names());
+    }
+
+    @Test
+    public void typedReportDefinitionShouldBeReusableAcrossSnapshots() {
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<Employee, Boolean> active = TypedField.of("active", Boolean.class);
+        TypedField<DepartmentCountRow, Long> total = TypedField.of("total", Long.class);
+        ReportDefinition<DepartmentCountRow> report = ReportDefinition.typed(
+                TypedQuery.from(Employee.class)
+                        .where(active.eq(true))
+                        .groupBy(department)
+                        .count(total)
+                        .orderBy(department),
+                DepartmentCountRow.class,
+                ChartSpec.of(ChartType.BAR, "department", "total")
+        );
+
+        List<DepartmentCountRow> rows = report.rows(sampleEmployees());
+        List<DepartmentCountRow> subsetRows = report.rows(List.of(
+                new Employee(10, "X", "Support", 50000, null, true),
+                new Employee(11, "Y", "Support", 51000, null, true)
+        ));
+        ChartData chart = report.chart(sampleEmployees());
+
+        assertEquals("typed:Employee", report.source());
+        assertEquals(List.of("department", "total"), report.schema().names());
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals(2L, rows.get(0).total);
+        assertEquals(1, subsetRows.size());
+        assertEquals("Support", subsetRows.get(0).department);
+        assertEquals(2L, subsetRows.get(0).total);
+        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
+        assertTrue(report.supportsJoinSources());
+    }
+
+    @Test
+    public void typedReportDefinitionShouldSupportJoinBindings() {
+        TypedField<Company, Integer> companyId = TypedField.of("id", Integer.class);
+        TypedField<CompanyEmployee, Integer> employeeCompanyId = TypedField.of("companyId", Integer.class);
+        TypedField<Company, String> joinedTitle = TypedField.of("title", String.class);
+        ReportDefinition<Company> report = ReportDefinition.typed(
+                TypedQuery.from(Company.class)
+                        .join("employees", companyId, employeeCompanyId, Join.LEFT_JOIN)
+                        .where(joinedTitle.eq("Engineer")),
+                Company.class
+        );
+
+        List<Company> rows = report.rows(sampleCompanies(), JoinBindings.of("employees", sampleCompanyEmployees()));
+
+        assertEquals(1, rows.size());
+        assertEquals(1, rows.get(0).id);
+        assertTrue(report.supportsJoinSources());
     }
 
     @Test

@@ -23,7 +23,7 @@ Core execution model:
 
 | Scenario | Recommended entry point | Why |
 | --- | --- | --- |
-| Reusable in-process business query contract | `ReportDefinition.sql(...)` or `ReportDefinition.natural(...)` | Makes reusable row/chart workflows explicit without exposing mutable engine builders. |
+| Reusable in-process business query contract | `ReportDefinition.sql(...)`, `ReportDefinition.natural(...)`, or `ReportDefinition.typed(...)` | Makes reusable row/chart workflows explicit without exposing mutable engine builders. |
 | Saved/versioned report contract | `SavedReport` | Keeps query text, params, schema, and optional chart metadata in a persistence-friendly form for replay or review. |
 
 ## Boundary And Workflow Helpers
@@ -133,6 +133,7 @@ types instead of on a facade:
 - `SqlLikeCursor.builder()` / `SqlLikeCursor.fromToken(...)`
 - `ReportDefinition.sql(...)`
 - `ReportDefinition.natural(...)`
+- `ReportDefinition.typed(...)`
 - `DatasetBundle.of(...)`
 - `SnapshotComparison.builder(...)`
 - `PojoLensTree.fromFlat(...)` / `PojoLensTree.subtreeOf(...)`

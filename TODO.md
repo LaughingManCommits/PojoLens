@@ -7,9 +7,8 @@ Expand typed-surface completeness and cross-surface parity identified in the
 (`feature-audit.md`). Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
-Next priority: choose between WP-15 typed report definitions, WP-17 typed
-diagnostics, WP-18 file loader stream
-overloads, and WP-19 prefix/suffix matching.
+Next priority: choose between WP-18 file loader stream overloads, and WP-19
+prefix/suffix matching.
 
 ### Quick fixes (no WP needed)
 
@@ -193,7 +192,7 @@ has the same limitation.
 
 ---
 
-### WP-15 — `ReportDefinition.typed(…)` reusable typed workflow  [P2]
+### ~~WP-15 — `ReportDefinition.typed(…)` reusable typed workflow~~ ✓ DONE 2026-06-06
 
 **Problem:** `ReportDefinition` and `SavedReport` wrap SQL-like and natural
 queries for reusable report definitions, schema review, replay, and validation.
@@ -226,7 +225,7 @@ do not, despite natural being a first-class endpoint/query-studio surface.
 
 ---
 
-### WP-17 — Typed diagnostics / plan preview  [P3]
+### ~~WP-17 — Typed diagnostics / plan preview~~ ✓ DONE 2026-06-06
 
 **Problem:** SQL-like and natural have `diagnostics()` and `QueryDiagnostics`
 for no-data pre-execution review. TypedQuery exposes only `explain(rows)` and

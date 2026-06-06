@@ -6,7 +6,7 @@ repeated execution against different in-memory dataset snapshots.
 It also exposes deterministic table metadata through `schema()`.
 It is the general reusable wrapper in PojoLens and the default reusable-query
 contract for docs and new code.
-SQL-like and natural queries are the public paths into it.
+SQL-like, natural, and typed queries are the public paths into it.
 `ChartQueryPreset<T>` and `StatsViewPreset<T>` remain available as advanced
 chart-first and table-first convenience wrappers that can bridge back to it.
 
@@ -68,6 +68,31 @@ ReportDefinition<DepartmentCount> report = ReportDefinition.natural(
 
 Natural report definitions support `JoinBindings` / `DatasetBundle` the same
 way SQL-like report definitions do.
+
+## Typed Report Definition
+
+```java
+TypedField<Employee, String> department = TypedField.of("department", String.class);
+TypedField<Employee, Boolean> active = TypedField.of("active", Boolean.class);
+TypedField<DepartmentCount, Long> total = TypedField.of("total", Long.class);
+
+ReportDefinition<DepartmentCount> report = ReportDefinition.typed(
+    TypedQuery.from(Employee.class)
+        .where(active.eq(true))
+        .groupBy(department)
+        .count(total)
+        .orderBy(department),
+    DepartmentCount.class,
+    ChartSpec.of(ChartType.BAR, "department", "total"));
+
+List<DepartmentCount> rows = report.rows(snapshotA);
+ChartData chart = report.chart(snapshotB);
+TabularSchema schema = report.schema();
+```
+
+Typed report definitions derive a synthetic `source()` label such as
+`typed:Employee`, while preserving the same reusable rows/chart/schema contract
+as the SQL-like and natural factories.
 
 For SQL-like definitions, `JoinBindings` is the default one-off multi-source
 execution input:

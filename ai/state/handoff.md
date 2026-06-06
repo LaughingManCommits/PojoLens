@@ -7,26 +7,23 @@
 4. Use `feature-audit.md` for broader product-surface findings.
 
 ## Focus
-- `2026-05-18`: The extracted local AI runtime moved to `neon`; PojoLens now keeps only the Java library plus repo-memory helpers.
-- `2026-05-18`: Release `2026.05.18.1353` was backfilled on `main`; Central wait mode is now selected by workflow input.
-- `2026-05-18`: Consumer install docs point at `2026.05.18.1353`; example builds still track checked-in root POM version `2026.04.29.1809`.
-- `2026-05-18`: WP-7 through WP-11 are DONE; WP-11 hardening fixed typed computed-field ordering and sentinel static factory laws.
-- `2026-05-19`: WP-12 and WP-16 are DONE; typed and natural queries expose `filterPage(...)`, and `PageResult` has `totalRows()`.
-- `2026-05-19`: WP-13 is DONE; `TimeBucket.HOUR` and `TimeBucketPreset.hour()` work across fluent, SQL-like, natural, and typed paths.
-- `2026-05-19`: Quick fixes are DONE for README JDK 25, typed mixed-sort error text, and stale repo-memory facade/time-bucket facts.
-- `2026-06-06`: WP-14 is DONE; fluent, typed, and SQL-like ORDER BY execution now preserves per-field direction.
+- `2026-05-18`: The extracted local AI runtime moved to `neon`; PojoLens now keeps only the Java library plus repo-memory helpers, and release `2026.05.18.1353` was backfilled on `main`.
+- `2026-05-19`: WP-12, WP-13, and WP-16 are done; typed/natural pagination parity landed and hourly time buckets work across query surfaces.
+- `2026-05-19`: Quick fixes are done for the README JDK 25 requirement, typed mixed-sort messaging, and stale repo-memory facts.
+- `2026-06-06`: WP-14, WP-15, and WP-17 are done; mixed-direction ORDER BY, typed report definitions, and typed diagnostics/plan preview are now live.
 
 ## Facts
 - `2026-05-18`: Surviving `scripts/ai/` tools are repo-memory helpers: `refresh-ai-memory.*`, `query-ai-memory.*`, and `benchmark-ai-memory.*`.
 - `2026-05-18`: Doc-consistency scripts validate consumer install snippets against the latest `release-*` tag while local examples stay POM-backed.
 - `2026-05-18`: Feature audit found no P0 product blocker.
-- `2026-06-06`: Remaining product-surface backlog is WP-15 typed report definitions, WP-17 typed diagnostics, WP-18 stream loader overloads, and WP-19 prefix/suffix matching.
+- `2026-06-06`: Remaining product-surface backlog is WP-18 stream loader overloads and WP-19 prefix/suffix matching.
 
 ## Validate
 - After Java/runtime behavior changes: `mvn -B -ntp test`.
 - After docs changes: `scripts/docs/check-doc-consistency.ps1`.
 - After AI memory edits: `scripts/ai/refresh-ai-memory.ps1`, then `scripts/ai/refresh-ai-memory.ps1 -Check`.
-- `2026-06-06`: WP-14 validation passed with full reactor `mvn -B -ntp test`, doc consistency, and AI memory refresh/check.
+- `2026-06-06`: WP-17 focused validation passed with `TypedQueryContractTest`, `PublicApiEcosystemCoverageTest`, and `StablePublicApiContractTest`.
+- `2026-06-06`: Full validation passed with `mvn -B -ntp test` and `scripts/docs/check-doc-consistency.ps1`; rerun AI memory refresh/check after any state edits.
 
 ## Cold Pointers
 - `feature-audit.md`, `TODO.md`, `CHANGELOG.md`

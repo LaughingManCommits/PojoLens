@@ -13,6 +13,7 @@ import laughing.man.commits.testutil.TimeBucketTestFixtures.EmployeePoint;
 import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.PageResult;
+import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.table.TabularSchema;
@@ -158,6 +159,9 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "explain", List.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
         requirePublicMethod(TypedQuery.class, "explain", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "diagnostics");
+        requirePublicMethod(TypedQuery.class, "planPreview");
+        requirePublicMethod(TypedQuery.class, "schema", Class.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class, Class.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class, JoinBindings.class);
@@ -1465,6 +1469,16 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void schemaWithProjectionClassDoesNotRequireSourceRows() {
+        TabularSchema s = TypedQuery.from(Employee.class)
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .schema(DepartmentCount.class);
+
+        assertEquals(List.of("department", "total"), s.names());
+    }
+
+    @Test
     void schemaWithProjectionClassReturnsNonNull() {
         TabularSchema s = TypedQuery.from(Employee.class)
                 .schema(sampleEmployees(), Employee.class);
@@ -1499,6 +1513,97 @@ public class TypedQueryContractTest {
                 .schema(sampleEmployees(), DepartmentRank.class);
 
         assertEquals(List.of("department", "name", "salary", "rn"), s.names());
+    }
+
+    @Test
+    void diagnosticsShouldReportInvalidQueryShape() {
+        QueryDiagnostics diagnostics = TypedQuery.from(Employee.class)
+                .select(NAME)
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .diagnostics();
+
+        assertFalse(diagnostics.valid());
+        assertEquals("EQ-TYPED-ERR", diagnostics.errors().get(0).code());
+        assertTrue(diagnostics.errors().get(0).message().contains("cannot be combined with groupBy"));
+    }
+
+    @Test
+    void diagnosticsAndPlanPreviewShouldReflectAggregateTypedQueryShape() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedField<Employee, Double> adjustedSalary = TypedField.of("adjustedSalary", Double.class);
+        TypedField<Employee, java.util.Date> employeeHireDate = TypedField.of("hireDate", java.util.Date.class);
+        TypedQuery<Employee> query = TypedQuery.from(Employee.class)
+                .computedFields(registry)
+                .where(ACTIVE.eq(true).and(NAME.inSubquery(
+                        NAME,
+                        TypedQuery.from(Employee.class).where(DEPT.eq("Engineering"))
+                )))
+                .timeBucket(employeeHireDate, TimeBucket.MONTH, "period")
+                .groupBy(DEPT)
+                .metric(adjustedSalary, Metric.SUM, PAYROLL)
+                .orderBy(DEPT)
+                .orderByDesc(PAYROLL)
+                .limit(5)
+                .offset(2)
+                .executionGuard(QueryExecutionGuard.builder()
+                        .maxRowsScanned(100)
+                        .maxRowsReturned(10)
+                        .build());
+
+        QueryDiagnostics diagnostics = query.diagnostics();
+        TypedPlanPreview preview = query.planPreview();
+
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.referencedFields().containsAll(List.of("active", "name", "department", "hireDate", "adjustedSalary")));
+        assertTrue(diagnostics.outputFields().containsAll(List.of("period", "department", "payroll")));
+        assertTrue(diagnostics.hasSubqueries());
+
+        assertEquals("Employee", preview.source());
+        assertTrue(preview.hasGrouping());
+        assertTrue(preview.hasAggregation());
+        assertTrue(preview.hasTimeBuckets());
+        assertTrue(preview.hasComputedFields());
+        assertTrue(preview.hasExecutionGuard());
+        assertTrue(preview.hasSubqueries());
+        assertEquals(List.of("department", "payroll"),
+                preview.orderFields().stream().map(order -> order.field()).toList());
+        assertEquals(List.of("ASC", "DESC"),
+                preview.orderFields().stream().map(order -> order.direction()).toList());
+        assertEquals(List.of("period", "department", "payroll"), preview.outputFields());
+        assertEquals("period", preview.timeBuckets().get(0).alias());
+        assertEquals("MONTH", preview.timeBuckets().get(0).bucket().name());
+        assertEquals("adjustedSalary", preview.metrics().get(0).field());
+        assertEquals("SUM", preview.metrics().get(0).metric().name());
+        assertEquals("payroll", preview.metrics().get(0).alias());
+        assertEquals(5, preview.paging().limit());
+        assertEquals(2, preview.paging().offset());
+        assertEquals(100, preview.executionGuard().maxRowsScanned());
+        assertEquals(10, preview.executionGuard().maxRowsReturned());
+        assertEquals(TypedPredicate.Operator.AND, preview.filterExpression().operator());
+        assertEquals(TypedPredicate.Operator.IN_SUBQUERY, preview.filterExpression().children().get(1).operator());
+    }
+
+    @Test
+    void planPreviewShouldReflectWindowAndQualifyShape() {
+        TypedPlanPreview preview = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                .qualify(RN.lte(1L))
+                .orderBy(DEPT)
+                .planPreview();
+
+        assertTrue(preview.hasWindows());
+        assertEquals(1, preview.windows().size());
+        assertEquals("ROW_NUMBER", preview.windows().get(0).function().name());
+        assertEquals(List.of("department"), preview.windows().get(0).partitionFields());
+        assertEquals(List.of("salary"), preview.windows().get(0).orderFields().stream().map(order -> order.field()).toList());
+        assertEquals("DESC", preview.windows().get(0).orderFields().get(0).direction());
+        assertEquals(TypedPredicate.Operator.LTE, preview.qualifyExpression().operator());
+        assertEquals("rn", preview.qualifyExpression().field());
+        assertTrue(preview.outputFields().contains("rn"));
     }
 
     // --- Execution convenience ---

@@ -16,6 +16,7 @@ import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.dsl.TypedField;
+import laughing.man.commits.dsl.TypedPlanPreview;
 import laughing.man.commits.dsl.TypedPredicate;
 import laughing.man.commits.dsl.TypedQuery;
 import laughing.man.commits.dsl.TypedWindowOrder;
@@ -30,6 +31,7 @@ import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.report.SavedReport;
 import laughing.man.commits.snapshot.SnapshotComparison;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.telemetry.QueryTelemetryEvent;
 import laughing.man.commits.testing.FluentSqlLikeParity;
@@ -338,8 +340,21 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals("show department, count of employees as total group by department sort by department ascending",
                 naturalReport.source());
 
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<StatsRow, Long> total = TypedField.of("total", Long.class);
+        ReportDefinition<StatsRow> typedReport = ReportDefinition.typed(
+                TypedQuery.from(Employee.class)
+                        .groupBy(department)
+                        .count(total)
+                        .orderBy(department),
+                StatsRow.class
+        );
+        assertEquals(2, typedReport.rows(sampleEmployees()).size());
+        assertEquals("typed:Employee", typedReport.source());
+
         assertTrue(sqlReport.supportsJoinSources());
         assertTrue(naturalReport.supportsJoinSources());
+        assertTrue(typedReport.supportsJoinSources());
     }
 
     @Test
@@ -410,6 +425,32 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals(2, rows.size());
         assertEquals("Engineering", rows.get(0).department);
         assertEquals(2L, rows.get(0).total);
+    }
+
+    @Test
+    public void typedQueryPlanReviewShouldBeUsableFromPublicApi() {
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<Employee, Long> payroll = TypedField.of("payroll", Long.class);
+        QueryDiagnostics diagnostics = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.any())
+                .groupBy(department)
+                .metric(TypedField.of("salary", Integer.class), laughing.man.commits.enums.Metric.SUM, payroll)
+                .orderByDesc(payroll)
+                .limit(5)
+                .diagnostics();
+        TypedPlanPreview preview = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.any())
+                .groupBy(department)
+                .metric(TypedField.of("salary", Integer.class), laughing.man.commits.enums.Metric.SUM, payroll)
+                .orderByDesc(payroll)
+                .limit(5)
+                .planPreview();
+
+        assertTrue(diagnostics.valid());
+        assertTrue(preview.hasAggregation());
+        assertTrue(preview.hasPaging());
+        assertEquals(List.of("department", "payroll"), preview.outputFields());
+        assertEquals("DESC", preview.orderFields().get(0).direction());
     }
 
     @Test

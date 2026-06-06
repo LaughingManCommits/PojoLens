@@ -465,7 +465,7 @@ The registry is retained across fluent calls and accessible via
 `computedFieldRegistry()`. `hasComputedFields()` returns false when no registry
 was set or the registry is empty.
 
-## Explain, Schema, And Guards
+## Diagnostics, Preview, Schema, And Guards
 
 The typed surface keeps the same diagnostics and governance hooks as the text
 surfaces:
@@ -478,13 +478,76 @@ TypedQuery<Employee> query = TypedQuery.from(Employee.class)
         .maxRowsReturned(1_000)
         .build());
 
+QueryDiagnostics diagnostics = query.diagnostics();
+TypedPlanPreview preview = query.planPreview();
 Map<String, Object> explain = query.explain(employees);
 TabularSchema schema = query.schema(employees);
 List<Employee> rows = query.filter(employees);
 ```
 
+`diagnostics()` returns no-data validation plus summary metadata such as
+referenced fields, output fields, join sources, and subquery presence. Invalid
+typed query shapes such as `select(...)` combined with grouped metrics are
+reported as `QueryDiagnosticsError` entries instead of requiring execution.
+
+`planPreview()` returns the richer typed-only structural shape:
+
+```java
+TypedPlanPreview preview = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .window(
+        WindowFunction.ROW_NUMBER,
+        DepartmentRankTypedFields.RN,
+        List.of(TypedWindowOrder.desc(EmployeeTypedFields.SALARY)),
+        EmployeeTypedFields.DEPARTMENT)
+    .qualify(DepartmentRankTypedFields.RN.lte(1L))
+    .orderBy(EmployeeTypedFields.DEPARTMENT)
+    .planPreview();
+
+List<TypedPlanWindow> windows = preview.windows();
+List<PlanPreviewOrder> ordering = preview.orderFields();
+TypedPlanPredicate qualify = preview.qualifyExpression();
+```
+
+The preview is data-free and reports joins, group keys, metrics, windows, sort
+orders, paging, time buckets, computed fields, and any attached execution
+guard.
+
 Use `schema(..., Projection.class)` when the output is a projection rather than
 the source row type.
+
+`schema(Projection.class)` is also available without source rows when you need
+deterministic metadata for a reusable contract before execution:
+
+```java
+TabularSchema preview = TypedQuery.from(Employee.class)
+    .groupBy(EmployeeTypedFields.DEPARTMENT)
+    .count(DepartmentCountTypedFields.TOTAL)
+    .schema(DepartmentCount.class);
+```
+
+## Reusable Report Definitions
+
+Wrap a typed query in `ReportDefinition<T>` when the same in-process workflow
+needs reusable rows, schema, and optional chart mapping across refreshed
+snapshots:
+
+```java
+ReportDefinition<DepartmentCount> report = ReportDefinition.typed(
+    TypedQuery.from(Employee.class)
+        .where(EmployeeTypedFields.ACTIVE.eq(true))
+        .groupBy(EmployeeTypedFields.DEPARTMENT)
+        .count(DepartmentCountTypedFields.TOTAL)
+        .orderBy(EmployeeTypedFields.DEPARTMENT),
+    DepartmentCount.class);
+
+List<DepartmentCount> rows = report.rows(employees);
+TabularSchema schema = report.schema();
+```
+
+Add chart mapping with `ReportDefinition.typed(query, Projection.class,
+ChartSpec)` or later with `withChartSpec(...)`. The reusable report source label
+is synthetic, for example `typed:Employee`.
 
 ## Current Boundaries
 

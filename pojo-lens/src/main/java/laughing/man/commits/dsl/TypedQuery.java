@@ -17,15 +17,24 @@ import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PlanPreviewJoin;
+import laughing.man.commits.sqllike.PlanPreviewOrder;
+import laughing.man.commits.sqllike.PlanPreviewPaging;
 import laughing.man.commits.sqllike.PageResult;
+import laughing.man.commits.sqllike.QueryDiagnostics;
+import laughing.man.commits.sqllike.QueryDiagnosticsError;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.sqllike.QueryGuardOutcome;
+import laughing.man.commits.sqllike.SqlLikeLintWarning;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.table.TabularSchema;
+import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -679,6 +688,11 @@ public final class TypedQuery<T> {
         return schema(rows, JoinBindings.empty(), projectionClass);
     }
 
+    public <P> TabularSchema schema(Class<P> projectionClass) {
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        return schemaInternal(List.of(), schemaJoinBindings(), projectionClass);
+    }
+
     public <P> TabularSchema schema(List<T> rows, JoinBindings joinBindings, Class<P> projectionClass) {
         return schemaInternal(rows, joinBindings, projectionClass);
     }
@@ -686,6 +700,33 @@ public final class TypedQuery<T> {
     public <P> TabularSchema schema(DatasetBundle datasetBundle, Class<P> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
         return schemaInternal(datasetBundle.primaryRows(), datasetBundle.joinBindings(), projectionClass);
+    }
+
+    public QueryDiagnostics diagnostics() {
+        ArrayList<QueryDiagnosticsError> errors = new ArrayList<>();
+        try {
+            validateQueryShape();
+        } catch (RuntimeException ex) {
+            errors.add(new QueryDiagnosticsError("EQ-TYPED-ERR", ex.getMessage()));
+        }
+        collectSubqueryDiagnosticsErrors(wherePredicate, errors);
+        collectSubqueryDiagnosticsErrors(havingPredicate, errors);
+        collectSubqueryDiagnosticsErrors(qualifyPredicate, errors);
+        return new QueryDiagnostics(
+                errors.isEmpty(),
+                errors,
+                List.<SqlLikeLintWarning>of(),
+                List.of(),
+                previewReferencedFields(),
+                previewOutputFields(),
+                previewJoinSources(),
+                previewHasSubqueries()
+        );
+    }
+
+    public TypedPlanPreview planPreview() {
+        validateQueryShape();
+        return buildPlanPreview();
     }
 
     private TypedQuery<T> cappedAt(int n) {
@@ -781,6 +822,250 @@ public final class TypedQuery<T> {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         Objects.requireNonNull(projectionClass, "projectionClass must not be null");
         return configuredBuilder(rows, joinBindings).schema(projectionClass);
+    }
+
+    private JoinBindings schemaJoinBindings() {
+        if (joins.isEmpty()) {
+            return JoinBindings.empty();
+        }
+        LinkedHashMap<String, List<?>> bindings = new LinkedHashMap<>();
+        for (TypedJoin join : joins) {
+            bindings.putIfAbsent(join.sourceName(), List.of());
+        }
+        return JoinBindings.from(bindings);
+    }
+
+    private TypedPlanPreview buildPlanPreview() {
+        return new TypedPlanPreview(
+                entityClass.getSimpleName(),
+                entityClass,
+                previewSelectFields(),
+                buildPlanPredicate(wherePredicate),
+                List.copyOf(groupByFieldNames),
+                previewMetrics(),
+                buildPlanPredicate(havingPredicate),
+                previewWindows(),
+                buildPlanPredicate(qualifyPredicate),
+                previewOrderFields(sortOrders),
+                previewJoins(),
+                previewPaging(),
+                previewTimeBuckets(),
+                previewComputedFields(),
+                previewReferencedFields(),
+                previewOutputFields(),
+                previewJoinSources(),
+                executionGuard,
+                previewHasSubqueries()
+        );
+    }
+
+    private List<String> previewSelectFields() {
+        ArrayList<String> fields = new ArrayList<>(selectFields.size());
+        for (TypedField<T, ?> field : selectFields) {
+            fields.add(field.fieldName());
+        }
+        return List.copyOf(fields);
+    }
+
+    private List<TypedPlanMetric> previewMetrics() {
+        ArrayList<TypedPlanMetric> preview = new ArrayList<>(metrics.size());
+        for (TypedMetric metric : metrics) {
+            preview.add(new TypedPlanMetric(metric.fieldName(), metric.metric(), metric.alias(), metric.count()));
+        }
+        return List.copyOf(preview);
+    }
+
+    private List<TypedPlanWindow> previewWindows() {
+        ArrayList<TypedPlanWindow> preview = new ArrayList<>(windows.size());
+        for (TypedWindow window : windows) {
+            preview.add(new TypedPlanWindow(
+                    window.function(),
+                    window.valueField(),
+                    window.countAll(),
+                    window.alias(),
+                    window.partitionFields(),
+                    previewWindowOrders(window.orderFields()),
+                    window.frame()
+            ));
+        }
+        return List.copyOf(preview);
+    }
+
+    private List<PlanPreviewJoin> previewJoins() {
+        ArrayList<PlanPreviewJoin> preview = new ArrayList<>(joins.size());
+        for (TypedJoin join : joins) {
+            preview.add(new PlanPreviewJoin(previewJoinType(join.joinType()), join.sourceName(),
+                    join.parentField(), join.childField()));
+        }
+        return List.copyOf(preview);
+    }
+
+    private PlanPreviewPaging previewPaging() {
+        if (!hasLimit() && !hasOffset()) {
+            return null;
+        }
+        return new PlanPreviewPaging(hasLimit() ? limit : null, null, hasOffset() ? offset : null, null);
+    }
+
+    private List<TypedPlanTimeBucket> previewTimeBuckets() {
+        ArrayList<TypedPlanTimeBucket> preview = new ArrayList<>(timeBuckets.size());
+        for (QueryTimeBucket bucket : timeBuckets) {
+            preview.add(new TypedPlanTimeBucket(
+                    bucket.getDateField(),
+                    bucket.getBucket(),
+                    bucket.getAlias(),
+                    bucket.getPreset().explainToken()
+            ));
+        }
+        return List.copyOf(preview);
+    }
+
+    private List<String> previewComputedFields() {
+        if (!hasComputedFields()) {
+            return List.of();
+        }
+        return computedFieldRegistry.names().stream().toList();
+    }
+
+    private List<String> previewReferencedFields() {
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        for (TypedField<T, ?> field : selectFields) {
+            names.add(field.fieldName());
+        }
+        collectReferencedFields(wherePredicate, names);
+        collectReferencedFields(havingPredicate, names);
+        collectReferencedFields(qualifyPredicate, names);
+        for (TypedJoin join : joins) {
+            names.add(join.parentField());
+            names.add(join.childField());
+        }
+        names.addAll(groupByFieldNames);
+        for (TypedMetric metric : metrics) {
+            if (metric.fieldName() != null) {
+                names.add(metric.fieldName());
+            }
+        }
+        for (TypedWindow window : windows) {
+            if (window.valueField() != null) {
+                names.add(window.valueField());
+            }
+            names.addAll(window.partitionFields());
+            for (TypedWindowOrder order : window.orderFields()) {
+                names.add(order.fieldName());
+            }
+        }
+        for (QueryTimeBucket bucket : timeBuckets) {
+            names.add(bucket.getDateField());
+        }
+        for (TypedSortOrder order : sortOrders) {
+            names.add(order.fieldName());
+        }
+        return List.copyOf(names);
+    }
+
+    private List<String> previewOutputFields() {
+        LinkedHashSet<String> outputs = new LinkedHashSet<>();
+        if (hasGroupBy() || hasMetrics()) {
+            for (QueryTimeBucket bucket : timeBuckets) {
+                outputs.add(bucket.getAlias());
+            }
+            outputs.addAll(groupByFieldNames);
+            for (TypedMetric metric : metrics) {
+                outputs.add(metric.alias());
+            }
+            return List.copyOf(outputs);
+        }
+        if (selectFields.isEmpty()) {
+            outputs.addAll(ReflectionUtil.collectQueryableFieldTypes(entityClass).keySet());
+        } else {
+            for (TypedField<T, ?> field : selectFields) {
+                outputs.add(field.fieldName());
+            }
+        }
+        for (QueryTimeBucket bucket : timeBuckets) {
+            outputs.add(bucket.getAlias());
+        }
+        for (TypedWindow window : windows) {
+            outputs.add(window.alias());
+        }
+        return List.copyOf(outputs);
+    }
+
+    private List<String> previewJoinSources() {
+        LinkedHashSet<String> sources = new LinkedHashSet<>();
+        for (TypedJoin join : joins) {
+            sources.add(join.sourceName());
+        }
+        return List.copyOf(sources);
+    }
+
+    private boolean previewHasSubqueries() {
+        return containsSubqueryPredicate(wherePredicate)
+                || containsSubqueryPredicate(havingPredicate)
+                || containsSubqueryPredicate(qualifyPredicate);
+    }
+
+    private void collectSubqueryDiagnosticsErrors(TypedPredicate<?> predicate,
+                                                  List<QueryDiagnosticsError> errors) {
+        if (predicate == null) {
+            return;
+        }
+        if (predicate.hasSubqueryDescriptor()) {
+            try {
+                predicate.subqueryDescriptor().subquery().validateQueryShape();
+            } catch (RuntimeException ex) {
+                errors.add(new QueryDiagnosticsError("EQ-TYPED-ERR", ex.getMessage()));
+            }
+        }
+        for (TypedPredicate<?> child : predicate.children()) {
+            collectSubqueryDiagnosticsErrors(child, errors);
+        }
+    }
+
+    private TypedPlanPredicate buildPlanPredicate(TypedPredicate<?> predicate) {
+        if (predicate == null) {
+            return null;
+        }
+        ArrayList<TypedPlanPredicate> children = new ArrayList<>(predicate.children().size());
+        for (TypedPredicate<?> child : predicate.children()) {
+            children.add(buildPlanPredicate(child));
+        }
+        TypedPredicate.TypedSubqueryDescriptor descriptor = predicate.hasSubqueryDescriptor()
+                ? predicate.subqueryDescriptor() : null;
+        return new TypedPlanPredicate(
+                predicate.operator(),
+                predicate.field() == null ? null : predicate.field().fieldName(),
+                predicate.value(),
+                predicate.values(),
+                descriptor == null ? null : descriptor.outputField(),
+                descriptor != null && descriptor.explicitSource(),
+                descriptor == null ? null : descriptor.subquery().planPreview(),
+                children
+        );
+    }
+
+    private static List<PlanPreviewOrder> previewOrderFields(List<TypedSortOrder> orders) {
+        ArrayList<PlanPreviewOrder> preview = new ArrayList<>(orders.size());
+        for (TypedSortOrder order : orders) {
+            preview.add(new PlanPreviewOrder(order.fieldName(), order.sort().name()));
+        }
+        return List.copyOf(preview);
+    }
+
+    private static List<PlanPreviewOrder> previewWindowOrders(List<TypedWindowOrder> orders) {
+        ArrayList<PlanPreviewOrder> preview = new ArrayList<>(orders.size());
+        for (TypedWindowOrder order : orders) {
+            preview.add(new PlanPreviewOrder(order.fieldName(), order.sort().name()));
+        }
+        return List.copyOf(preview);
+    }
+
+    private static String previewJoinType(Join joinType) {
+        return switch (joinType) {
+            case INNER_JOIN -> "INNER";
+            case LEFT_JOIN -> "LEFT";
+            case RIGHT_JOIN -> "RIGHT";
+        };
     }
 
     // --- Internal lowering ---
@@ -1235,6 +1520,24 @@ public final class TypedQuery<T> {
                 return;
             }
             fieldNames.add(predicate.field().fieldName());
+            return;
+        }
+        for (TypedPredicate<?> child : predicate.children()) {
+            collectReferencedFields(child, fieldNames);
+        }
+    }
+
+    private static void collectReferencedFields(TypedPredicate<?> predicate, LinkedHashSet<String> fieldNames) {
+        if (predicate == null) {
+            return;
+        }
+        if (predicate.isLeaf()) {
+            if (predicate.field() != null) {
+                fieldNames.add(predicate.field().fieldName());
+            }
+            if (predicate.hasSubqueryDescriptor()) {
+                fieldNames.addAll(predicate.subqueryDescriptor().subquery().previewReferencedFields());
+            }
             return;
         }
         for (TypedPredicate<?> child : predicate.children()) {

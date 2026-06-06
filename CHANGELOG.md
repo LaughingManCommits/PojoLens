@@ -11,6 +11,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Typed diagnostics and plan preview (WP-17)** - `TypedQuery` now exposes
+  `diagnostics()` for no-data structural validation and `planPreview()` for a
+  typed execution-shape review covering joins, group keys, metrics, windows,
+  sort orders, paging, time buckets, computed fields, subqueries, and attached
+  execution-guard policy.
+
+- **Typed report definitions (WP-15)** - `ReportDefinition.typed(...)` now
+  promotes `TypedQuery` contracts into the same reusable rows/chart/schema
+  wrapper used by SQL-like and natural queries. Typed queries also expose
+  `schema(Projection.class)` so reusable report metadata can be derived without
+  live source rows, including typed join shapes via placeholder join bindings.
+
 - **Engine-level mixed-direction sort (WP-14)** - ORDER BY execution now
   preserves per-field direction through the fluent engine, typed lowering, and
   SQL-like binding. Queries such as `department ASC, salary DESC` now execute in
