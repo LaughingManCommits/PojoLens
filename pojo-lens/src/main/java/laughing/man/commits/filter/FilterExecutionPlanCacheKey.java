@@ -108,7 +108,7 @@ public final class FilterExecutionPlanCacheKey {
                 namedValues(builder.getFilterDateFormats()),
                 namedValues(builder.getHavingDateFormats()),
                 indexedFieldShapes(builder.getGroupFields()),
-                indexedFieldShapes(builder.getOrderFields()),
+                orderFieldShapes(builder.getOrderFields(), builder.getOrderSorts()),
                 indexedFieldShapes(builder.getDistinctFields()),
                 builder.getReturnFields(),
                 timeBucketShapes(builder.getTimeBuckets()),
@@ -215,6 +215,17 @@ public final class FilterExecutionPlanCacheKey {
         List<Map.Entry<Integer, String>> sorted = CollectionUtil.sortedEntriesByKey(fields);
         for (Map.Entry<Integer, String> entry : sorted) {
             entries.add(new NamedValue(String.valueOf(entry.getKey()), entry.getValue()));
+        }
+        return entries;
+    }
+
+    private static List<NamedValue> orderFieldShapes(Map<Integer, String> fields, Map<Integer, ?> sorts) {
+        ArrayList<NamedValue> entries = new ArrayList<>(fields.size());
+        List<Map.Entry<Integer, String>> sorted = CollectionUtil.sortedEntriesByKey(fields);
+        for (Map.Entry<Integer, String> entry : sorted) {
+            Object sort = sorts.get(entry.getKey());
+            String value = sort == null ? entry.getValue() : entry.getValue() + ":" + sort;
+            entries.add(new NamedValue(String.valueOf(entry.getKey()), value));
         }
         return entries;
     }

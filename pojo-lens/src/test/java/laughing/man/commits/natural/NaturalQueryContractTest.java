@@ -38,6 +38,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class NaturalQueryContractTest {
 
     @Test
+    public void sortShouldRejectMixedDirections() {
+        assertThrows(IllegalArgumentException.class, () -> PojoLensNatural
+                .parse("show employees sort by salary ascending, name descending")
+                .sort());
+    }
+
+    @Test
     public void shouldExecuteWildcardFilterSortAndLimit() {
         List<Employee> rows = PojoLensNatural
                 .parse("show employees where active is true sort by salary descending limit 2")

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-19T09:47:09.260614+02:00",
-  "generation": "20260519T074709-640-1779176829263618200",
+  "generatedAt": "2026-06-06T07:53:45.164996+02:00",
+  "generation": "20260606T055345-42040-1780725225168523300",
   "git": {
-    "headCommit": "5fe0c540183d8d37bf530da01e92daaeab51253c",
+    "headCommit": "e3ee8da6d9862b6b85302b64e540e3b78e0a05c8",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "8cd20d769051d9aba8d3635593e6e617562403540096ed45cb7a47793beb673f",
+  "inputsHash": "e59611fa4da9eade525c32689e9cd5f0466a9e1915d668bfba00bcbab9098fe0",
   "hotContext": {
     "files": [
       {
@@ -22,8 +22,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 33,
-        "bytes": 1978,
+        "lines": 36,
+        "bytes": 2423,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -65,8 +65,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 32,
-        "bytes": 2183,
+        "lines": 34,
+        "bytes": 2389,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -103,8 +103,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 96,
-    "totalBytes": 6949,
+    "totalLines": 101,
+    "totalBytes": 7600,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -141,26 +141,26 @@
     "jsonIndexes": [
       {
         "path": "ai/indexes/docs-index.json",
-        "status": "reused",
-        "inputHash": "36034e4fef802e7d0e7fe25414e7822a1241e7a4a3896ef2d7ab1363162f3970",
+        "status": "rebuilt",
+        "inputHash": "90675c35d46cff21036541e5613c3a5beefde8bf51be3a2ce50dc14f73752982",
         "inputFiles": 58
       },
       {
         "path": "ai/indexes/files-index.json",
-        "status": "reused",
-        "inputHash": "33ab51e774ce6fa908897422831af92130f8b87438fc4b7a476a9aa7e35339b2",
+        "status": "rebuilt",
+        "inputHash": "a4ada33fa3c1aa2ce2aba0c13748c53e1f6daa9989ae8e6e09895af7e14a78a5",
         "inputFiles": 530
       },
       {
         "path": "ai/indexes/symbols-index.json",
         "status": "reused",
-        "inputHash": "2a19ca64c03778dbabc8605053514a7ca058e6bda6d02eb8f990cbcaa70c819c",
+        "inputHash": "df0cd72f971e31713d63e404320274a8cee11a22104d676c6ad0eb177d50877a",
         "inputFiles": 286
       },
       {
         "path": "ai/indexes/test-index.json",
         "status": "reused",
-        "inputHash": "e6bc80e3ebaf8052269e6709b07d5d6b0e61d4dc9705714781c9836b69581001",
+        "inputHash": "d5ebccc1ad1ca4468dca0ce52b10974d5728851b2d18d4258fcf38d40cb2c632",
         "inputFiles": 162
       },
       {

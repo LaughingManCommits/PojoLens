@@ -7,8 +7,8 @@ Expand typed-surface completeness and cross-surface parity identified in the
 (`feature-audit.md`). Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
-Next priority: choose between WP-14 mixed-direction sorting, WP-15 typed
-report definitions, WP-17 typed diagnostics, WP-18 file loader stream
+Next priority: choose between WP-15 typed report definitions, WP-17 typed
+diagnostics, WP-18 file loader stream
 overloads, and WP-19 prefix/suffix matching.
 
 ### Quick fixes (no WP needed)
@@ -171,7 +171,7 @@ routinely bucket by hour. `ObjectUtil` already parses `DATE_HOUR` and
 
 ---
 
-### WP-14 — Mixed-direction sort (engine-level)  [P2]
+### ~~WP-14 — Mixed-direction sort (engine-level)~~ ✓ DONE 2026-06-06
 
 **Problem:** The engine enforces one global sort direction. This blocks common
 ordering (`department ASC, salary DESC`) and weakens keyset cursor expressions.
@@ -310,3 +310,4 @@ Callers who want prefix/suffix matching must write regex patterns by hand.
 - [x] `2026-05-19`: WP-12 — `TypedQuery.filterPage(...)` offset pages with `PageResult.totalRows()`.
 - [x] `2026-05-19`: WP-13 — `TimeBucket.HOUR` across fluent, SQL-like, natural, and typed paths.
 - [x] `2026-05-19`: WP-16 — `NaturalQuery.filterPage(...)` delegates to SQL-like page helper.
+- [x] `2026-06-06`: WP-14 — mixed-direction ORDER BY executes through fluent, typed, and SQL-like paths.

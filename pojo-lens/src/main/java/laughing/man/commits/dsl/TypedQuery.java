@@ -48,7 +48,6 @@ import java.util.stream.Stream;
  *
  * <p>Current limitations:
  * <ul>
- *   <li>All ORDER BY fields must share the same direction; mixed directions throw {@code IllegalStateException}.</li>
  *   <li>Explicit window-frame configuration is available only for aggregate
  *       windows and {@code COUNT(*)}; rank windows keep their default
  *       semantics.</li>
@@ -744,10 +743,7 @@ public final class TypedQuery<T> {
         QueryBuilder builder = configuredBuilder(rows, joinBindings);
         Filter filter = preparedFilter(builder);
         long startMillis = System.currentTimeMillis();
-        Sort globalSort = resolveGlobalSort();
-        List<P> result = globalSort == Sort.DESC
-                ? filter.filter(Sort.DESC, projectionClass)
-                : filter.filter(projectionClass);
+        List<P> result = filter.filter(projectionClass);
         if (executionGuard != null) {
             long durationMillis = System.currentTimeMillis() - startMillis;
             QueryGuardOutcome post = executionGuard.checkPostExecution(result.size(), durationMillis);
@@ -895,25 +891,10 @@ public final class TypedQuery<T> {
         }
     }
 
-    private Sort resolveGlobalSort() {
-        if (sortOrders.isEmpty()) {
-            return Sort.ASC;
-        }
-        Sort first = sortOrders.get(0).sort();
-        for (TypedSortOrder order : sortOrders) {
-            if (order.sort() != first) {
-                throw new IllegalStateException(
-                        "Mixed ORDER BY directions are not supported. "
-                        + "All fields must be ASC or all DESC. "
-                        + "Split the query or keep one direction until engine-level mixed sorting is available.");
-            }
-        }
-        return first;
-    }
-
     private void applyOrderBy(QueryBuilder builder) {
+        int orderIndex = 1;
         for (TypedSortOrder order : sortOrders) {
-            builder.addOrder(order.fieldName());
+            builder.addOrder(order.fieldName(), orderIndex++, order.sort());
         }
     }
 

@@ -22,6 +22,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -163,6 +164,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         explain.put("selectedFields", new ArrayList<>(spec.getReturnFields()));
         explain.put("groupBy", new TreeMap<>(spec.getGroupFields()));
         explain.put("orderBy", new TreeMap<>(spec.getOrderFields()));
+        explain.put("orderSorts", new TreeMap<>(spec.getOrderSorts()));
         explain.put("distinct", new TreeMap<>(spec.getDistinctFields()));
         explain.put("indexes", new ArrayList<>(spec.getIndexedFields()));
         explain.put("whereRuleCount", spec.getFilterValues().size());
@@ -290,9 +292,19 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     @Override
     public FilterQueryBuilder addOrder(String column, int index) {
+        return addOrder(column, index, null);
+    }
+
+    @Override
+    public FilterQueryBuilder addOrder(String column, int index, Sort sort) {
         Map<Integer, String> orderFields = spec.getOrderFields();
         if (!orderFields.containsValue(column) || !orderFields.containsKey(index)) {
             orderFields.put(index, column);
+            if (sort == null) {
+                spec.getOrderSorts().remove(index);
+            } else {
+                spec.getOrderSorts().put(index, sort);
+            }
             markExecutionPlanShapeChanged();
         } else {
             if (orderFields.containsKey(index)) {
@@ -892,6 +904,10 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public Map<Integer, String> getOrderFields() {
         return spec.getOrderFields();
+    }
+
+    public Map<Integer, Sort> getOrderSorts() {
+        return spec.getOrderSorts();
     }
 
     public Map<Integer, String> getDistinctFields() {

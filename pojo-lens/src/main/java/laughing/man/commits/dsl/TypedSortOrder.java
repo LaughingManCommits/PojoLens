@@ -9,9 +9,8 @@ import java.util.Objects;
  * Each instance pairs a field with an explicit sort direction, mirroring
  * {@link TypedWindowOrder} for window ORDER BY.
  *
- * <p>Note: the underlying engine requires all ORDER BY fields to share the same
- * direction. {@link TypedQuery} validates this at execution time and throws
- * {@link IllegalStateException} when mixed directions are detected.
+ * <p>Each descriptor carries its own direction, so queries can mix ascending
+ * and descending fields.
  */
 public final class TypedSortOrder {
 

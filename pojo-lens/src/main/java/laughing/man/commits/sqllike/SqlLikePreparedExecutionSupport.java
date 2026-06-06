@@ -153,7 +153,7 @@ final class SqlLikePreparedExecutionSupport {
         return new PreparedExecution(
                 boundBuilder.snapshotForPreparedExecution(),
                 extractJoinSourceNames(normalizedAst),
-                SqlLikeBinder.resolveSort(normalizedAst),
+                SqlLikeBinder.resolveExecutionSort(normalizedAst),
                 normalizedAst.hasJoins(),
                 normalizedAst.select(),
                 normalizedAst,

@@ -164,7 +164,8 @@ public final class SqlLikeBinder {
 
         int orderIndex = 1;
         for (OrderAst order : normalizedAst.orders()) {
-            builder.addOrder(resolveOrderField(builder, order.field(), aggregateExpressionOutputs, hiddenOrderAliases), orderIndex++);
+            builder.addOrder(resolveOrderField(builder, order.field(), aggregateExpressionOutputs, hiddenOrderAliases),
+                    orderIndex++, order.sort());
         }
 
         if (normalizedAst.limit() != null) {
@@ -196,7 +197,20 @@ public final class SqlLikeBinder {
         for (OrderAst order : ast.orders()) {
             if (order.sort() != first) {
                 throw SqlLikeErrors.argument(SqlLikeErrorCodes.BIND_MIXED_ORDER_DIRECTIONS,
-                        "Mixed ORDER BY directions are not supported in v1; use all ASC or all DESC");
+                        "Mixed ORDER BY directions are not supported by sort(); inspect the AST/order list instead");
+            }
+        }
+        return first;
+    }
+
+    public static Sort resolveExecutionSort(QueryAst ast) {
+        if (ast.orders().isEmpty()) {
+            return null;
+        }
+        Sort first = ast.orders().get(0).sort();
+        for (OrderAst order : ast.orders()) {
+            if (order.sort() != first) {
+                return null;
             }
         }
         return first;
@@ -724,7 +738,7 @@ public final class SqlLikeBinder {
                                                       ComputedFieldRegistry computedFieldRegistry) {
         Class<?> sourceClass = inferSourceClass(sourceRows);
         QueryBuilder subqueryBuilder = bind(subquery, sourceRows, joinSources, sourceClass, computedFieldRegistry);
-        Sort subquerySort = resolveSort(subquery);
+        Sort subquerySort = resolveExecutionSort(subquery);
         List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(
                 subqueryBuilder,
                 subquerySort,

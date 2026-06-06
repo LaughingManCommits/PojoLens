@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.table.TabularSchema;
@@ -121,6 +122,8 @@ public interface QueryBuilder {
     QueryBuilder addOrder(String column, int index);
 
     <T, R> QueryBuilder addOrder(FieldSelector<T, R> selector, int index);
+
+    QueryBuilder addOrder(String column, int index, Sort sort);
 
     /**
      * Adds an ORDER BY field with an explicit date format.

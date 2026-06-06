@@ -379,19 +379,12 @@ public class TypedQueryContractTest {
     }
 
     @Test
-    void typedSortOrderVarargMultipleFieldsSameDirectionDoesNotThrow() {
+    void typedSortOrderVarargMultipleFieldsSortsByConfiguredDirections() {
         List<Employee> result = TypedQuery.from(Employee.class)
-                .orderBy(TypedSortOrder.asc(DEPT), TypedSortOrder.asc(NAME))
+                .orderBy(TypedSortOrder.asc(DEPT), TypedSortOrder.desc(SALARY))
                 .filter(sampleEmployees());
-        assertEquals(sampleEmployees().size(), result.size());
-    }
-
-    @Test
-    void typedSortOrderMixedDirectionsThrows() {
-        assertThrows(IllegalStateException.class, () ->
-                TypedQuery.from(Employee.class)
-                        .orderBy(TypedSortOrder.asc(DEPT), TypedSortOrder.desc(NAME))
-                        .filter(sampleEmployees()));
+        assertEquals(List.of("Cara", "Alice", "Dan", "Bob"),
+                result.stream().map(e -> e.name).toList());
     }
 
     @Test

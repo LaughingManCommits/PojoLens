@@ -14,17 +14,19 @@
 - `2026-05-19`: WP-12 and WP-16 are DONE; typed and natural queries expose `filterPage(...)`, and `PageResult` has `totalRows()`.
 - `2026-05-19`: WP-13 is DONE; `TimeBucket.HOUR` and `TimeBucketPreset.hour()` work across fluent, SQL-like, natural, and typed paths.
 - `2026-05-19`: Quick fixes are DONE for README JDK 25, typed mixed-sort error text, and stale repo-memory facade/time-bucket facts.
+- `2026-06-06`: WP-14 is DONE; fluent, typed, and SQL-like ORDER BY execution now preserves per-field direction.
 
 ## Facts
 - `2026-05-18`: Surviving `scripts/ai/` tools are repo-memory helpers: `refresh-ai-memory.*`, `query-ai-memory.*`, and `benchmark-ai-memory.*`.
 - `2026-05-18`: Doc-consistency scripts validate consumer install snippets against the latest `release-*` tag while local examples stay POM-backed.
 - `2026-05-18`: Feature audit found no P0 product blocker.
-- `2026-05-19`: Remaining product-surface backlog is WP-14 mixed-direction sorting, WP-15 typed report definitions, WP-17 typed diagnostics, WP-18 stream loader overloads, and WP-19 prefix/suffix matching.
+- `2026-06-06`: Remaining product-surface backlog is WP-15 typed report definitions, WP-17 typed diagnostics, WP-18 stream loader overloads, and WP-19 prefix/suffix matching.
 
 ## Validate
 - After Java/runtime behavior changes: `mvn -B -ntp test`.
 - After docs changes: `scripts/docs/check-doc-consistency.ps1`.
 - After AI memory edits: `scripts/ai/refresh-ai-memory.ps1`, then `scripts/ai/refresh-ai-memory.ps1 -Check`.
+- `2026-06-06`: WP-14 validation passed with full reactor `mvn -B -ntp test`, doc consistency, and AI memory refresh/check.
 
 ## Cold Pointers
 - `feature-audit.md`, `TODO.md`, `CHANGELOG.md`

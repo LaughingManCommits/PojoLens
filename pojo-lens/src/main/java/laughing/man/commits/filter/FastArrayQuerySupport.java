@@ -702,11 +702,14 @@ final class FastArrayQuerySupport {
                                             Sort sortMethod,
                                             FilterExecutionPlan plan,
                                             Integer limit) {
-        if (sortMethod == null || rows == null || rows.isEmpty()) {
+        if (rows == null || rows.isEmpty()) {
             return rows;
         }
         List<FilterExecutionPlan.OrderColumn> columns = plan.getOrderColumns();
         if (columns.isEmpty()) {
+            return rows;
+        }
+        if (sortMethod == null && !hasColumnSorts(columns)) {
             return rows;
         }
         int topKLimit = normalizedTopKLimit(limit, rows.size());
@@ -730,6 +733,15 @@ final class FastArrayQuerySupport {
                 && rowCount >= TOP_K_MIN_INPUT_ROWS
                 && limit <= TOP_K_MAX_LIMIT
                 && limit * TOP_K_ROW_RATIO <= rowCount;
+    }
+
+    private static boolean hasColumnSorts(List<FilterExecutionPlan.OrderColumn> columns) {
+        for (FilterExecutionPlan.OrderColumn column : columns) {
+            if (column.sort() != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static List<Object[]> topKOrderedRows(List<Object[]> rows,
@@ -846,7 +858,8 @@ final class FastArrayQuerySupport {
             Object rightValue = column.fieldIndex() < right.length ? right[column.fieldIndex()] : null;
             int compared = compareValues(leftValue, rightValue, column.dateFormat());
             if (compared != 0) {
-                return Sort.DESC.equals(sortMethod) ? -compared : compared;
+                Sort columnSort = column.sort() == null ? sortMethod : column.sort();
+                return Sort.DESC.equals(columnSort) ? -compared : compared;
             }
         }
         return 0;

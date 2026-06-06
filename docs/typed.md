@@ -262,16 +262,15 @@ List<Employee> rows = TypedQuery.from(Employee.class)
     .orderBy(TypedSortOrder.desc(EmployeeTypedFields.SALARY))
     .filter(employees);
 
-// multiple fields, same direction
+// multiple fields, mixed directions
 List<Employee> rows2 = TypedQuery.from(Employee.class)
     .orderBy(TypedSortOrder.asc(EmployeeTypedFields.DEPARTMENT),
-             TypedSortOrder.asc(EmployeeTypedFields.NAME))
+             TypedSortOrder.desc(EmployeeTypedFields.SALARY))
     .filter(employees);
 ```
 
-The underlying engine requires all ORDER BY fields to share the same direction.
-Mixing `asc` and `desc` in a single `orderBy(TypedSortOrder...)` call throws
-`IllegalStateException` at execution time.
+Each `TypedSortOrder` keeps its own direction, so common sort keys such as
+`department ASC, salary DESC` execute in one query.
 
 ## Time Buckets
 
@@ -490,7 +489,7 @@ the source row type.
 ## Current Boundaries
 
 - `TypedQuery` is the right path for Java-owned query logic, not user-authored text.
-- `orderBy(TypedSortOrder...)` requires all fields to share the same direction; mixed directions throw `IllegalStateException`.
+- `orderBy(TypedSortOrder...)` supports per-field direction.
 - `having(...)` only accepts grouped fields and metric aliases.
 - `qualify(...)` only accepts selected window aliases.
 - `NOT(CONTAINS)`, `NOT(CONTAINS_IGNORE_CASE)`, and `NOT(MATCHES)` are not supported; use SQL-like or application-code filtering instead.

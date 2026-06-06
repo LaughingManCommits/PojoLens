@@ -24,13 +24,16 @@ final class OrderEngine {
                                  Sort sortMethod,
                                  FilterExecutionPlan plan,
                                  Integer limit) {
-        if (sortMethod == null || rows == null || rows.isEmpty()) {
+        if (rows == null || rows.isEmpty()) {
             return rows;
         }
 
         List<FilterExecutionPlan.OrderColumn> columns = plan.getOrderColumns();
         if (columns.isEmpty()) {
             return new ArrayList<>(rows);
+        }
+        if (sortMethod == null && !hasColumnSorts(columns)) {
+            return rows;
         }
         int topKLimit = normalizedTopKLimit(limit, rows.size());
         if (shouldUseTopK(topKLimit, rows.size())) {
@@ -54,6 +57,15 @@ final class OrderEngine {
                 && rowCount >= TOP_K_MIN_INPUT_ROWS
                 && limit <= TOP_K_MAX_LIMIT
                 && limit * TOP_K_ROW_RATIO <= rowCount;
+    }
+
+    private boolean hasColumnSorts(List<FilterExecutionPlan.OrderColumn> columns) {
+        for (FilterExecutionPlan.OrderColumn column : columns) {
+            if (column.sort() != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<QueryRow> topKOrderedRows(List<QueryRow> rows,
@@ -171,7 +183,8 @@ final class OrderEngine {
             Object rightValue = right.getValueAt(column.fieldIndex());
             int cmp = compareValues(leftValue, rightValue, column.dateFormat());
             if (cmp != 0) {
-                return Sort.DESC.equals(sortMethod) ? -cmp : cmp;
+                Sort columnSort = column.sort() == null ? sortMethod : column.sort();
+                return Sort.DESC.equals(columnSort) ? -cmp : cmp;
             }
         }
         return 0;

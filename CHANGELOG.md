@@ -11,6 +11,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Engine-level mixed-direction sort (WP-14)** - ORDER BY execution now
+  preserves per-field direction through the fluent engine, typed lowering, and
+  SQL-like binding. Queries such as `department ASC, salary DESC` now execute in
+  one pass instead of failing at bind/execution time.
+
 - **Typed and natural pagination parity (WP-12/WP-16)** - `TypedQuery` now exposes
   `filterPage(...)` overloads for lists, dataset bundles, join bindings, and
   projection output. Typed pages run an unpaged count pass, execute the configured
@@ -85,9 +90,8 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   direction) pairs replace the global-direction model. `TypedQuery.orderBy(TypedSortOrder...)`
   accepts one or more `TypedSortOrder.asc(field)` / `TypedSortOrder.desc(field)`
   descriptors. The existing `orderBy(field)` and `orderByDesc(field)` overloads
-  are preserved for single-field backward compatibility. Mixed directions throw
-  `IllegalStateException` at execution time, consistent with the SQL-like
-  surface.
+  are preserved for single-field backward compatibility. Engine-level mixed
+  direction execution is completed by WP-14.
 
 - **TypedQuery CONTAINS / MATCHES (WP-2)** — `TypedField.contains(String)` and
   `TypedField.matches(String)` plus the corresponding `TypedPredicate.contains`

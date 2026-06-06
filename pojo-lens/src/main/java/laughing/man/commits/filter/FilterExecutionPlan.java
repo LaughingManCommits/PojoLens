@@ -6,6 +6,7 @@ import laughing.man.commits.internal.builder.QueryTimeBucket;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.SchemaIndexUtil;
@@ -198,7 +199,7 @@ public final class FilterExecutionPlan {
                 continue;
             }
             String dateFormat = builder.getFilterDateFormats().getOrDefault(Integer.toString(entry.getKey()), SDF);
-            columns.add(new OrderColumn(fieldIndex, dateFormat));
+            columns.add(new OrderColumn(fieldIndex, dateFormat, builder.getOrderSorts().get(entry.getKey())));
         }
         return columns;
     }
@@ -247,7 +248,7 @@ public final class FilterExecutionPlan {
         return Collections.unmodifiableMap(frozen);
     }
 
-    static record OrderColumn(int fieldIndex, String dateFormat) {
+    static record OrderColumn(int fieldIndex, String dateFormat, Sort sort) {
     }
 
     static record GroupColumn(String fieldName, int fieldIndex, String dateFormat, TimeBucketPreset timeBucket) {
