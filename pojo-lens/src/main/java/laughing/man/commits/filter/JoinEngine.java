@@ -6,7 +6,6 @@ import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.util.CollectionUtil;
-import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.QueryFieldLookupUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
@@ -36,59 +35,63 @@ final class JoinEngine {
             for (int joinID : orderKeys) {
                 List<QueryRow> joinChildClasses = joinClasses.get(joinID);
                 Join joinMethod = builder.getJoinMethods().get(joinID);
-                if (joinChildClasses == null || joinChildClasses.isEmpty()) {
-                    continue;
-                }
-
-                String joinChildFieldName = null;
-                String joinParentField = null;
-                List<QueryRow> parentLoop = List.of();
-                List<QueryRow> childLoop = List.of();
-                if (Join.INNER_JOIN.equals(joinMethod) || Join.LEFT_JOIN.equals(joinMethod)) {
-                    parentLoop = rows;
-                    childLoop = joinChildClasses;
-                    joinChildFieldName = builder.getJoinChildFields().get(joinID);
-                    joinParentField = builder.getJoinParentFields().get(joinID);
-                } else if (Join.RIGHT_JOIN.equals(joinMethod)) {
-                    joinChildFieldName = builder.getJoinParentFields().get(joinID);
-                    joinParentField = builder.getJoinChildFields().get(joinID);
-                    parentLoop = joinChildClasses;
-                    childLoop = rows;
-                }
-
-                if (parentLoop.isEmpty() || childLoop.isEmpty()) {
-                    continue;
-                }
-
-                int parentFieldIndex = QueryFieldLookupUtil.findFieldIndex(parentLoop.get(0).getFields(), joinParentField);
-                int childFieldIndex = QueryFieldLookupUtil.findFieldIndex(childLoop.get(0).getFields(), joinChildFieldName);
-                if (parentFieldIndex < 0 || childFieldIndex < 0) {
-                    continue;
-                }
-
-                Map<String, List<QueryRow>> childIndex = buildFieldIndex(childLoop, childFieldIndex);
-                MergePlan mergePlan = buildMergePlan(parentLoop.get(0).getFields(), childLoop.get(0).getFields());
-                List<QueryRow> joinedRows = new ArrayList<>(parentLoop.size());
-
-                for (QueryRow parentClass : parentLoop) {
-                    if (parentClass == null || parentClass.getFieldCount() <= parentFieldIndex) {
-                        continue;
+                if (joinChildClasses == null || joinChildClasses.isEmpty() || rows.isEmpty()) {
+                    if (Join.INNER_JOIN.equals(joinMethod)) {
+                        // Nothing can match: an inner join over an empty side yields no rows.
+                        rows = new ArrayList<>();
                     }
-                    String parentValue = ObjectUtil.castToString(parentClass.getValueAt(parentFieldIndex));
-                    List<QueryRow> matchingChildren = childIndex.get(parentValue);
-                    if (matchingChildren != null && !matchingChildren.isEmpty()) {
-                        for (QueryRow childClass : matchingChildren) {
-                            joinedRows.add(buildJoinedRow(parentClass, childClass, mergePlan, false));
-                        }
-                    } else if (!Join.INNER_JOIN.equals(joinMethod)) {
-                        joinedRows.add(buildJoinedRow(parentClass, null, mergePlan, true));
-                    }
+                    continue;
+                }
+
+                String rootField = builder.getJoinParentFields().get(joinID);
+                String joinedField = builder.getJoinChildFields().get(joinID);
+                int rootFieldIndex = QueryFieldLookupUtil.findFieldIndex(rows.get(0).getFields(), rootField);
+                int joinedFieldIndex = QueryFieldLookupUtil.findFieldIndex(joinChildClasses.get(0).getFields(), joinedField);
+                if (rootFieldIndex < 0 || joinedFieldIndex < 0) {
+                    continue;
+                }
+
+                List<QueryRow> joinedRows;
+                if (Join.RIGHT_JOIN.equals(joinMethod)) {
+                    // RIGHT JOIN drives from the joined rows: their columns come first and keep
+                    // their names; colliding existing columns take the child_ prefix.
+                    MergePlan mergePlan = buildMergePlan(joinChildClasses.get(0).getFields(), rows.get(0).getFields());
+                    joinedRows = leftOrInnerJoin(joinChildClasses, joinedFieldIndex, rows, rootFieldIndex, mergePlan, false);
+                } else {
+                    MergePlan mergePlan = buildMergePlan(rows.get(0).getFields(), joinChildClasses.get(0).getFields());
+                    joinedRows = leftOrInnerJoin(rows, rootFieldIndex, joinChildClasses, joinedFieldIndex, mergePlan,
+                            Join.INNER_JOIN.equals(joinMethod));
                 }
 
                 rows = joinedRows;
             }
         }
         return rows;
+    }
+
+    private List<QueryRow> leftOrInnerJoin(List<QueryRow> drivingRows,
+                                           int drivingFieldIndex,
+                                           List<QueryRow> joinRows,
+                                           int joinedFieldIndex,
+                                           MergePlan mergePlan,
+                                           boolean inner) {
+        Map<Object, List<QueryRow>> joinIndex = buildFieldIndex(joinRows, joinedFieldIndex);
+        List<QueryRow> joinedRows = new ArrayList<>(drivingRows.size());
+        for (QueryRow drivingRow : drivingRows) {
+            if (drivingRow == null || drivingRow.getFieldCount() <= drivingFieldIndex) {
+                continue;
+            }
+            Object key = JoinKeys.normalize(drivingRow.getValueAt(drivingFieldIndex));
+            List<QueryRow> matches = key == null ? null : joinIndex.get(key);
+            if (matches != null && !matches.isEmpty()) {
+                for (QueryRow match : matches) {
+                    joinedRows.add(buildJoinedRow(drivingRow, match, mergePlan, false));
+                }
+            } else if (!inner) {
+                joinedRows.add(buildJoinedRow(drivingRow, null, mergePlan, true));
+            }
+        }
+        return joinedRows;
     }
 
     private <T> List<QueryRow> toRows(List<T> bean) {
@@ -135,13 +138,16 @@ final class JoinEngine {
         return row;
     }
 
-    private Map<String, List<QueryRow>> buildFieldIndex(List<QueryRow> classes, int fieldIndex) {
-        Map<String, List<QueryRow>> index = new HashMap<>(CollectionUtil.expectedMapCapacity(classes.size()));
+    private Map<Object, List<QueryRow>> buildFieldIndex(List<QueryRow> classes, int fieldIndex) {
+        Map<Object, List<QueryRow>> index = new HashMap<>(CollectionUtil.expectedMapCapacity(classes.size()));
         for (QueryRow row : classes) {
             if (row == null) {
                 continue;
             }
-            String key = ObjectUtil.castToString(row.getValueAt(fieldIndex));
+            Object key = JoinKeys.normalize(row.getValueAt(fieldIndex));
+            if (key == null) {
+                continue;
+            }
             index.computeIfAbsent(key, ignored -> new ArrayList<>()).add(row);
         }
         return index;

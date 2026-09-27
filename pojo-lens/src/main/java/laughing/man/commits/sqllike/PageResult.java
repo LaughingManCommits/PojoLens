@@ -45,7 +45,11 @@ public final class PageResult<T> {
     private final SqlLikeCursor nextCursor;
 
     PageResult(List<T> rows, boolean hasMore, SqlLikeCursor nextCursor) {
-        this(rows, rows == null ? 0L : rows.size(), hasMore, nextCursor);
+        this(rows, sizeOf(rows), hasMore, nextCursor);
+    }
+
+    private static long sizeOf(List<?> rows) {
+        return Objects.requireNonNull(rows, "rows must not be null").size();
     }
 
     PageResult(List<T> rows, long totalRows, boolean hasMore, SqlLikeCursor nextCursor) {

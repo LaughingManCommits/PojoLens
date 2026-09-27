@@ -1,10 +1,14 @@
 package laughing.man.commits.report;
 
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.internal.NumericStatistics;
+import laughing.man.commits.util.GroupKeyUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Factory for {@link PeriodComparison} values.
@@ -29,8 +33,9 @@ public final class ReportComparisons {
      * Applies {@code metric} over {@code field} on both row lists and returns
      * the resulting {@link PeriodComparison}.
      *
-     * <p>Supported metrics: {@code COUNT}, {@code SUM}, {@code AVG},
-     * {@code MIN}, {@code MAX}.
+     * <p>Supported metrics: {@code COUNT}, {@code COUNT_DISTINCT} (distinct non-null
+     * values of {@code field}), {@code SUM}, {@code AVG}, {@code MIN}, {@code MAX},
+     * {@code MEDIAN}, {@code STDDEV}, {@code STDDEV_POP}, {@code VARIANCE}, {@code VAR_POP}.
      */
     public static <T> PeriodComparison compare(List<T> currentRows,
                                                List<T> previousRows,
@@ -59,6 +64,12 @@ public final class ReportComparisons {
         if (metric == Metric.COUNT) {
             return rows.size();
         }
+        if (metric == Metric.COUNT_DISTINCT) {
+            return distinctCount(rows, field);
+        }
+        if (NumericStatistics.isStatistical(metric)) {
+            return statistic(rows, field, metric);
+        }
         double accumulator = metric == Metric.MIN ? Double.MAX_VALUE
                 : metric == Metric.MAX ? -Double.MAX_VALUE : 0d;
         int count = 0;
@@ -84,15 +95,49 @@ public final class ReportComparisons {
         return accumulator;
     }
 
-    private static <T> double numericFieldValue(T row, String field) {
-        Object raw;
+    /**
+     * MEDIAN, STDDEV, STDDEV_POP, VARIANCE, VAR_POP over non-null values; 0 without a
+     * result (no values, or sample statistics over one value).
+     */
+    private static <T> double statistic(List<T> rows, String field, Metric metric) {
+        if (metric.requiresArgument()) {
+            throw new IllegalArgumentException(
+                    "ReportComparisons does not support PERCENTILE; compare percentiles computed by a query");
+        }
+        NumericStatistics statistics = NumericStatistics.of(metric, null);
+        for (T row : rows) {
+            Object raw = row == null ? null : fieldValue(row, field);
+            if (raw != null) {
+                statistics.add(numericFieldValue(row, field));
+            }
+        }
+        Double result = statistics.result();
+        return result == null ? 0d : result;
+    }
+
+    private static <T> double distinctCount(List<T> rows, String field) {
+        Set<Object> keys = new HashSet<>();
+        for (T row : rows) {
+            Object raw = row == null ? null : fieldValue(row, field);
+            if (raw != null) {
+                keys.add(GroupKeyUtil.groupKey(raw, null));
+            }
+        }
+        return keys.size();
+    }
+
+    private static <T> Object fieldValue(T row, String field) {
         try {
-            raw = ReflectionUtil.getFieldValue(row, field);
+            return ReflectionUtil.getFieldValue(row, field);
         } catch (Exception ex) {
             throw new IllegalArgumentException(
                     "ReportComparisons: cannot read field '" + field + "' from "
                             + row.getClass().getSimpleName(), ex);
         }
+    }
+
+    private static <T> double numericFieldValue(T row, String field) {
+        Object raw = fieldValue(row, field);
         return switch (raw) {
             case null -> 0d;
             case Number number -> number.doubleValue();

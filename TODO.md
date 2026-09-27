@@ -2,13 +2,15 @@
 
 ## Current Goal
 
-Expand typed-surface completeness and cross-surface parity identified in the
-2026-05-18 wild-comparison audit and the source-backed feature audit
-(`feature-audit.md`). Keep PojoLens focused on the Java library, benchmarks,
+Close the everyday-filtering gaps on the primary SQL-like surface (and its natural
+counterpart) identified in the 2026-09-27 docs-based feature audit
+(`feature-audit.md`), then broaden output and aggregation coverage. New capability
+lands in the shared engine first, then SQL-like, then natural where the controlled
+grammar can express it. Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
-Next priority: choose between WP-18 file loader stream overloads, and WP-19
-prefix/suffix matching.
+Next priority: WP-31 (`LAG`/`LEAD`, windows on grouped queries); WP-29 needs a design note first. WP-7 to WP-30 are unreleased;
+a release cut (`RELEASE.md`) can happen before or after the P1 filtering packages.
 
 ### Quick fixes (no WP needed)
 
@@ -245,7 +247,7 @@ policy, or projection issues.
 
 ---
 
-### WP-18 — File loader `Reader`/`InputStream` overloads  [P3]
+### ~~WP-18 — File loader `Reader`/`InputStream` overloads~~ ✓ DONE 2026-09-27
 
 **Problem:** `PojoLensFiles` accepts only `Path`. This is inconvenient for
 classpath resources, in-memory uploads, object-store streams, and tests that
@@ -262,7 +264,7 @@ already hold a `Reader` or `InputStream`.
 
 ---
 
-### WP-19 — `startsWith` / `endsWith` on typed and SQL-like  [P4]
+### ~~WP-19 — `startsWith` / `endsWith` on typed and SQL-like~~ ✓ DONE 2026-09-27
 
 **Problem:** Natural maps starts-with/ends-with phrases to `MATCHES` regex
 under the hood. Typed and SQL-like expose only `contains()`/`matches()`.
@@ -278,6 +280,272 @@ Callers who want prefix/suffix matching must write regex patterns by hand.
   function syntax or just document the `MATCHES` recipe
 - Add contract tests and natural parity coverage
 - Update `docs/typed.md`
+
+---
+
+### ~~WP-20 — Literal-pattern correctness fixes~~ ✓ DONE 2026-09-27
+
+**Problem:** Natural `starts with :param` / `ends with :param` bound the value
+as a raw full-match regex (acted like equality). Typed `containsIgnoreCase`
+missed matches across line breaks and did not fold non-ASCII case.
+
+**Done:** internal `LiteralMatchPattern` owns all literal-to-regex lowering;
+natural pattern parameters bind through `PatternParameterValue` and lower at
+execution; `containsIgnoreCase` uses `(?siu)`.
+
+---
+
+### ~~WP-21 — `TypedQuery.iterator(...)`~~ ✓ DONE 2026-09-27
+
+**Problem:** Last typed execution-parity gap from the feature audit; SQL-like
+exposes `iterator(...)`, typed did not.
+
+**Done:** four overloads mirroring `stream(...)`.
+
+---
+
+### ~~WP-22 — Core engine correctness pass~~ ✓ DONE 2026-09-27
+
+**Problem:** A reproduced bug hunt across comparison, ordering, aggregation,
+grouping, paging, joins, and projection found ~25 silent wrong-result defects.
+
+**Done:** see `CHANGELOG.md` `[Unreleased]` Fixed/Changed (WP-22). Regression
+coverage in `CoreComparisonSemanticsTest` and `CoreEngineRegressionTest`.
+
+---
+
+### ~~WP-23 — Core follow-ups deferred from WP-22~~ ✓ DONE 2026-09-27
+
+Reproduced but deferred because each needs a design decision or a larger change:
+
+- **Date precision:** comparisons normalize to the configured format (whole
+  seconds by default), so sub-second instants compare equal and keyset paging on
+  a `Date`/`Instant` ORDER BY field without a tie-breaker skips rows. Decide
+  whether the default should compare temporal values exactly.
+- **Keyset over aggregates/aliases:** the cursor is lowered into the
+  pre-aggregation WHERE, so `ORDER BY` an aggregate alias fails on page 2, rows
+  with null sort values vanish after page 1, and `java.time`/enum cursor values
+  cannot be tokenized (EQ-SQL-CUR-004).
+- **Typed field validation:** `TypedField.of("typo")` silently matches nothing;
+  SQL-like reports EQ-SQL-VAL-001. Needs join/computed/alias-aware validation.
+- **Records and `final` fields:** not part of the query schema; projection
+  would need canonical-constructor support.
+- **Smaller:** SQL `count(field)` is rejected with a fluent-API message; the
+  internal fluent `filterGroups` external key joins parts with an unescaped
+  `,`; a natural field named `a`/`an`/`the` is stripped as a filler word; the
+  HOUR bucket label is ambiguous in a DST fall-back hour.
+
+**Done:** hybrid date precision (values exact, literals at written precision;
+user decision); keyset cursor lands in WHERE/HAVING/QUALIFY with null-aware
+predicates and null/`java.time`/enum/UUID tokens; typed field validation (skipped
+for joins); records as sources/targets (final fields in regular classes stay out,
+documented); `COUNT(field)`; group-key escaping; filler-word fix; HOUR DST
+behavior documented. Coverage in `CoreFollowUpTest`.
+
+---
+
+### ~~WP-24 — Literal `IN` / `NOT IN` lists~~ ✓ DONE 2026-09-27
+
+**Problem:** SQL-like `IN` requires a subquery (`IN currently requires a subquery
+starting with SELECT`), and natural `is in` only accepts `is in query ... end query`.
+`where department in ('Engineering', 'Finance')` is one of the most common filters
+and only works today through a bound list parameter. Typed already has `in(...)`.
+
+**Work:**
+- SQL-like: parse `field IN (literal, literal, ...)` and `field NOT IN (...)`; keep
+  `IN (select ...)` and `IN :listParam` working
+- Lower to the existing engine `IN` / list `!=` semantics (null elements never
+  match, per WP-22)
+- Natural: `is one of A, B, C` and `is not one of ...` (decide separator rules for
+  multi-word values and quoting)
+- Plan preview, explain, diagnostics, and lint handle literal lists
+- Tests across SQL-like, natural, and typed parity; update `docs/sql-like.md`,
+  `docs/natural.md`
+
+---
+
+### ~~WP-25 — `IS [NOT] NULL`, `BETWEEN`, and general `NOT`~~ ✓ DONE 2026-09-27
+
+**Problem:** SQL-like only offers `= null` / `!= null`, has `BETWEEN` for window
+frames but not in `WHERE`, and only supports `NOT` before `EXISTS`. Natural has no
+null or range phrase. Typed has `isNull()`, `between(...)`, and `not()`.
+
+**Work:**
+- SQL-like: `field IS NULL`, `field IS NOT NULL`, `field [NOT] BETWEEN a AND b`
+  (inclusive, like typed), and `NOT (<predicate or group>)` in `WHERE`/`HAVING`
+- Lower `NOT` with the typed DeMorgan rules; negations the engine cannot express
+  yet (text matching) wait for WP-26 and fail with an actionable message until then
+- Natural: `is empty` / `is not empty` (or `is missing`), `is between X and Y`,
+  and a negation form for grouped conditions
+- Tests and docs as in WP-24
+
+**Done:** SQL-like `IS [NOT] NULL`, `[NOT] BETWEEN` (lowered to `>=`/`<=`), `NOT`
+before a predicate or group in `WHERE`/`HAVING`/`QUALIFY`, rewritten by the shared
+`FilterExpressionNegation` (typed `not()` rules). Natural `is [not] between`,
+parenthesized groups, and `not (...)`; the existing `is null` / `is not null`
+phrases cover the null case (no `is empty` alias: it would read as empty text).
+Negating `CONTAINS`/`MATCHES`/prefix/suffix or an `IN` subquery fails at parse time
+until WP-26. Plan preview reports null tests as `IS [NOT] NULL` (pushdown
+fallback). Coverage in `NullRangeNegationFilterTest`.
+
+---
+
+### ~~WP-26 — Negated text matching in the engine~~ ✓ DONE 2026-09-27
+
+**Problem:** The engine has no negated `CONTAINS` / `MATCHES`, so typed
+`NOT(CONTAINS | CONTAINS_IGNORE_CASE | MATCHES | STARTS_WITH | ENDS_WITH)` throws,
+SQL-like has no `NOT CONTAINS`, and natural has no `does not contain`.
+
+**Work:**
+- Add negated text-match support to the shared engine (new `Clauses` constants or a
+  negation flag on rules; `Clauses` is a public enum, so review compatibility and
+  document that constants may grow)
+- Null fields keep WP-22 semantics (a null field never matches a comparison)
+- Typed: make the five `NOT(...)` text cases lower instead of throwing
+- SQL-like `NOT CONTAINS` / `NOT MATCHES`; natural `does not contain`,
+  `does not start with`, `does not end with`
+- Remove the "not supported" notes from `docs/typed.md`
+
+**Done:** new `Clauses.NOT_CONTAINS` / `NOT_MATCHES` (appended; ordinals unchanged;
+`Clauses` Javadoc and `public-api-stability.md` say constants may grow), evaluated in
+`ObjectUtil.compareObject` as the complement over non-null text (lists: none match;
+invalid regex never matches). SQL-like `NOT CONTAINS` / `NOT MATCHES`; `NOT (...)`
+over text now lowers. Natural `does not contain / start with / end with`. Typed
+`not()` keeps `NOT(text leaf)` and lowers it to the negated clause, so no new
+`TypedPredicate.Operator` constants. Coverage in `NegatedTextMatchTest`.
+
+---
+
+### ~~WP-27 — `LIKE` / `ILIKE`~~ ✓ DONE 2026-09-27
+
+**Problem:** SQL users expect `LIKE 'Al%'`. Today prefix/suffix/contains in SQL-like
+need the documented `MATCHES` regex recipe, and SQL-like/natural have no
+case-insensitive text matching at all (typed has `containsIgnoreCase`).
+
+**Work:**
+- SQL-like `field [NOT] LIKE 'pattern'` and `ILIKE` (case-insensitive), `%` and `_`
+  wildcards, optional `ESCAPE` character
+- Lower through `internal.LiteralMatchPattern` to `MATCHES` (quote literal runs,
+  `(?s)`, Unicode case folding for `ILIKE`); `NOT LIKE` uses WP-26
+- Natural: consider `contains ... ignoring case` for the case-insensitive gap
+- Replace the `MATCHES` recipe in `docs/sql-like.md` with `LIKE` examples
+- Reserved-word review: `LIKE` / `ILIKE` / `ESCAPE` as new keywords
+
+**Done:** `internal.LikePattern` (record implementing the new `internal.TextPattern`,
+also implemented by `LiteralMatchPattern`) lowers `%`/`_`/escape to a quoted `(?s)` or
+`(?siu)` regex; `[NOT] LIKE|ILIKE` lowers to `MATCHES`/`NOT_MATCHES`, and `:param`
+patterns lower at bind time through `PatternParameterValue`. Reserved-word review:
+`LIKE`/`ILIKE`/`ESCAPE` stay contextual identifiers (recognized only before a
+pattern/parameter/`NULL`, or a string after a pattern), so no field names break.
+Default escape is backslash (PostgreSQL/MySQL); `ESCAPE ''` disables. Natural
+`... ignoring case` on contains/starts with/ends with and `does not` forms (new
+`STARTS_WITH_IGNORE_CASE`/`ENDS_WITH_IGNORE_CASE`); other phrases reject it. Plan
+preview reports `MATCHES`/`NOT MATCHES`. Coverage in `LikeFilterTest`.
+
+---
+
+### ~~WP-28 — `SELECT DISTINCT` and `COUNT(DISTINCT field)`~~ ✓ DONE 2026-09-27
+
+**Problem:** The engine can de-duplicate rows (internal `addDistinct`, value-based
+keys since WP-22), but SQL-like, natural, and typed cannot request it, and there is
+no distinct-count aggregate.
+
+**Work:**
+- SQL-like `SELECT DISTINCT ...`; typed `distinct()`; natural phrase (`show distinct`)
+- `COUNT(DISTINCT field)` metric in the shared aggregation (grouped, global, and fast
+  stats paths) with SQL-like/typed/natural exposure
+- Decide DISTINCT interaction with ORDER BY, LIMIT, and keyset paging
+
+**Done:** engine `QueryBuilder.distinctRows()` (the old `addDistinct` stays a
+pre-filter DISTINCT ON by key fields) dedups projected rows with `GROUP BY` key
+semantics after ORDER BY and before OFFSET/LIMIT (fast array/stats/stream paths opt
+out; no top-N sort window). Decisions: ORDER BY must use selected outputs (SQL rule,
+`EQ-SQL-VAL-012`); DISTINCT + GROUP BY requires all group fields selected (then a
+no-op); `filterPage` totals and keyset cursors work on distinct rows. SQL-like
+`SELECT DISTINCT` (contextual word), typed `distinct()`, natural `show distinct`.
+`Metric.COUNT_DISTINCT` in grouped, global, and fast stats paths plus
+`ReportComparisons`; SQL-like `count(distinct x)` in SELECT/HAVING/ORDER BY (canonical
+text via `AggregateExpressionSupport.canonical`), typed `countDistinct`, natural
+`count of distinct`; rejected in windows and inside other aggregates. Coverage in
+`DistinctQueryTest`.
+
+---
+
+### WP-29 — Text and date functions  [P2]
+
+**Problem:** Computed fields and select expressions are numeric only
+(`SqlExpressionEvaluator`), so there is no `LOWER`/`UPPER`/`TRIM`/`COALESCE` and no
+date-part extraction (`year(hireDate)`), which blocks case-normalized comparisons
+and date-part grouping outside time buckets.
+
+**Work:**
+- Design typed (non-numeric) expressions: string functions, `COALESCE`, date parts
+- Allow them in `SELECT`, `WHERE`, `GROUP BY`, `ORDER BY`, and computed-field
+  registries; keep null propagation (WP-22)
+- Largest item on the list: start with a design note before implementation
+
+---
+
+### ~~WP-30 — Statistical aggregates~~ ✓ DONE 2026-09-27
+
+**Problem:** Metrics are limited to COUNT/SUM/AVG/MIN/MAX.
+
+**Work:**
+- `MEDIAN`, `PERCENTILE(field, p)`, `STDDEV` / `VARIANCE` (population vs sample
+  decision) through `filter/NumericAccumulator` and the fast-stats path
+- SQL-like, typed `metric(...)`, and natural phrases; window variants only if cheap
+
+**Done:** `Metric` gains `MEDIAN`, `PERCENTILE`, `STDDEV`, `STDDEV_POP`, `VARIANCE`,
+`VAR_POP`, computed by `internal.NumericStatistics` (double values, Welford variance,
+sorted-copy percentiles) in grouped, global, and fast-stats paths plus
+`ReportComparisons`. Decisions: `STDDEV`/`VARIANCE` are sample (PostgreSQL; `null` for
+one value), `_POP` divide by `n`, `*_SAMP` are SQL-like aliases; `PERCENTILE` =
+`percentile_cont` with a 0-1 fraction carried as a metric argument (`QueryMetric`,
+`MetricPlan`, `SelectFieldAst.metricArgument`, plan-cache shape; canonical text
+`percentile(x, 0.9)`); results are `Double`. Window variants skipped (not cheap:
+windows use a separate accumulator); rejected at parse time. Function names are
+contextual, not reserved. Coverage in `StatisticalAggregateTest`.
+
+---
+
+### WP-31 — Window gaps: `LAG`/`LEAD` and windows on grouped queries  [P2]
+
+**Problem:** Window functions are rank and aggregate windows only, and cannot be
+combined with `GROUP BY`/metrics in the same query.
+
+**Work:**
+- `LAG(field[, offset[, default]])` / `LEAD(...)` over the existing partition/order
+  machinery
+- Allow windows over grouped rows (window stage after aggregation); `QUALIFY` for
+  grouped queries
+- Reconsider `RANGE` frames only if a concrete use case appears
+
+---
+
+### WP-32 — Typed field validation for joined queries  [P3]
+
+**Problem:** WP-23 typed field-name validation skips queries with joins because
+joined field names come from the bindings at execution time, so typos in joined
+typed queries still match nothing silently.
+
+**Work:**
+- Validate at execution once join bindings are known (reuse SQL-like join
+  resolution naming), or validate against declared join source classes
+- `diagnostics()` reports the same error when join source classes are available
+
+---
+
+### WP-33 — Lazy typed `stream()`  [P3]
+
+**Problem:** `TypedQuery.stream(...)` and `iterator(...)` materialise the full result
+before streaming (`docs/typed.md` laziness caveat), so early-exit consumers pay for
+full execution.
+
+**Work:**
+- Reuse the SQL-like/fluent streaming path (`StreamingExecutionJmhBenchmark`) for
+  simple typed shapes (filter, order with limit, projection); keep materialising
+  for grouped/window shapes
+- Benchmark with the streaming suite; update the laziness caveat
 
 ---
 
@@ -310,3 +578,15 @@ Callers who want prefix/suffix matching must write regex patterns by hand.
 - [x] `2026-05-19`: WP-13 — `TimeBucket.HOUR` across fluent, SQL-like, natural, and typed paths.
 - [x] `2026-05-19`: WP-16 — `NaturalQuery.filterPage(...)` delegates to SQL-like page helper.
 - [x] `2026-06-06`: WP-14 — mixed-direction ORDER BY executes through fluent, typed, and SQL-like paths.
+- [x] `2026-09-27`: WP-18 — `Reader`/`InputStream` overloads on `PojoLensFiles` and `runtime.files()`; reports gain `sourceName()`.
+- [x] `2026-09-27`: WP-19 — typed `startsWith`/`endsWith` via shared `(?s)` MATCHES pattern owner; natural multi-line fix; SQL-like recipe documented.
+- [x] `2026-09-27`: WP-20 — natural prefix/suffix parameters bind as literals; `containsIgnoreCase` multi-line + Unicode fix.
+- [x] `2026-09-27`: WP-21 — `TypedQuery.iterator(...)` overloads.
+- [x] `2026-09-27`: WP-22 — core engine correctness pass (comparison, precision, grouping, paging, joins, projection); 1299 runtime tests.
+- [x] `2026-09-27`: WP-24 — literal `IN`/`NOT IN` lists and list parameters on SQL-like; natural `is [not] one of`.
+- [x] `2026-09-27`: WP-25 — SQL-like `IS [NOT] NULL`, `[NOT] BETWEEN`, `NOT`; natural `is [not] between`, groups, `not (...)`; 1341 runtime tests.
+- [x] `2026-09-27`: WP-30 — MEDIAN, PERCENTILE, STDDEV/STDDEV_POP, VARIANCE/VAR_POP on SQL-like, typed, natural; 1393 runtime tests.
+- [x] `2026-09-27`: WP-28 — `SELECT DISTINCT` (SQL-like, typed, natural) and `COUNT(DISTINCT field)`; 1383 runtime tests.
+- [x] `2026-09-27`: WP-27 — SQL-like `[NOT] LIKE`/`ILIKE` with `ESCAPE`; natural `ignoring case`; 1367 runtime tests.
+- [x] `2026-09-27`: WP-26 — negated text matching: `Clauses.NOT_CONTAINS`/`NOT_MATCHES`, SQL-like `NOT CONTAINS`/`NOT MATCHES`, natural `does not ...`, typed `not()`; 1354 runtime tests.
+- [x] `2026-09-27`: WP-23 — date precision, keyset over aliases/nulls, typed field validation, records, `COUNT(field)`; 1314 runtime tests.

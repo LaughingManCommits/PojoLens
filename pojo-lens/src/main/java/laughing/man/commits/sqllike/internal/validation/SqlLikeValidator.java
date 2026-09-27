@@ -67,6 +67,7 @@ public final class SqlLikeValidator {
         validateHaving(normalizedAst, queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
         validateQualify(normalizedAst, queryableSourceFields);
         validateOrders(normalizedAst, resolveAllowedOrderFields(normalizedAst, queryableSourceFields), queryableSourceFields);
+        validateDistinct(normalizedAst);
         if (strictParameterTypes) {
             SqlLikeParameterTypeValidator.validate(normalizedAst, queryableFieldTypes, sourceFieldTypes);
         }
@@ -215,6 +216,37 @@ public final class SqlLikeValidator {
                 continue;
             }
             requireKnownField(filter.field(), allowedFields, "WHERE");
+        }
+    }
+
+    /**
+     * {@code SELECT DISTINCT} keeps one row per set of selected values, so (as in SQL)
+     * {@code ORDER BY} may only use selected outputs, and with {@code GROUP BY} every group
+     * field must be selected (the grouped rows are then already distinct).
+     */
+    private static void validateDistinct(QueryAst ast) {
+        SelectAst select = ast.select();
+        if (select == null || !select.distinct() || select.wildcard()) {
+            return;
+        }
+        Set<String> outputs = new LinkedHashSet<>();
+        for (SelectFieldAst field : select.fields()) {
+            outputs.add(field.outputName());
+            if (!field.metricField() && !field.windowField() && !field.computedField() && !field.timeBucketField()) {
+                outputs.add(field.field());
+            }
+        }
+        for (OrderAst order : ast.orders()) {
+            if (!outputs.contains(order.field())) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_DISTINCT,
+                        "ORDER BY '" + order.field() + "' must reference a selected field or alias with SELECT DISTINCT");
+            }
+        }
+        for (String group : ast.groupByFields()) {
+            if (!outputs.contains(group)) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_DISTINCT,
+                        "SELECT DISTINCT with GROUP BY must select every GROUP BY field; '" + group + "' is not selected");
+            }
         }
     }
 
@@ -514,7 +546,9 @@ public final class SqlLikeValidator {
 
     private static void ensureExpressionClauseSupported(FilterAst filter, String clauseName) {
         if (filter.clause() == Clauses.CONTAINS
-                || filter.clause() == Clauses.MATCHES) {
+                || filter.clause() == Clauses.MATCHES
+                || filter.clause() == Clauses.NOT_CONTAINS
+                || filter.clause() == Clauses.NOT_MATCHES) {
             throw validation(SqlLikeErrorCodes.VALIDATION_EXPRESSION_REFERENCE,
                     "Expression references in " + clauseName + " only support numeric comparison operators");
         }

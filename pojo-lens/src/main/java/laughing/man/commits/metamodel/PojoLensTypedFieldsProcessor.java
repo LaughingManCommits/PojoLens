@@ -125,19 +125,16 @@ public final class PojoLensTypedFieldsProcessor extends AbstractProcessor {
             return;
         }
         try {
-            for (VariableElement field : ElementFilter.fieldsIn(type.getEnclosedElements())) {
-                if (!isQueryableField(field)) {
-                    continue;
-                }
+            for (VariableElement field : queryableFields(type)) {
                 String fieldName = qualify(prefix, field.getSimpleName().toString());
                 TypeMirror fieldType = field.asType();
-                if (isSimpleLeaf(fieldType)) {
-                    fields.add(new FieldDescriptor(fieldName, fieldTypeNames(fieldType)));
-                    continue;
-                }
                 TypeElement nestedType = traversableElement(fieldType);
                 if (nestedType != null) {
                     collectFieldGraph(nestedType, fieldName, depth + 1, activePath, fields);
+                } else {
+                    // Scalars, enums, and opaque values (collections, arrays, other JDK types)
+                    // are leaves, matching ReflectionUtil's runtime field graph.
+                    fields.add(new FieldDescriptor(fieldName, fieldTypeNames(fieldType)));
                 }
             }
         } finally {
@@ -145,9 +142,41 @@ public final class PojoLensTypedFieldsProcessor extends AbstractProcessor {
         }
     }
 
-    private boolean isQueryableField(VariableElement field) {
+    /**
+     * Queryable fields of {@code type} including those inherited from user-defined
+     * superclasses (superclass fields first; a subclass field shadows a same-named parent field).
+     */
+    private List<VariableElement> queryableFields(TypeElement type) {
+        ArrayList<TypeElement> hierarchy = new ArrayList<>();
+        TypeElement current = type;
+        while (current != null) {
+            hierarchy.add(0, current);
+            TypeMirror superclass = current.getSuperclass();
+            if (superclass.getKind() != TypeKind.DECLARED) {
+                break;
+            }
+            Element superElement = ((DeclaredType) superclass).asElement();
+            if (!(superElement instanceof TypeElement superType) || !isUserDefined(superType)) {
+                break;
+            }
+            current = superType;
+        }
+        LinkedHashMap<String, VariableElement> byName = new LinkedHashMap<>();
+        for (TypeElement element : hierarchy) {
+            // Record components are final by definition but still queryable (read-only).
+            boolean record = element.getKind() == ElementKind.RECORD;
+            for (VariableElement field : ElementFilter.fieldsIn(element.getEnclosedElements())) {
+                if (isQueryableField(field, record)) {
+                    byName.put(field.getSimpleName().toString(), field);
+                }
+            }
+        }
+        return new ArrayList<>(byName.values());
+    }
+
+    private boolean isQueryableField(VariableElement field, boolean recordComponent) {
         Set<Modifier> modifiers = field.getModifiers();
-        if (modifiers.contains(Modifier.STATIC) || modifiers.contains(Modifier.FINAL)) {
+        if (modifiers.contains(Modifier.STATIC) || (modifiers.contains(Modifier.FINAL) && !recordComponent)) {
             return false;
         }
         for (javax.lang.model.element.AnnotationMirror mirror : field.getAnnotationMirrors()) {
@@ -247,6 +276,10 @@ public final class PojoLensTypedFieldsProcessor extends AbstractProcessor {
                 || "java.lang.Byte".equals(qualifiedName)
                 || "java.lang.Character".equals(qualifiedName)
                 || "java.lang.String".equals(qualifiedName)
+                || "java.math.BigDecimal".equals(qualifiedName)
+                || "java.math.BigInteger".equals(qualifiedName)
+                || "java.util.UUID".equals(qualifiedName)
+                || "java.time.LocalTime".equals(qualifiedName)
                 || "java.util.Date".equals(qualifiedName)
                 || "java.time.Instant".equals(qualifiedName)
                 || "java.time.LocalDate".equals(qualifiedName)

@@ -24,6 +24,10 @@ public final class MetamodelGenerationResult {
         return request;
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "FieldMetamodel is immutable: final fields with defensive copies."
+    )
     public FieldMetamodel metamodel() {
         return metamodel;
     }

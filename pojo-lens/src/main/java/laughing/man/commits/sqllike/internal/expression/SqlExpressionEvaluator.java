@@ -26,8 +26,27 @@ public final class SqlExpressionEvaluator {
     private SqlExpressionEvaluator() {
     }
 
+    /**
+     * Returned by a {@link ValueResolver} for an identifier that does not exist, as opposed
+     * to {@code null} for a field that exists but holds no value.
+     */
+    public static final Object UNKNOWN_IDENTIFIER = new Object();
+
     public interface ValueResolver {
+        /**
+         * @return the identifier's value, {@code null} when it has no value (the expression
+         * then evaluates to {@code NaN}, see {@link #toNullable(double)}), or
+         * {@link #UNKNOWN_IDENTIFIER} when the identifier does not exist
+         */
         Object resolve(String identifier);
+    }
+
+    /**
+     * Maps an evaluation result to a nullable value: a null operand propagates as
+     * {@code NaN} through the arithmetic and comes back as {@code null}, like SQL NULL.
+     */
+    public static Double toNullable(double value) {
+        return Double.isNaN(value) ? null : value;
     }
 
     public static boolean looksLikeExpression(String value) {
@@ -233,8 +252,11 @@ public final class SqlExpressionEvaluator {
         @Override
         public double evaluate(ValueResolver resolver) {
             Object value = resolver.resolve(identifier);
-            if (value == null) {
+            if (value == UNKNOWN_IDENTIFIER) {
                 throw new IllegalArgumentException("Unknown expression identifier '" + identifier + "'");
+            }
+            if (value == null) {
+                return Double.NaN;
             }
             if (!(value instanceof Number)) {
                 throw new IllegalArgumentException("Expression identifier '" + identifier + "' must be numeric");
@@ -245,9 +267,12 @@ public final class SqlExpressionEvaluator {
         @Override
         public double evaluate(Object[] values, int[] identifierIndexes) {
             int sourceIndex = ordinal < identifierIndexes.length ? identifierIndexes[ordinal] : -1;
-            Object value = sourceIndex >= 0 && values != null && sourceIndex < values.length ? values[sourceIndex] : null;
-            if (value == null) {
+            if (sourceIndex < 0 || values == null || sourceIndex >= values.length) {
                 throw new IllegalArgumentException("Unknown expression identifier '" + identifier + "'");
+            }
+            Object value = values[sourceIndex];
+            if (value == null) {
+                return Double.NaN;
             }
             if (!(value instanceof Number)) {
                 throw new IllegalArgumentException("Expression identifier '" + identifier + "' must be numeric");

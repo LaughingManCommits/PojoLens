@@ -72,6 +72,17 @@ public interface QueryBuilder {
     QueryBuilder offset(int rowOffset);
 
     /**
+     * Returns distinct result rows (SQL {@code SELECT DISTINCT}): after filtering, grouping,
+     * windows, and ordering, rows whose output values are equal collapse to the first one,
+     * then offset and limit apply. Values compare like {@code GROUP BY} keys. Unlike
+     * {@link #addDistinct(String)}, which de-duplicates source rows by key fields before
+     * filtering, this works on the output.
+     *
+     * @return builder
+     */
+    QueryBuilder distinctRows();
+
+    /**
      * Builds an executable filter pipeline from the currently configured query.
      *
      * @return filter executor
@@ -181,6 +192,15 @@ public interface QueryBuilder {
      * Adds row-count metric projected under the provided alias.
      */
     QueryBuilder addCount(String alias);
+
+    /**
+     * Adds a {@code PERCENTILE} metric: linear interpolation between the closest ranks,
+     * like SQL {@code percentile_cont}.
+     *
+     * @param percentile fraction from 0 to 1 ({@code 0.9} is the 90th percentile)
+     * @return builder
+     */
+    QueryBuilder addPercentile(String field, double percentile, String alias);
 
     /**
      * Adds a rank-style window output projected under the provided alias.

@@ -1,5 +1,79 @@
 # Migration Notes
 
+## Upgrading From 2026.05.18.1353
+
+The next release fixes a set of silent wrong-result defects in the core engine.
+Most upgrades need no code changes, but some queries now return different, correct
+results. Review these before upgrading:
+
+Results that change:
+- **`!=` / `ne` exclude null fields.** A null field never matches a comparison with
+  a value on any query shape. Compound SQL-like queries and typed `ne(...)` or
+  `eq(...).not()` previously included null rows. To keep them, add
+  `or field = null` (SQL-like) or `.or(FIELD.isNull())` (typed).
+- **Date/time precision.** Two date/time values (typed arguments, bound parameters,
+  keyset cursors) now compare exactly; previously both were cut to whole seconds.
+  Text literals compare at the precision they are written: `'2024-01-02'` covers the
+  whole day, `'2024-01-02 10:00:00'` that second. ISO-8601 literals are accepted.
+- **Grouping keys.** `GROUP BY` and `DISTINCT` keep `null`, `''`, and `'<NULL>'`
+  apart, group `LocalDate` values per day (all values previously fell into one
+  group), and keep sub-second timestamps distinct. Group counts can change.
+- **Empty aggregates.** An aggregate without `GROUP BY` returns one row over empty
+  input (`count(*) = 0`, other aggregates `null`) instead of no rows.
+- **Large numbers.** Values above 2^53 now compare, sort, and sum exactly.
+  `SUM` over whole numbers that exceeds the `long` range throws
+  `ArithmeticException` instead of returning a saturated total. Window `SUM` over
+  whole-number fields returns `Long` (previously `Double`).
+- **Joins.** `LocalDate` join keys match by day (previously every pair joined),
+  numeric keys match across types (`int` vs `long`), and null keys never match.
+- **Keyset paging.** `keysetBefore(...)` returns the page immediately before the
+  cursor (previously the first page). Rows with null sort values are now reached,
+  and `filterPage(...)` no longer throws `EQ-SQL-PAG-003` when the last row has a
+  null sort value: the cursor carries the null.
+- **Plan preview null tests.** `= null` / `!= null` filters preview as `IS NULL` /
+  `IS NOT NULL` and fall back in pushdown preview (previously a pushable `=` / `!=`).
+- **Natural prefix/suffix parameters.** `name starts with :p` treats the bound value
+  as literal text (previously as a full-match regex, which behaved like equality).
+
+Stricter validation:
+- **Typed field names.** `TypedQuery` rejects a field name the entity does not have
+  (`IllegalArgumentException` with suggestions) instead of silently matching
+  nothing. Queries with joins are not checked.
+
+Wider schemas:
+- Inherited fields of user-defined superclasses, `BigDecimal`, `BigInteger`,
+  `UUID`, `LocalTime`, collection, and array fields are now part of the query
+  schema. `select *` results and projections carry them, and generated typed-field
+  classes gain matching constants.
+- Records work as source rows and as result classes.
+
+New, additive:
+- `PojoLensFiles` / `runtime.files()` accept `Reader` and `InputStream` sources;
+  load reports gain `sourceName()`.
+- Typed `startsWith`, `endsWith`, `iterator(...)`; SQL `COUNT(field)`; keyset
+  paging over select, aggregate, and window aliases.
+- SQL-like literal `IN ('a', 'b')` / `NOT IN (...)` lists and `IN :values` list
+  parameters; natural `is one of` / `is not one of`.
+- SQL-like `IS [NOT] NULL`, `[NOT] BETWEEN`, and `NOT`; natural `is [not] between`,
+  parenthesized groups, and `not (...)` (natural parentheses were previously rejected).
+- Negated text matching: `Clauses.NOT_CONTAINS` / `Clauses.NOT_MATCHES`, SQL-like
+  `NOT CONTAINS` / `NOT MATCHES`, natural `does not contain / start with / end with`.
+  Typed `not()` over string predicates now runs instead of throwing
+  `UnsupportedOperationException`. `Clauses` gained two constants: a `switch` over
+  `Clauses` without a `default` branch needs the new cases.
+- Statistical aggregates: `Metric.MEDIAN`, `PERCENTILE`, `STDDEV`, `STDDEV_POP`,
+  `VARIANCE`, `VAR_POP` (SQL-like functions, typed `percentile(...)`, natural phrases).
+  `Metric.requiresNumericField()` is now true for every metric except `COUNT` and
+  `COUNT_DISTINCT`.
+- `SELECT DISTINCT` / typed `distinct()` / natural `show distinct`, and
+  `COUNT(DISTINCT field)` via the new `Metric.COUNT_DISTINCT` (a `switch` over `Metric`
+  without a `default` branch needs the new case).
+- SQL-like `[NOT] LIKE` / `[NOT] ILIKE` with `ESCAPE`; natural `... ignoring case` on
+  contains / starts with / ends with. `LIKE`, `ILIKE`, and `ESCAPE` are not reserved,
+  so fields with those names keep working.
+
+See `CHANGELOG.md` for the complete list.
+
 ## Maven Coordinates
 
 Published coordinates now use GitHub namespace style:

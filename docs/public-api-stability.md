@@ -71,6 +71,8 @@ The default first-read story is SQL-like first:
   - `jsonl(Path, Class<T>, JsonOptions)`
   - `jsonlWithReport(Path, Class<T>)`
   - `jsonlWithReport(Path, Class<T>, JsonOptions)`
+  - every method above also accepts a `Reader` or `InputStream` in place of
+    `Path` (same overload shapes; stream sources are read but never closed)
 - `PojoLensCsv`
   - `read(Path, Class<T>)`
   - `read(Path, Class<T>, CsvOptions)`
@@ -143,7 +145,7 @@ The default first-read story is SQL-like first:
 - `SqlLikePlanPreview`:
   - `source`, `isWildcard`, `selectFields`, `filters`, `filterExpression`, `groupByFields`,
     `havingFilters`, `havingExpression`, `qualifyFilters`, `qualifyExpression`, `orderFields`,
-    `joins`, `paging`, `requiredParams`, `hasSubqueries`
+    `joins`, `paging`, `requiredParams`, `hasSubqueries`, `isDistinct`
   - `hasGrouping`, `hasJoins`, `hasWindows`, `hasPaging`, `hasAggregation`
 - `PlanPreviewField`:
   - `field`, `outputName`, `alias`, `metric`, `timeBucket`, `windowFunction`,
@@ -172,6 +174,8 @@ The default first-read story is SQL-like first:
   - `builder`, `empty`, `asMap`
 - `SqlLikeCursor`:
   - `builder`, `fromToken`, `toToken`
+  - cursor values may be `null`; tokens carry text, numbers, booleans, `Character`,
+    `UUID`, `Date`, `java.time` values, and enum names
 - `PageResult<T>`:
   - `of`, `rows`, `totalRows`, `hasMore`, `nextCursor`
 - `JoinBindings`:
@@ -181,13 +185,21 @@ The default first-read story is SQL-like first:
 
 - `TypedField<T,V>`:
   - `of`, `fieldName`, `valueType`
-  - predicate factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `inSubquery`, `isNull`, `isNotNull`
+  - predicate factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `inSubquery`, `isNull`, `isNotNull`
+  - string predicates: `contains`, `containsIgnoreCase`, `matches`, `startsWith`, `endsWith`
 - `TypedPredicate<T>`:
   - `operator`, `field`, `value`, `values`, `children`, `isLeaf`
   - combinators/factories: `and`, `or`, `not`, `allOf`, `anyOf`, `inSubquery`, `exists`, `notExists`
+  - static leaf factories mirroring `TypedField`: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `in`,
+    `isNull`, `isNotNull`, `contains`, `containsIgnoreCase`, `matches`, `startsWith`, `endsWith`
+  - sentinels: `any`, `none`
+  - `TypedPredicate.Operator` constants may grow in minor releases; switch over it with a `default` branch
 - `TypedQuery<T>`:
-  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `having`, `window`, `windowCountAll`, `qualify`, `orderBy`, `orderByDesc`, `limit`, `offset`
-  - `executionGuard`, `filter`, `filterPage`, `explain`, `schema`
+  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `countDistinct`, `percentile`, `metric`, `having`, `window`, `windowCountAll`, `qualify`, `orderBy`, `orderByDesc`, `distinct`, `limit`, `offset`
+  - `timeBucket`, `computedFields`, `hasComputedFields`, `computedFieldRegistry`
+  - `executionGuard`, `filter`, `filterPage`, `stream`, `iterator`, `count`, `exists`, `findFirst`, `findOne`
+  - `explain`, `schema`, `diagnostics`, `planPreview`
+  - field names are validated against the entity before execution (queries with joins excepted)
   - current stable foundation covers projection, filters, join declarations,
     `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
     `HAVING` over grouped fields and metric aliases, rank windows, aggregate
@@ -200,6 +212,8 @@ The default first-read story is SQL-like first:
     the text surfaces
 - `TypedWindowOrder`:
   - `asc`, `desc`, `fieldName`, `sort`
+- typed plan-preview contracts returned by `TypedQuery.planPreview()`:
+  - `TypedPlanPreview`, `TypedPlanPredicate`, `TypedPlanMetric`, `TypedPlanWindow`, `TypedPlanTimeBucket`
 - `FieldMetamodelGenerator.generateTyped(...)`
 - `GeneratePojoLensTypedFields`:
   - `packageName`, `simpleName`
@@ -228,8 +242,14 @@ The default first-read story is SQL-like first:
   - `CsvOptions`, `CsvCoercionPolicy`, `CsvLoadResult`, `CsvLoadReport`,
     `CsvLoadException`, `JsonOptions`, `JsonLoadResult`, `JsonLoadReport`,
     `JsonLoadException`, `CsvRuntime`, `FileLoadRuntime`
+  - `CsvLoadReport.sourceName()` / `JsonLoadReport.sourceName()`: file path, or
+    `<reader>` / `<input-stream>` for stream loads (`path()` is `null` then)
 - query enums:
   - `Clauses`, `Join`, `Metric`, `Separator`, `Sort`, `TimeBucket`
+  - enum constants may be added in minor releases (`Clauses.NOT_CONTAINS`,
+    `Clauses.NOT_MATCHES`, `Metric.COUNT_DISTINCT`, and the statistical `Metric`
+    constants were); existing constants keep
+    their names and order, so keep a `default` branch when switching over these enums
 - shared window-frame descriptor:
   - `QueryWindowFrame` (`internal.builder` package retained for compatibility)
 - chart contracts:

@@ -93,6 +93,22 @@ public final class SqlLikeBinder {
         return configureBoundBuilder(builder, normalizedAst, joinPlan, pojos, joinSources, computedFieldRegistry);
     }
 
+    /**
+     * Binds an AST already returned by {@code SqlLikeValidator.validateForFilter}, which has
+     * canonicalized join field references. Canonicalizing again would misread a root field
+     * that collides with a joined field (its merged name is the bare, ambiguous name).
+     */
+    public static QueryBuilder bindValidated(QueryAst validatedAst,
+                                             List<?> pojos,
+                                             Map<String, List<?>> joinSources,
+                                             Class<?> sourceClass,
+                                             ComputedFieldRegistry computedFieldRegistry,
+                                             FilterExecutionPlanCacheStore executionPlanCache) {
+        SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(validatedAst, sourceClass, joinSources);
+        QueryBuilder builder = FluentEngine.newQueryBuilder(pojos, executionPlanCache).computedFields(computedFieldRegistry);
+        return configureBoundBuilder(builder, validatedAst, joinPlan, pojos, joinSources, computedFieldRegistry);
+    }
+
     private static QueryBuilder configureBoundBuilder(QueryBuilder builder,
                                                       QueryAst normalizedAst,
                                                       SqlLikeJoinResolution.Plan joinPlan,
@@ -129,7 +145,8 @@ public final class SqlLikeBinder {
                     if (field.countAll()) {
                         builder.addCount(field.outputName());
                     } else {
-                        builder.addMetric(field.field(), field.metric(), field.outputName());
+                        AggregateExpressionSupport.addMetric(
+                                builder, field.field(), field.metric(), field.metricArgument(), field.outputName());
                     }
                 }
             }
@@ -168,6 +185,9 @@ public final class SqlLikeBinder {
                     orderIndex++, order.sort());
         }
 
+        if (select != null && select.distinct()) {
+            builder.distinctRows();
+        }
         if (normalizedAst.limit() != null) {
             builder.limit(normalizedAst.limit());
         }
@@ -686,7 +706,7 @@ public final class SqlLikeBinder {
 
     private static Object unwrapValue(Object value) {
         if (value instanceof BoundParameterValue boundParameterValue) {
-            return boundParameterValue.value();
+            return boundParameterValue.executionValue();
         }
         return value;
     }

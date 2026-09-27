@@ -18,6 +18,7 @@ import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSuppo
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
 import laughing.man.commits.sqllike.internal.cache.DefaultSqlLikeQueryCacheSupport;
 import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
+import laughing.man.commits.sqllike.internal.params.PatternParameterValue;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.StringUtil;
 
@@ -139,6 +140,8 @@ public final class SqlLikeExplainSupport {
                 }
                 case ParameterValueAst parameterValueAst ->
                         snapshot.putIfAbsent(parameterValueAst.name(), unresolvedParameter());
+                case PatternParameterValue patternParameterValue ->
+                        snapshot.putIfAbsent(patternParameterValue.name(), unresolvedParameter());
                 case BoundParameterValue boundParameterValue ->
                         snapshot.putIfAbsent(boundParameterValue.name(), boundParameter(boundParameterValue.value()));
                 case SubqueryValueAst subqueryValueAst ->

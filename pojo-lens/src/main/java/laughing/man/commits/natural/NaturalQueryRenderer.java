@@ -2,6 +2,7 @@ package laughing.man.commits.natural;
 
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -15,10 +16,12 @@ import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
+import laughing.man.commits.sqllike.internal.params.PatternParameterValue;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 final class NaturalQueryRenderer {
 
@@ -62,17 +65,16 @@ final class NaturalQueryRenderer {
     }
 
     private static String renderSelect(SelectAst select) {
+        String keyword = select.distinct() ? "select distinct " : "select ";
         if (select.wildcard()) {
-            return "select *";
+            return keyword + "*";
         }
         ArrayList<String> parts = new ArrayList<>(select.fields().size());
         for (SelectFieldAst field : select.fields()) {
             String rendered;
             if (field.metricField()) {
-                rendered = field.metric().name().toLowerCase(Locale.ROOT)
-                        + "("
-                        + (field.countAll() ? "*" : field.field())
-                        + ")";
+                rendered = AggregateExpressionSupport.canonical(
+                        field.metric(), field.countAll() ? "*" : field.field(), field.metricArgument());
             } else if (field.timeBucketField()) {
                 rendered = "bucket(" + field.field() + "," + field.timeBucketPreset().sqlArgumentList() + ")";
             } else if (field.windowField()) {
@@ -92,7 +94,7 @@ final class NaturalQueryRenderer {
             }
             parts.add(rendered);
         }
-        return "select " + String.join(", ", parts);
+        return keyword + String.join(", ", parts);
     }
 
     private static String renderJoins(List<JoinAst> joins) {
@@ -144,6 +146,10 @@ final class NaturalQueryRenderer {
                     + " ("
                     + toSqlLike(existsSubqueryValueAst.query())
                     + ")";
+            case List<?> values -> filter.field()
+                    + (filter.clause() == Clauses.NOT_EQUAL ? " not in (" : " in (")
+                    + values.stream().map(NaturalQueryRenderer::renderValue).collect(Collectors.joining(", "))
+                    + ")";
             default -> filter.field()
                     + " "
                     + renderClause(filter.clause())
@@ -178,6 +184,8 @@ final class NaturalQueryRenderer {
             case SMALLER_EQUAL -> "<=";
             case CONTAINS -> "contains";
             case MATCHES -> "matches";
+            case NOT_CONTAINS -> "not contains";
+            case NOT_MATCHES -> "not matches";
             case IN -> "in";
             default -> clause.name().toLowerCase(Locale.ROOT);
         };
@@ -187,6 +195,7 @@ final class NaturalQueryRenderer {
         return switch (value) {
             case ParameterValueAst parameterValueAst -> ":" + parameterValueAst.name();
             case BoundParameterValue boundParameterValue -> ":" + boundParameterValue.name();
+            case PatternParameterValue patternParameterValue -> ":" + patternParameterValue.name();
             case SubqueryValueAst subqueryValueAst -> "(" + toSqlLike(subqueryValueAst.query()) + ")";
             case null -> "null";
             case String string -> "'" + string.replace("'", "''") + "'";

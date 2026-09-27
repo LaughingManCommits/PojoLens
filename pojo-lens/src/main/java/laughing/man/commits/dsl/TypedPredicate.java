@@ -17,7 +17,7 @@ public final class TypedPredicate<T> {
 
     public enum Operator {
         EQ, NE, GT, GTE, LT, LTE, IN, IS_NULL, IS_NOT_NULL,
-        CONTAINS, CONTAINS_IGNORE_CASE, MATCHES,
+        CONTAINS, CONTAINS_IGNORE_CASE, MATCHES, STARTS_WITH, ENDS_WITH,
         IN_SUBQUERY, EXISTS, NOT_EXISTS,
         AND, OR, NOT,
         ANY, NONE
@@ -74,29 +74,56 @@ public final class TypedPredicate<T> {
         return operator != Operator.AND && operator != Operator.OR && operator != Operator.NOT;
     }
 
+    boolean isTextMatch() {
+        return switch (operator) {
+            case CONTAINS, CONTAINS_IGNORE_CASE, MATCHES, STARTS_WITH, ENDS_WITH -> true;
+            default -> false;
+        };
+    }
+
     // --- Instance combinators ---
 
     public TypedPredicate<T> and(TypedPredicate<T> other) {
         Objects.requireNonNull(other, "other must not be null");
-        if (this.operator == Operator.ANY) return other;
-        if (other.operator() == Operator.ANY) return this;
-        if (this.operator == Operator.NONE) return this;
-        if (other.operator() == Operator.NONE) return other;
+        if (this.operator == Operator.ANY) {
+            return other;
+        }
+        if (other.operator() == Operator.ANY) {
+            return this;
+        }
+        if (this.operator == Operator.NONE) {
+            return this;
+        }
+        if (other.operator() == Operator.NONE) {
+            return other;
+        }
         return compound(Operator.AND, List.of(this, other));
     }
 
     public TypedPredicate<T> or(TypedPredicate<T> other) {
         Objects.requireNonNull(other, "other must not be null");
-        if (this.operator == Operator.ANY) return this;
-        if (other.operator() == Operator.ANY) return other;
-        if (this.operator == Operator.NONE) return other;
-        if (other.operator() == Operator.NONE) return this;
+        if (this.operator == Operator.ANY) {
+            return this;
+        }
+        if (other.operator() == Operator.ANY) {
+            return other;
+        }
+        if (this.operator == Operator.NONE) {
+            return other;
+        }
+        if (other.operator() == Operator.NONE) {
+            return this;
+        }
         return compound(Operator.OR, List.of(this, other));
     }
 
     public TypedPredicate<T> not() {
-        if (this.operator == Operator.ANY) return TypedPredicate.none();
-        if (this.operator == Operator.NONE) return TypedPredicate.any();
+        if (this.operator == Operator.ANY) {
+            return TypedPredicate.none();
+        }
+        if (this.operator == Operator.NONE) {
+            return TypedPredicate.any();
+        }
         return compound(Operator.NOT, List.of(this));
     }
 
@@ -171,6 +198,26 @@ public final class TypedPredicate<T> {
         requireField(field);
         Objects.requireNonNull(pattern, "pattern must not be null for matches");
         return new TypedPredicate<>(Operator.MATCHES, field, pattern, null, null, null);
+    }
+
+    /**
+     * Case-sensitive literal prefix match, equivalent to {@link String#startsWith(String)}.
+     * Regex metacharacters in {@code prefix} are matched literally.
+     */
+    public static <T> TypedPredicate<T> startsWith(TypedField<T, ?> field, String prefix) {
+        requireField(field);
+        Objects.requireNonNull(prefix, "prefix must not be null for startsWith");
+        return new TypedPredicate<>(Operator.STARTS_WITH, field, prefix, null, null, null);
+    }
+
+    /**
+     * Case-sensitive literal suffix match, equivalent to {@link String#endsWith(String)}.
+     * Regex metacharacters in {@code suffix} are matched literally.
+     */
+    public static <T> TypedPredicate<T> endsWith(TypedField<T, ?> field, String suffix) {
+        requireField(field);
+        Objects.requireNonNull(suffix, "suffix must not be null for endsWith");
+        return new TypedPredicate<>(Operator.ENDS_WITH, field, suffix, null, null, null);
     }
 
     // --- Static IN factories ---
@@ -393,6 +440,8 @@ public final class TypedPredicate<T> {
      *   <li>NOT(IS_NULL) → IS_NOT_NULL, NOT(IS_NOT_NULL) → IS_NULL</li>
      *   <li>NOT(EXISTS) → NOT_EXISTS, NOT(NOT_EXISTS) → EXISTS</li>
      *   <li>NOT(IN(v1,v2,...)) → AND(NE(v1), NE(v2), ...)</li>
+     *   <li>NOT(CONTAINS | CONTAINS_IGNORE_CASE | MATCHES | STARTS_WITH | ENDS_WITH) stays a
+     *       NOT over the leaf; lowering maps it to the engine's negated text clause</li>
      *   <li>NOT(IN_SUBQUERY) → throws; use NOT EXISTS instead</li>
      * </ul>
      */
@@ -428,12 +477,8 @@ public final class TypedPredicate<T> {
             }
             case ANY -> TypedPredicate.none();
             case NONE -> TypedPredicate.any();
-            case CONTAINS -> throw new UnsupportedOperationException(
-                    "NOT(CONTAINS) is not supported in TypedQuery. Use SQL-like or filter in application code.");
-            case CONTAINS_IGNORE_CASE -> throw new UnsupportedOperationException(
-                    "NOT(CONTAINS_IGNORE_CASE) is not supported in TypedQuery. Use SQL-like or filter in application code.");
-            case MATCHES -> throw new UnsupportedOperationException(
-                    "NOT(MATCHES) is not supported in TypedQuery. Use SQL-like or filter in application code.");
+            case CONTAINS, CONTAINS_IGNORE_CASE, MATCHES, STARTS_WITH, ENDS_WITH ->
+                    compound(Operator.NOT, List.of(node));
             case IN_SUBQUERY -> throw new UnsupportedOperationException(
                     "NOT(IN_SUBQUERY) is not supported in TypedQuery. Use NOT EXISTS instead.");
         };
@@ -451,15 +496,6 @@ public final class TypedPredicate<T> {
 
     private static List<Object> asObjectList(Collection<?> source) {
         return Collections.unmodifiableList(new ArrayList<>(source));
-    }
-
-    private static <T> List<TypedPredicate<T>> copyPredicateList(TypedPredicate<T>[] predicates) {
-        List<TypedPredicate<T>> list = new ArrayList<>(predicates.length);
-        for (TypedPredicate<T> predicate : predicates) {
-            Objects.requireNonNull(predicate, "predicate element must not be null");
-            list.add(predicate);
-        }
-        return Collections.unmodifiableList(list);
     }
 
     private static void requireField(TypedField<?, ?> field) {

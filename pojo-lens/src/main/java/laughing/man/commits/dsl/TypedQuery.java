@@ -12,6 +12,9 @@ import laughing.man.commits.internal.builder.QueryTimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.internal.FluentEngine;
+import laughing.man.commits.internal.LiteralMatchPattern;
+import laughing.man.commits.internal.NumericStatistics;
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.internal.builder.QueryWindowOrder;
@@ -30,16 +33,18 @@ import laughing.man.commits.sqllike.SqlLikeLintWarning;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.table.TabularSchema;
+import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.regex.Pattern;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -82,6 +87,7 @@ public final class TypedQuery<T> {
     private final int offset;
     private final ComputedFieldRegistry computedFieldRegistry;
     private final QueryExecutionGuard executionGuard;
+    private final boolean distinct;
 
     private TypedQuery(Class<T> entityClass,
                        List<TypedField<T, ?>> selectFields,
@@ -97,7 +103,8 @@ public final class TypedQuery<T> {
                        int limit,
                        int offset,
                        ComputedFieldRegistry computedFieldRegistry,
-                       QueryExecutionGuard executionGuard) {
+                       QueryExecutionGuard executionGuard,
+                       boolean distinct) {
         this.entityClass = entityClass;
         this.selectFields = List.copyOf(selectFields);
         this.wherePredicate = wherePredicate;
@@ -114,6 +121,7 @@ public final class TypedQuery<T> {
         this.computedFieldRegistry = computedFieldRegistry == null
                 ? ComputedFieldRegistry.empty() : computedFieldRegistry;
         this.executionGuard = executionGuard;
+        this.distinct = distinct;
     }
 
     // --- Factory ---
@@ -121,7 +129,7 @@ public final class TypedQuery<T> {
     public static <T> TypedQuery<T> from(Class<T> entityClass) {
         Objects.requireNonNull(entityClass, "entityClass must not be null");
         return new TypedQuery<>(entityClass, List.of(), null, List.of(), List.of(), List.of(),
-                null, List.of(), null, List.of(), List.of(), UNSET, UNSET, null, null);
+                null, List.of(), null, List.of(), List.of(), UNSET, UNSET, null, null, false);
     }
 
     // --- Fluent configuration ---
@@ -131,14 +139,14 @@ public final class TypedQuery<T> {
         Objects.requireNonNull(fields, "fields must not be null");
         return new TypedQuery<>(entityClass, List.of(fields), wherePredicate, joins, groupByFieldNames, metrics,
                 havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> where(TypedPredicate<T> predicate) {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, predicate, joins, groupByFieldNames, metrics,
                 havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public <J, K> TypedQuery<T> join(String sourceName,
@@ -157,7 +165,7 @@ public final class TypedQuery<T> {
         ));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, updated, groupByFieldNames, metrics,
                 havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> groupBy(TypedField<T, ?> field) {
@@ -166,7 +174,7 @@ public final class TypedQuery<T> {
         updated.add(field.fieldName());
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 updated, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> count(String alias) {
@@ -174,7 +182,7 @@ public final class TypedQuery<T> {
         updated.add(TypedMetric.count(normalizeAlias(alias)));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, updated, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> count(TypedField<?, ?> outputField) {
@@ -185,11 +193,36 @@ public final class TypedQuery<T> {
     public <V> TypedQuery<T> metric(TypedField<T, V> field, Metric metric, String alias) {
         Objects.requireNonNull(field, "field must not be null");
         Objects.requireNonNull(metric, "metric must not be null");
+        if (metric.requiresArgument()) {
+            throw new IllegalArgumentException(
+                    "Metric.PERCENTILE needs a fraction; use percentile(field, fraction, alias)");
+        }
+        return addMetric(TypedMetric.of(field.fieldName(), metric, normalizeAlias(alias)));
+    }
+
+    /**
+     * {@code PERCENTILE}: linear interpolation between the closest ranks, like SQL
+     * {@code percentile_cont}; the result is a {@code Double}.
+     *
+     * @param fraction from 0 to 1 ({@code 0.9} is the 90th percentile)
+     */
+    public <V> TypedQuery<T> percentile(TypedField<T, V> field, double fraction, String alias) {
+        Objects.requireNonNull(field, "field must not be null");
+        return addMetric(new TypedMetric(field.fieldName(), Metric.PERCENTILE, normalizeAlias(alias), false,
+                NumericStatistics.requirePercentile(fraction)));
+    }
+
+    public <V> TypedQuery<T> percentile(TypedField<T, V> field, double fraction, TypedField<?, ?> outputField) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return percentile(field, fraction, outputField.fieldName());
+    }
+
+    private TypedQuery<T> addMetric(TypedMetric metric) {
         ArrayList<TypedMetric> updated = new ArrayList<>(metrics);
-        updated.add(TypedMetric.of(field.fieldName(), metric, normalizeAlias(alias)));
+        updated.add(metric);
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, updated, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public <V> TypedQuery<T> metric(TypedField<T, V> field, Metric metric, TypedField<?, ?> outputField) {
@@ -197,11 +230,23 @@ public final class TypedQuery<T> {
         return metric(field, metric, outputField.fieldName());
     }
 
+    /**
+     * {@code COUNT(DISTINCT field)}: the number of distinct non-null values, compared like
+     * group-by keys. Shorthand for {@code metric(field, Metric.COUNT_DISTINCT, alias)}.
+     */
+    public <V> TypedQuery<T> countDistinct(TypedField<T, V> field, String alias) {
+        return metric(field, Metric.COUNT_DISTINCT, alias);
+    }
+
+    public <V> TypedQuery<T> countDistinct(TypedField<T, V> field, TypedField<?, ?> outputField) {
+        return metric(field, Metric.COUNT_DISTINCT, outputField);
+    }
+
     public TypedQuery<T> having(TypedPredicate<?> predicate) {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, predicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     @SafeVarargs
@@ -322,7 +367,7 @@ public final class TypedQuery<T> {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, predicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> timeBucket(TypedField<T, ?> dateField, TimeBucket unit, String alias) {
@@ -345,7 +390,7 @@ public final class TypedQuery<T> {
         updated.add(QueryTimeBucket.of(dateField.fieldName(), preset, alias));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                updated, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                updated, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> timeBucket(TypedField<T, ?> dateField, TimeBucketPreset preset, TypedField<?, ?> outputField) {
@@ -359,7 +404,7 @@ public final class TypedQuery<T> {
         updated.add(TypedSortOrder.asc(field));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, updated, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, updated, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> orderByDesc(TypedField<?, ?> field) {
@@ -368,7 +413,7 @@ public final class TypedQuery<T> {
         updated.add(TypedSortOrder.desc(field));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, updated, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, updated, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     @SafeVarargs
@@ -384,7 +429,20 @@ public final class TypedQuery<T> {
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, updated, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, updated, limit, offset, computedFieldRegistry, executionGuard, distinct);
+    }
+
+    /**
+     * Returns distinct result rows, like SQL {@code SELECT DISTINCT}: rows whose selected
+     * values are equal collapse to the first one in {@code orderBy} order, and
+     * {@code offset}/{@code limit} apply afterwards. Values compare like group-by keys
+     * ({@code null} and {@code ""} stay apart). With {@code select(...)}, ordering must use
+     * selected fields; grouped rows are already distinct.
+     */
+    public TypedQuery<T> distinct() {
+        return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
+                groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, true);
     }
 
     public TypedQuery<T> limit(int n) {
@@ -393,7 +451,7 @@ public final class TypedQuery<T> {
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, n, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, n, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> offset(int n) {
@@ -402,21 +460,21 @@ public final class TypedQuery<T> {
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, n, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, n, computedFieldRegistry, executionGuard, distinct);
     }
 
     public TypedQuery<T> computedFields(ComputedFieldRegistry registry) {
         Objects.requireNonNull(registry, "registry must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, registry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, registry, executionGuard, distinct);
     }
 
     public TypedQuery<T> executionGuard(QueryExecutionGuard guard) {
         Objects.requireNonNull(guard, "guard must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, guard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, guard, distinct);
     }
 
     // --- Accessors ---
@@ -636,6 +694,23 @@ public final class TypedQuery<T> {
         return filter(rows, joinBindings, projectionClass).stream();
     }
 
+    // Note: iterator() wraps stream(...) — same materialisation caveat; remove() is unsupported.
+    public Iterator<T> iterator(List<T> rows) {
+        return stream(rows).iterator();
+    }
+
+    public Iterator<T> iterator(DatasetBundle datasetBundle) {
+        return stream(datasetBundle).iterator();
+    }
+
+    public Iterator<T> iterator(List<T> rows, JoinBindings joinBindings) {
+        return stream(rows, joinBindings).iterator();
+    }
+
+    public <P> Iterator<P> iterator(List<T> rows, JoinBindings joinBindings, Class<P> projectionClass) {
+        return stream(rows, joinBindings, projectionClass).iterator();
+    }
+
     /**
      * Returns the engine's debug explain payload for this query against the
      * provided rows without executing the filter.
@@ -739,7 +814,7 @@ public final class TypedQuery<T> {
     private TypedQuery<T> withoutPaginationAndGuard() {
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
-                timeBuckets, sortOrders, UNSET, UNSET, computedFieldRegistry, null);
+                timeBuckets, sortOrders, UNSET, UNSET, computedFieldRegistry, null, distinct);
     }
 
     private void validatePageShape() {
@@ -1093,6 +1168,9 @@ public final class TypedQuery<T> {
         applyWindows(builder);
         applyQualify(builder);
         applyOrderBy(builder);
+        if (distinct) {
+            builder.distinctRows();
+        }
         applyLimit(builder);
         applyOffset(builder);
     }
@@ -1201,7 +1279,11 @@ public final class TypedQuery<T> {
                 builder.addCount(metric.alias());
                 continue;
             }
-            builder.addMetric(metric.fieldName(), metric.metric(), metric.alias());
+            if (metric.metric() == Metric.PERCENTILE) {
+                builder.addPercentile(metric.fieldName(), metric.argument(), metric.alias());
+            } else {
+                builder.addMetric(metric.fieldName(), metric.metric(), metric.alias());
+            }
         }
     }
 
@@ -1228,6 +1310,99 @@ public final class TypedQuery<T> {
         validateHavingShape();
         validateWindowShape();
         validateQualifyShape();
+        validateDistinctShape();
+        validateFieldReferences();
+    }
+
+    private void validateDistinctShape() {
+        if (!distinct || selectFields.isEmpty()) {
+            return;
+        }
+        Set<String> selected = new LinkedHashSet<>();
+        for (TypedField<T, ?> field : selectFields) {
+            selected.add(field.fieldName());
+        }
+        for (TypedSortOrder order : sortOrders) {
+            if (!selected.contains(order.fieldName())) {
+                throw new IllegalStateException("distinct() with orderBy(" + order.fieldName()
+                        + ") requires ordering by a selected field; add it to select(...)");
+            }
+        }
+    }
+
+    /**
+     * Rejects field names the entity does not have (a typo in {@code TypedField.of(...)}
+     * would otherwise silently match nothing), like SQL-like's unknown-field validation.
+     * Skipped for joined queries, whose joined fields are only known at execution time.
+     */
+    private void validateFieldReferences() {
+        if (!joins.isEmpty()) {
+            return;
+        }
+        LinkedHashSet<String> sourceFields = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(entityClass));
+        if (sourceFields.isEmpty()) {
+            return;
+        }
+        sourceFields.addAll(computedFieldRegistry.names());
+        LinkedHashSet<String> outputAliases = new LinkedHashSet<>();
+        for (QueryTimeBucket bucket : timeBuckets) {
+            outputAliases.add(bucket.getAlias());
+        }
+        for (TypedMetric metric : metrics) {
+            outputAliases.add(metric.alias());
+        }
+        for (TypedWindow window : windows) {
+            outputAliases.add(window.alias());
+        }
+        LinkedHashSet<String> sourceOrAlias = new LinkedHashSet<>(sourceFields);
+        sourceOrAlias.addAll(outputAliases);
+
+        for (TypedField<T, ?> field : selectFields) {
+            requireKnownField(field.fieldName(), sourceFields, "select");
+        }
+        for (String fieldName : referencedFields(wherePredicate)) {
+            requireKnownField(fieldName, sourceFields, "where");
+        }
+        for (String fieldName : groupByFieldNames) {
+            requireKnownField(fieldName, sourceOrAlias, "groupBy");
+        }
+        for (TypedMetric metric : metrics) {
+            if (metric.fieldName() != null) {
+                requireKnownField(metric.fieldName(), sourceFields, "metric");
+            }
+        }
+        for (QueryTimeBucket bucket : timeBuckets) {
+            requireKnownField(bucket.getDateField(), sourceFields, "timeBucket");
+        }
+        for (TypedWindow window : windows) {
+            if (window.valueField() != null) {
+                requireKnownField(window.valueField(), sourceFields, "window");
+            }
+            for (String partition : window.partitionFields()) {
+                requireKnownField(partition, sourceFields, "window partition");
+            }
+            for (TypedWindowOrder order : window.orderFields()) {
+                requireKnownField(order.fieldName(), sourceFields, "window order");
+            }
+        }
+        for (String fieldName : referencedFields(qualifyPredicate)) {
+            requireKnownField(fieldName, sourceOrAlias, "qualify");
+        }
+        for (TypedSortOrder order : sortOrders) {
+            requireKnownField(order.fieldName(), sourceOrAlias, "orderBy");
+        }
+    }
+
+    private void requireKnownField(String fieldName, Set<String> knownFields, String clause) {
+        if (fieldName == null || knownFields.contains(fieldName)
+                || SqlExpressionEvaluator.looksLikeExpression(fieldName)) {
+            return;
+        }
+        List<String> suggestions = NameSuggestions.suggest(fieldName, knownFields);
+        throw new IllegalArgumentException("Unknown field '" + fieldName + "' in " + clause + "(...) for "
+                + entityClass.getSimpleName()
+                + (suggestions.isEmpty() ? "" : "; did you mean " + String.join(", ", suggestions) + "?")
+                + " Known fields: " + knownFields);
     }
 
     private boolean supportsSelectProjection() {
@@ -1388,7 +1563,7 @@ public final class TypedQuery<T> {
         updated.add(window);
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
                 groupByFieldNames, metrics, havingPredicate, updated, qualifyPredicate,
-                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard);
+                timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
     private static <T> List<List<QueryRule>> toDisjunctiveNormalForm(TypedPredicate<T> node,
@@ -1408,6 +1583,9 @@ public final class TypedQuery<T> {
             }
             case NOT -> {
                 TypedPredicate<T> child = node.children().get(0);
+                if (child.isTextMatch()) {
+                    return List.of(List.of(toTextRule(child, true)));
+                }
                 return toDisjunctiveNormalForm(TypedPredicate.negate(child), joinBindings);
             }
             default -> {
@@ -1456,15 +1634,30 @@ public final class TypedQuery<T> {
             case IN -> QueryRule.of(field, leaf.values(), Clauses.IN);
             case IS_NULL -> QueryRule.of(field, null, Clauses.EQUAL);
             case IS_NOT_NULL -> QueryRule.of(field, null, Clauses.NOT_EQUAL);
-            case CONTAINS -> QueryRule.of(field, (String) leaf.value(), Clauses.CONTAINS);
-            case CONTAINS_IGNORE_CASE -> QueryRule.of(field,
-                    "(?i).*" + Pattern.quote((String) leaf.value()) + ".*", Clauses.MATCHES);
-            case MATCHES -> QueryRule.of(field, (String) leaf.value(), Clauses.MATCHES);
+            case CONTAINS, CONTAINS_IGNORE_CASE, MATCHES, STARTS_WITH, ENDS_WITH -> toTextRule(leaf, false);
             case IN_SUBQUERY -> toInSubqueryRule(leaf, joinBindings);
             case EXISTS -> toExistsRule(leaf, joinBindings, false);
             case NOT_EXISTS -> toExistsRule(leaf, joinBindings, true);
             default -> throw new UnsupportedOperationException(
                     "Unexpected leaf operator: " + leaf.operator());
+        };
+    }
+
+    /**
+     * Text-match leaf, optionally negated: literal forms lower to a {@code MATCHES} regex
+     * through {@link LiteralMatchPattern}, so negation only flips the engine clause.
+     */
+    private static <T> QueryRule toTextRule(TypedPredicate<T> leaf, boolean negated) {
+        String field = leaf.field().fieldName();
+        String value = (String) leaf.value();
+        Clauses matches = negated ? Clauses.NOT_MATCHES : Clauses.MATCHES;
+        return switch (leaf.operator()) {
+            case CONTAINS -> QueryRule.of(field, value, negated ? Clauses.NOT_CONTAINS : Clauses.CONTAINS);
+            case CONTAINS_IGNORE_CASE -> QueryRule.of(field, LiteralMatchPattern.CONTAINS_IGNORE_CASE.toRegex(value), matches);
+            case MATCHES -> QueryRule.of(field, value, matches);
+            case STARTS_WITH -> QueryRule.of(field, LiteralMatchPattern.STARTS_WITH.toRegex(value), matches);
+            case ENDS_WITH -> QueryRule.of(field, LiteralMatchPattern.ENDS_WITH.toRegex(value), matches);
+            default -> throw new IllegalStateException("Not a text-match operator: " + leaf.operator());
         };
     }
 
@@ -1569,14 +1762,15 @@ public final class TypedQuery<T> {
     private record TypedMetric(String fieldName,
                                Metric metric,
                                String alias,
-                               boolean count) {
+                               boolean count,
+                               Double argument) {
 
         private static TypedMetric of(String fieldName, Metric metric, String alias) {
-            return new TypedMetric(fieldName, metric, alias, false);
+            return new TypedMetric(fieldName, metric, alias, false, null);
         }
 
         private static TypedMetric count(String alias) {
-            return new TypedMetric(null, Metric.COUNT, alias, true);
+            return new TypedMetric(null, Metric.COUNT, alias, true, null);
         }
     }
 

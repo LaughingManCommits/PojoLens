@@ -25,6 +25,7 @@ public final class SelectFieldAst {
     private final String windowValueField;
     private final boolean windowCountAll;
     private final QueryWindowFrame windowFrame;
+    private final Double metricArgument;
 
     public SelectFieldAst(String field,
                           String alias,
@@ -96,7 +97,28 @@ public final class SelectFieldAst {
                           String windowValueField,
                           boolean windowCountAll,
                           QueryWindowFrame windowFrame) {
+        this(field, alias, metric, countAll, timeBucketPreset, computedExpression, windowFunction,
+                windowPartitionFields, windowOrderFields, windowValueField, windowCountAll, windowFrame, null);
+    }
+
+    /**
+     * @param metricArgument the {@code PERCENTILE} fraction, or {@code null}
+     */
+    public SelectFieldAst(String field,
+                          String alias,
+                          Metric metric,
+                          boolean countAll,
+                          TimeBucketPreset timeBucketPreset,
+                          boolean computedExpression,
+                          String windowFunction,
+                          List<String> windowPartitionFields,
+                          List<OrderAst> windowOrderFields,
+                          String windowValueField,
+                          boolean windowCountAll,
+                          QueryWindowFrame windowFrame,
+                          Double metricArgument) {
         this.field = Objects.requireNonNull(field, "field must not be null");
+        this.metricArgument = metricArgument;
         this.alias = alias;
         this.metric = metric;
         this.countAll = countAll;
@@ -124,6 +146,13 @@ public final class SelectFieldAst {
 
     public Metric metric() {
         return metric;
+    }
+
+    /**
+     * The {@code PERCENTILE} fraction ({@code percentile(salary, 0.9)}), or {@code null}.
+     */
+    public Double metricArgument() {
+        return metricArgument;
     }
 
     public boolean metricField() {

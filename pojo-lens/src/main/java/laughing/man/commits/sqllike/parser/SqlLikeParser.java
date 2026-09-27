@@ -1,12 +1,17 @@
 package laughing.man.commits.sqllike.parser;
 
+import laughing.man.commits.internal.LikePattern;
+import laughing.man.commits.internal.NumericStatistics;
 import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
+import laughing.man.commits.sqllike.internal.expression.FilterExpressionNegation;
+import laughing.man.commits.sqllike.internal.params.PatternParameterValue;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -25,6 +30,7 @@ import laughing.man.commits.sqllike.parser.SqlLikeTokenizationSupport.Token;
 import laughing.man.commits.sqllike.parser.SqlLikeTokenizationSupport.TokenType;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -51,6 +57,17 @@ public final class SqlLikeParser {
             "CURRENT", "ROW", "RANGE", "GROUPS", "FOLLOWING"
     );
     private static final Map<String, Metric> METRIC_BY_KEYWORD = buildMetricKeywordMap();
+    // Statistical aggregates are not reserved words: they only count as a call, name(...).
+    private static final Map<String, Metric> STATISTIC_FUNCTIONS = Map.of(
+            "MEDIAN", Metric.MEDIAN,
+            "PERCENTILE", Metric.PERCENTILE,
+            "STDDEV", Metric.STDDEV,
+            "STDDEV_SAMP", Metric.STDDEV,
+            "STDDEV_POP", Metric.STDDEV_POP,
+            "VARIANCE", Metric.VARIANCE,
+            "VAR_SAMP", Metric.VARIANCE,
+            "VAR_POP", Metric.VAR_POP
+    );
 
     private final String input;
     private final PositionMap positionMap;
@@ -311,6 +328,10 @@ public final class SqlLikeParser {
         boolean wildcard = false;
         List<SelectFieldAst> fields = new ArrayList<>();
         String sourceName = null;
+        boolean distinct = isDistinctModifier();
+        if (distinct) {
+            next();
+        }
 
         if (match(TokenType.STAR)) {
             wildcard = true;
@@ -329,7 +350,24 @@ public final class SqlLikeParser {
         if (matchKeyword("FROM")) {
             sourceName = expectIdentifier("Expected source name after FROM");
         }
-        return new SelectAst(wildcard, fields, sourceName);
+        return new SelectAst(wildcard, fields, sourceName, distinct);
+    }
+
+    /**
+     * {@code DISTINCT} before a select item, aggregate argument, or {@code *}. It is not
+     * reserved: {@code select distinct from ...} or {@code count(distinct)} still name a
+     * field called {@code distinct}.
+     */
+    private boolean isDistinctModifier() {
+        if (!isWordAt(index, "DISTINCT") || index + 1 >= tokens.size()) {
+            return false;
+        }
+        Token following = tokens.get(index + 1);
+        return switch (following.type) {
+            case STAR, IDENTIFIER -> true;
+            case KEYWORD -> isMetricKeyword(following.text) || "BUCKET".equalsIgnoreCase(following.text);
+            default -> false;
+        };
     }
 
     private SelectFieldAst parseSelectField() {
@@ -337,6 +375,7 @@ public final class SqlLikeParser {
         Token token = peek();
         String field;
         Metric metric = null;
+        Double metricArgument = null;
         boolean countAll = false;
         TimeBucketPreset timeBucketPreset = null;
         String windowFunction = null;
@@ -354,7 +393,7 @@ public final class SqlLikeParser {
             windowPartitionFields = parsedWindowFunction.partitionFields();
             windowOrderFields = parsedWindowFunction.orderByFields();
             windowFrame = parsedWindowFunction.frame();
-        } else if (token.type == TokenType.KEYWORD && isMetricKeyword(token.text)) {
+        } else if (isMetricAt(index)) {
             metric = parseMetricKeyword(token);
             next();
             expect(TokenType.LEFT_PAREN, "Expected '(' after aggregate function");
@@ -362,9 +401,14 @@ public final class SqlLikeParser {
                 field = "*";
                 countAll = true;
             } else {
+                metric = matchCountDistinct(metric);
                 field = expectIdentifier("Expected field inside aggregate function");
             }
+            metricArgument = parseMetricArgument(metric);
             expect(TokenType.RIGHT_PAREN, "Expected ')' after aggregate function argument");
+            if (isKeyword(peek(), "OVER")) {
+                throw error(aggregateName(metric) + " is not supported as a window function", peek().position);
+            }
         } else if (token.type == TokenType.KEYWORD && "BUCKET".equalsIgnoreCase(token.text)) {
             next();
             expect(TokenType.LEFT_PAREN, "Expected '(' after bucket");
@@ -446,7 +490,8 @@ public final class SqlLikeParser {
                 windowOrderFields,
                 windowValueField,
                 windowCountAll,
-                windowFrame
+                windowFrame,
+                metricArgument
         );
     }
 
@@ -473,7 +518,8 @@ public final class SqlLikeParser {
                 windowOrderFields,
                 windowValueField,
                 windowCountAll,
-                QueryWindowFrame.running()
+                QueryWindowFrame.running(),
+                null
         );
     }
 
@@ -488,7 +534,8 @@ public final class SqlLikeParser {
                                                      List<OrderAst> windowOrderFields,
                                                      String windowValueField,
                                                      boolean windowCountAll,
-                                                     QueryWindowFrame windowFrame) {
+                                                     QueryWindowFrame windowFrame,
+                                                     Double metricArgument) {
         return new SelectFieldAst(
                 field,
                 alias,
@@ -501,8 +548,74 @@ public final class SqlLikeParser {
                 windowOrderFields,
                 windowValueField,
                 windowCountAll,
-                windowFrame
+                windowFrame,
+                metricArgument
         );
+    }
+
+    /**
+     * The fraction of {@code percentile(field, 0.9)}; {@code null} for other aggregates.
+     */
+    private Double parseMetricArgument(Metric metric) {
+        if (!metric.requiresArgument()) {
+            return null;
+        }
+        expect(TokenType.COMMA, "PERCENTILE needs a fraction: percentile(field, 0.9)");
+        Token fraction = peek();
+        if (fraction.type != TokenType.NUMBER) {
+            throw error("PERCENTILE needs a numeric fraction from 0 to 1, e.g. percentile(salary, 0.9)",
+                    fraction.position);
+        }
+        next();
+        try {
+            return NumericStatistics.requirePercentile(parseNumber(fraction).doubleValue());
+        } catch (IllegalArgumentException ex) {
+            throw error(ex.getMessage(), fraction.position);
+        }
+    }
+
+    private static String aggregateName(Metric metric) {
+        return metric == Metric.COUNT_DISTINCT ? "COUNT(DISTINCT ...)" : metric.name();
+    }
+
+    /**
+     * An aggregate call at {@code tokenIndex}: a COUNT/SUM/AVG/MIN/MAX keyword, or a
+     * statistical aggregate name followed by {@code (}.
+     */
+    private boolean isMetricAt(int tokenIndex) {
+        if (tokenIndex >= tokens.size()) {
+            return false;
+        }
+        Token token = tokens.get(tokenIndex);
+        if (token.type == TokenType.KEYWORD) {
+            return isMetricKeyword(token.text);
+        }
+        return token.type == TokenType.IDENTIFIER
+                && STATISTIC_FUNCTIONS.containsKey(token.text.toUpperCase(Locale.ROOT))
+                && tokenIndex + 1 < tokens.size()
+                && tokens.get(tokenIndex + 1).type == TokenType.LEFT_PAREN;
+    }
+
+    /**
+     * {@code count(distinct field)}: consumes {@code DISTINCT} and returns
+     * {@link Metric#COUNT_DISTINCT}. {@code DISTINCT} is not reserved, so
+     * {@code count(distinct)} still counts a field named {@code distinct}.
+     */
+    private Metric matchCountDistinct(Metric metric) {
+        if (!isDistinctArgument()) {
+            return metric;
+        }
+        if (metric != Metric.COUNT) {
+            throw error("DISTINCT is only supported inside COUNT(...)", peek().position);
+        }
+        next();
+        return Metric.COUNT_DISTINCT;
+    }
+
+    private boolean isDistinctArgument() {
+        return isWordAt(index, "DISTINCT")
+                && index + 1 < tokens.size()
+                && tokens.get(index + 1).type == TokenType.IDENTIFIER;
     }
 
     private ParsedWindowFunction tryParseWindowFunction() {
@@ -530,6 +643,9 @@ public final class SqlLikeParser {
                 }
                 countAll = true;
             } else {
+                if (isDistinctArgument()) {
+                    throw error("COUNT(DISTINCT ...) is not supported as a window function", peek().position);
+                }
                 valueField = expectIdentifier("Expected field inside window function");
             }
         }
@@ -712,38 +828,142 @@ public final class SqlLikeParser {
     }
 
     private FilterExpressionAst parsePrimaryExpression(boolean allowAggregateReference, String clauseName) {
+        if (isNegationStart()) {
+            int position = next().position;
+            FilterExpressionAst negated = parsePrimaryExpression(allowAggregateReference, clauseName);
+            return FilterExpressionNegation.negate(negated, message -> error(message, position));
+        }
         if (match(TokenType.LEFT_PAREN)) {
             FilterExpressionAst grouped = parseOrExpression(allowAggregateReference, clauseName);
             expect(TokenType.RIGHT_PAREN, "Expected ')' to close " + clauseName + " expression");
             return grouped;
         }
-        return new FilterPredicateAst(parseCondition(allowAggregateReference, clauseName));
+        return parsePredicateExpression(allowAggregateReference, clauseName);
     }
 
-    private FilterAst parseCondition(boolean allowAggregateReference, String clauseName) {
+    /**
+     * {@code NOT} before a predicate or group. {@code NOT EXISTS} stays one predicate.
+     */
+    private boolean isNegationStart() {
+        return isKeyword(peek(), "NOT") && !isKeywordAt(index + 1, "EXISTS");
+    }
+
+    private FilterExpressionAst parsePredicateExpression(boolean allowAggregateReference, String clauseName) {
+        countPredicate(clauseName);
+        if (!allowAggregateReference && "WHERE".equals(clauseName)) {
+            if (isKeyword(peek(), "EXISTS")) {
+                return new FilterPredicateAst(parseExistsCondition(false));
+            }
+            if (isKeyword(peek(), "NOT") && isKeywordAt(index + 1, "EXISTS")) {
+                next();
+                return new FilterPredicateAst(parseExistsCondition(true));
+            }
+        }
+        String field = allowAggregateReference
+                ? parseConditionReferenceInHaving(clauseName)
+                : parseConditionReference(clauseName);
+        if (isBetween()) {
+            return parseBetween(field, clauseName);
+        }
+        return new FilterPredicateAst(parseComparison(field, clauseName));
+    }
+
+    private void countPredicate(String clauseName) {
         if (clausePredicateCount >= MAX_FILTER_PREDICATES) {
             throw error(SqlLikeErrorCodes.PARSE_CLAUSE_LIMIT,
                     "Too many " + clauseName + " predicates (max " + MAX_FILTER_PREDICATES + ")",
                     peek().position);
         }
         clausePredicateCount++;
-        if (!allowAggregateReference && "WHERE".equals(clauseName)) {
-            if (isKeyword(peek(), "EXISTS")) {
-                return parseExistsCondition(false);
-            }
-            if (isKeyword(peek(), "NOT")
-                    && index + 1 < tokens.size()
-                    && isKeyword(tokens.get(index + 1), "EXISTS")) {
-                next();
-                return parseExistsCondition(true);
-            }
+    }
+
+    private FilterAst parseComparison(String field, String clauseName) {
+        if (isNotIn()) {
+            // NOT IN is "not equal to every element": the engine's negated set semantics.
+            next();
+            next();
+            return new FilterAst(field, Clauses.NOT_EQUAL, parseInValue(clauseName, true), null);
         }
-        String field = allowAggregateReference
-                ? parseConditionReferenceInHaving(clauseName)
-                : parseConditionReference(clauseName);
+        if (isLike()) {
+            return parseLike(field, clauseName);
+        }
+        if (isNotTextMatch()) {
+            next();
+            Clauses positive = parseClause();
+            Clauses negated = positive == Clauses.CONTAINS ? Clauses.NOT_CONTAINS : Clauses.NOT_MATCHES;
+            return new FilterAst(field, negated, parseValue(positive, clauseName), null);
+        }
+        if (isNullTest()) {
+            // IS [NOT] NULL is the engine's null test: "= null" / "!= null".
+            next();
+            boolean negated = matchKeyword("NOT");
+            expectKeyword("NULL");
+            return new FilterAst(field, negated ? Clauses.NOT_EQUAL : Clauses.EQUAL, null, null);
+        }
         Clauses clause = parseClause();
         Object value = parseValue(clause, clauseName);
         return new FilterAst(field, clause, value, null);
+    }
+
+    /**
+     * {@code field [NOT] LIKE|ILIKE <pattern> [ESCAPE '<c>']}, lowered to a
+     * {@code MATCHES} / {@code NOT_MATCHES} regex through {@link LikePattern}. A pattern
+     * parameter is lowered when it is bound. The default escape character is a backslash.
+     */
+    private FilterAst parseLike(String field, String clauseName) {
+        boolean negated = matchKeyword("NOT");
+        boolean ignoreCase = "ILIKE".equalsIgnoreCase(next().text);
+        Token operand = next();
+        LikePattern pattern = new LikePattern(ignoreCase, parseLikeEscape());
+        Object value = switch (operand.type) {
+            case STRING -> likeRegex(pattern, operand);
+            case PARAM -> new PatternParameterValue(operand.text.substring(1), pattern);
+            // LIKE NULL never matches, like any value comparison with null.
+            default -> null;
+        };
+        return new FilterAst(field, negated ? Clauses.NOT_MATCHES : Clauses.MATCHES, value, null);
+    }
+
+    private Character parseLikeEscape() {
+        if (!isWordAt(index, "ESCAPE") || index + 1 >= tokens.size()
+                || tokens.get(index + 1).type != TokenType.STRING) {
+            return LikePattern.DEFAULT_ESCAPE;
+        }
+        next();
+        Token escape = next();
+        if (escape.text.length() > 1) {
+            throw error("ESCAPE must be one character, or '' for no escape character", escape.position);
+        }
+        return escape.text.isEmpty() ? null : escape.text.charAt(0);
+    }
+
+    private String likeRegex(LikePattern pattern, Token operand) {
+        try {
+            return pattern.toRegex(operand.text);
+        } catch (IllegalArgumentException ex) {
+            throw error(ex.getMessage(), operand.position);
+        }
+    }
+
+    /**
+     * {@code field [NOT] BETWEEN low AND high}: inclusive on both ends, lowered to
+     * {@code field >= low AND field <= high} (negated with the usual De Morgan rules).
+     */
+    private FilterExpressionAst parseBetween(String field, String clauseName) {
+        int position = peek().position;
+        boolean negated = matchKeyword("NOT");
+        expectKeyword("BETWEEN");
+        countPredicate(clauseName);
+        Object low = parseValue(Clauses.BIGGER_EQUAL, clauseName);
+        if (!matchKeyword("AND")) {
+            throw error("Expected AND between BETWEEN bounds: field BETWEEN low AND high", peek().position);
+        }
+        Object high = parseValue(Clauses.SMALLER_EQUAL, clauseName);
+        FilterExpressionAst range = new FilterBinaryAst(
+                new FilterPredicateAst(new FilterAst(field, Clauses.BIGGER_EQUAL, low, null)),
+                new FilterPredicateAst(new FilterAst(field, Clauses.SMALLER_EQUAL, high, null)),
+                Separator.AND);
+        return negated ? FilterExpressionNegation.negate(range, message -> error(message, position)) : range;
     }
 
     private FilterAst parseExistsCondition(boolean negated) {
@@ -758,10 +978,10 @@ public final class SqlLikeParser {
 
     private String parseConditionReferenceInHaving(String clauseName) {
         int start = index;
-        if (peek().type == TokenType.KEYWORD && isMetricKeyword(peek().text)) {
+        if (isMetricAt(index)) {
             try {
                 String aggregate = parseHavingReference();
-                if (isComparisonOperatorToken(peek())) {
+                if (isComparisonStart()) {
                     return aggregate;
                 }
                 index = start;
@@ -793,7 +1013,7 @@ public final class SqlLikeParser {
 
     private String parseHavingReference() {
         Token token = peek();
-        if (token.type == TokenType.KEYWORD && isMetricKeyword(token.text)) {
+        if (isMetricAt(index)) {
             Metric metric = parseMetricKeyword(token);
             next();
             expect(TokenType.LEFT_PAREN, "Expected '(' after aggregate function");
@@ -801,10 +1021,12 @@ public final class SqlLikeParser {
             if (metric == Metric.COUNT && match(TokenType.STAR)) {
                 field = "*";
             } else {
+                metric = matchCountDistinct(metric);
                 field = expectIdentifier("Expected field inside aggregate function");
             }
+            Double argument = parseMetricArgument(metric);
             expect(TokenType.RIGHT_PAREN, "Expected ')' after aggregate function argument");
-            return metric.name().toLowerCase(Locale.ROOT) + "(" + field + ")";
+            return AggregateExpressionSupport.canonical(metric, field, argument);
         }
         return expectIdentifier("Expected field or aggregate expression in HAVING clause");
     }
@@ -817,7 +1039,7 @@ public final class SqlLikeParser {
             if (token.type == TokenType.EOF) {
                 break;
             }
-            if (depth == 0 && isComparisonOperatorToken(token)) {
+            if (depth == 0 && isComparisonStart()) {
                 break;
             }
             if (token.type == TokenType.LEFT_PAREN) {
@@ -903,6 +1125,67 @@ public final class SqlLikeParser {
                 || current == TokenType.PARAM);
     }
 
+    /**
+     * True at the start of a comparison operator, including the multi-token {@code NOT IN},
+     * {@code NOT CONTAINS}, {@code NOT MATCHES}, {@code [NOT] BETWEEN}, and {@code IS [NOT] NULL}.
+     */
+    private boolean isComparisonStart() {
+        return isComparisonOperatorToken(peek()) || isNotIn() || isNotTextMatch() || isLike()
+                || isBetween() || isNullTest();
+    }
+
+    /**
+     * {@code [NOT] LIKE} / {@code [NOT] ILIKE} followed by a pattern, parameter, or
+     * {@code NULL}. {@code LIKE}, {@code ILIKE}, and {@code ESCAPE} are not reserved, so
+     * fields with those names keep working.
+     */
+    private boolean isLike() {
+        int at = isKeyword(peek(), "NOT") ? index + 1 : index;
+        if (!isWordAt(at, "LIKE") && !isWordAt(at, "ILIKE")) {
+            return false;
+        }
+        int operand = at + 1;
+        return operand < tokens.size()
+                && (tokens.get(operand).type == TokenType.STRING
+                || tokens.get(operand).type == TokenType.PARAM
+                || isKeywordAt(operand, "NULL"));
+    }
+
+    private boolean isWordAt(int tokenIndex, String word) {
+        return tokenIndex < tokens.size()
+                && tokens.get(tokenIndex).type == TokenType.IDENTIFIER
+                && word.equalsIgnoreCase(tokens.get(tokenIndex).text);
+    }
+
+    private boolean isNotIn() {
+        return isKeyword(peek(), "NOT") && isKeywordAt(index + 1, "IN");
+    }
+
+    private boolean isNotTextMatch() {
+        return isKeyword(peek(), "NOT")
+                && (isKeywordAt(index + 1, "CONTAINS") || isKeywordAt(index + 1, "MATCHES"));
+    }
+
+    private boolean isBetween() {
+        return isKeyword(peek(), "BETWEEN") || (isKeyword(peek(), "NOT") && isKeywordAt(index + 1, "BETWEEN"));
+    }
+
+    /**
+     * {@code IS NULL} / {@code IS NOT NULL}. {@code IS} is not reserved, so it only counts
+     * when {@code NULL} follows; a field named {@code is} keeps working.
+     */
+    private boolean isNullTest() {
+        Token token = peek();
+        if (token.type != TokenType.IDENTIFIER || !"IS".equalsIgnoreCase(token.text)) {
+            return false;
+        }
+        return isKeywordAt(index + 1, "NULL") || (isKeywordAt(index + 1, "NOT") && isKeywordAt(index + 2, "NULL"));
+    }
+
+    private boolean isKeywordAt(int tokenIndex, String keyword) {
+        return tokenIndex < tokens.size() && isKeyword(tokens.get(tokenIndex), keyword);
+    }
+
     private boolean isComparisonOperatorToken(Token token) {
         if (token.type == TokenType.OPERATOR) {
             return "=".equals(token.text)
@@ -974,7 +1257,7 @@ public final class SqlLikeParser {
 
     private Object parseValue(Clauses clause, String clauseName) {
         if (Clauses.IN.equals(clause)) {
-            return parseInValue(clauseName);
+            return parseInValue(clauseName, false);
         }
         Token token = peek();
         if (token.type == TokenType.STRING) {
@@ -1011,12 +1294,23 @@ public final class SqlLikeParser {
         throw error("Expected value in " + clauseName + " clause", token.position);
     }
 
-    private Object parseInValue(String clauseName) {
+    /**
+     * {@code IN} / {@code NOT IN} operand: a list parameter ({@code :values}), a literal list
+     * ({@code ('a', 'b')}), or (for {@code IN} only) a subquery ({@code (select ...)}).
+     */
+    private Object parseInValue(String clauseName, boolean negated) {
+        String operator = negated ? "NOT IN" : "IN";
+        if (peek().type == TokenType.PARAM) {
+            return new ParameterValueAst(next().text.substring(1));
+        }
         if (!match(TokenType.LEFT_PAREN)) {
-            throw error("Expected '(' after IN", peek().position);
+            throw error("Expected '(' or a list parameter after " + operator, peek().position);
         }
         if (!isKeyword(peek(), "SELECT")) {
-            throw error("IN currently requires a subquery starting with SELECT", peek().position);
+            return parseLiteralList(operator, clauseName);
+        }
+        if (negated) {
+            throw error("NOT IN does not support subqueries; use NOT EXISTS (select ...)", peek().position);
         }
 
         int start = index;
@@ -1042,6 +1336,29 @@ public final class SqlLikeParser {
         QueryAst subquery = SqlLikeParser.parse(subquerySource);
         expect(TokenType.RIGHT_PAREN, "Expected ')' to close IN subquery");
         return new SubqueryValueAst(subquerySource, subquery);
+    }
+
+    /**
+     * Literal list after the opening parenthesis: text, numbers, booleans, or {@code NULL},
+     * comma-separated. Returns an unmodifiable list that may contain {@code null}.
+     */
+    private List<Object> parseLiteralList(String operator, String clauseName) {
+        ArrayList<Object> values = new ArrayList<>();
+        if (peek().type == TokenType.RIGHT_PAREN) {
+            throw error(operator + " list must contain at least one value", peek().position);
+        }
+        while (true) {
+            Token token = peek();
+            if (token.type == TokenType.PARAM) {
+                throw error("Parameters inside an " + operator + " list are not supported; bind one list"
+                        + " parameter instead: " + operator + " :values", token.position);
+            }
+            values.add(parseValue(Clauses.EQUAL, clauseName));
+            if (match(TokenType.RIGHT_PAREN)) {
+                return Collections.unmodifiableList(values);
+            }
+            expect(TokenType.COMMA, "Expected ',' or ')' in " + operator + " list");
+        }
     }
 
     private Object parseExistsValue(boolean negated) {
@@ -1322,7 +1639,8 @@ public final class SqlLikeParser {
     }
 
     private Metric parseMetricKeyword(Token token) {
-        Metric metric = METRIC_BY_KEYWORD.get(token.text.toUpperCase(Locale.ROOT));
+        String name = token.text.toUpperCase(Locale.ROOT);
+        Metric metric = METRIC_BY_KEYWORD.containsKey(name) ? METRIC_BY_KEYWORD.get(name) : STATISTIC_FUNCTIONS.get(name);
         if (metric != null) {
             return metric;
         }

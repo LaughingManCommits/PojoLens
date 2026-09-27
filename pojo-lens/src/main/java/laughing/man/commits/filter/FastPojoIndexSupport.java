@@ -26,6 +26,10 @@ final class FastPojoIndexSupport {
         if (ruleIdsByField.isEmpty()) {
             return null;
         }
+        if (builder.getFilterSeparator().containsValue(Separator.OR)) {
+            // An OR rule can admit rows the equality index would exclude.
+            return null;
+        }
 
         List<?> best = null;
         for (String indexedField : indexedFields) {
@@ -56,7 +60,32 @@ final class FastPojoIndexSupport {
         return best;
     }
 
+    /**
+     * True when {@code Map} lookup by {@code equals} gives the same answer as the engine's
+     * EQUAL comparison for this value; other types (dates, floating point, BigDecimal,
+     * collections) must scan.
+     */
+    static boolean isIndexSafeValue(Object value) {
+        return value == null
+                || value instanceof String
+                || value instanceof Boolean
+                || value instanceof Character
+                || value instanceof Enum<?>
+                || value instanceof Integer
+                || value instanceof Long
+                || value instanceof Short
+                || value instanceof Byte;
+    }
+
+    static Class<?> indexKeyType(Object value) {
+        return value instanceof Enum<?> constant ? constant.getDeclaringClass() : value.getClass();
+    }
+
     interface SourceIndexLookup {
+        /**
+         * Returns the indexed rows equal to {@code value}, or {@code null} when the index
+         * cannot answer (the caller then scans).
+         */
         List<?> lookup(String fieldName, Object value);
     }
 }

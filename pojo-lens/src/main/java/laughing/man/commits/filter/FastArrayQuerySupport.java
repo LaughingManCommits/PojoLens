@@ -83,8 +83,8 @@ final class FastArrayQuerySupport {
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException("Failed to read parent join values", e);
             }
-            Object joinKey = parentValues[plan.parentJoinIndex()];
-            Object matchingChildren = childIndex.get(joinKey);
+            Object joinKey = JoinKeys.normalize(parentValues[plan.parentJoinIndex()]);
+            Object matchingChildren = joinKey == null ? null : childIndex.get(joinKey);
             if (matchingChildren instanceof Object[] childValues) {
                 joinedRows.add(materializeJoinedRow(parentValues, childValues, plan));
                 continue;
@@ -138,6 +138,7 @@ final class FastArrayQuerySupport {
             return false;
         }
         if (!builder.getDistinctFields().isEmpty()
+                || builder.isDistinctRows()
                 || !builder.getMetrics().isEmpty()
                 || !builder.getGroupFields().isEmpty()
                 || !builder.getTimeBuckets().isEmpty()
@@ -429,7 +430,10 @@ final class FastArrayQuerySupport {
             }
             Object[] childValues = ReflectionUtil.readFlatRowValues(child, plan.childReadPlan());
             childRowCount++;
-            Object joinKey = childValues[childJoinIndex];
+            Object joinKey = JoinKeys.normalize(childValues[childJoinIndex]);
+            if (joinKey == null) {
+                continue;
+            }
             if (denseEligible
                     && joinKey instanceof Integer intKey
                     && intKey >= 0
@@ -617,7 +621,7 @@ final class FastArrayQuerySupport {
             return MatchAllRowMatcher.INSTANCE;
         }
         if (rule.compareValue() instanceof Number number && isNumericClause(rule.clause())) {
-            return new SingleNumericRuleMatcher(fieldIndex, number.doubleValue(), rule);
+            return new SingleNumericRuleMatcher(fieldIndex, number, rule);
         }
         return new SingleRuleMatcher(fieldIndex, rule);
     }
@@ -684,18 +688,6 @@ final class FastArrayQuerySupport {
                 || clause == Clauses.NOT_SMALLER
                 || clause == Clauses.SMALLER
                 || clause == Clauses.SMALLER_EQUAL;
-    }
-
-    private static boolean compareNumbers(double left, double right, Clauses clause) {
-        return switch (clause) {
-            case BIGGER -> left > right;
-            case BIGGER_EQUAL, NOT_SMALLER -> left >= right;
-            case EQUAL, IN -> left == right;
-            case NOT_BIGGER, SMALLER_EQUAL -> left <= right;
-            case NOT_EQUAL -> left != right;
-            case SMALLER -> left < right;
-            default -> false;
-        };
     }
 
     private static List<Object[]> orderRows(List<Object[]> rows,
@@ -876,7 +868,7 @@ final class FastArrayQuerySupport {
             return 1;
         }
         if (leftValue instanceof Number && rightValue instanceof Number) {
-            return Double.compare(((Number) leftValue).doubleValue(), ((Number) rightValue).doubleValue());
+            return ObjectUtil.compareNumeric((Number) leftValue, (Number) rightValue);
         }
         if (leftValue instanceof java.util.Date && rightValue instanceof java.util.Date) {
             return ((java.util.Date) leftValue).compareTo((java.util.Date) rightValue);
@@ -933,6 +925,9 @@ final class FastArrayQuerySupport {
     }
 
     private static Object castNumericValue(double value, Class<?> outputType) {
+        if (Double.isNaN(value)) {
+            return null;
+        }
         if (outputType == Integer.class) {
             return (int) Math.round(value);
         }
@@ -1029,7 +1024,7 @@ final class FastArrayQuerySupport {
     }
 
     private record SingleNumericRuleMatcher(int fieldIndex,
-                                            double compareValue,
+                                            Number compareValue,
                                             CompiledRule rule) implements FastRowMatcher {
         @Override
         public boolean matches(Object[] row) {
@@ -1038,7 +1033,7 @@ final class FastArrayQuerySupport {
             }
             Object fieldValue = row[fieldIndex];
             if (fieldValue instanceof Number number) {
-                return compareNumbers(number.doubleValue(), compareValue, rule.clause());
+                return ObjectUtil.compareNumbers(number, compareValue, rule.clause());
             }
             return ObjectUtil.compareObject(fieldValue, rule.compareValue(), rule.clause(), rule.dateFormat());
         }

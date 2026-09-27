@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.internal.LiteralMatchPattern;
 import laughing.man.commits.natural.NaturalWindowSupport;
 import laughing.man.commits.natural.NaturalVocabularySupport;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
@@ -21,6 +22,9 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
+import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
+import laughing.man.commits.sqllike.internal.expression.FilterExpressionNegation;
+import laughing.man.commits.sqllike.internal.params.PatternParameterValue;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.StringUtil;
 
@@ -31,12 +35,16 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Parser for the controlled MVP plain-English query surface.
  */
 public final class NaturalQueryParser {
+
+    private static final Pattern ORDINAL_PERCENT =
+            Pattern.compile("(\\d+(?:\\.\\d+)?)(?:st|nd|rd|th)");
 
     private static final String EXISTS_PSEUDO_FIELD = "__pojo_lens_exists";
 
@@ -97,7 +105,8 @@ public final class NaturalQueryParser {
             }
             expectWord("show");
             matchWord("me");
-            SelectAst select = parseSelect(rootSource);
+            boolean distinct = matchDistinctModifier();
+            SelectAst select = parseSelect(rootSource, distinct);
             FilterExpressionAst whereExpression = null;
             List<FilterAst> filters = List.of();
             List<String> groupByFields = List.of();
@@ -171,7 +180,23 @@ public final class NaturalQueryParser {
             );
         }
 
-        private SelectAst parseSelect(String sourceName) {
+        /**
+         * {@code show [me] distinct ...}: {@code distinct} counts only when a projection
+         * follows, so a field named {@code distinct} still works.
+         */
+        private boolean matchDistinctModifier() {
+            Token following = tokenAt(index + 1);
+            if (!isWord(peek(), "distinct")
+                    || following.isEof()
+                    || following.type == TokenType.COMMA
+                    || isClauseBoundary(index + 1)) {
+                return false;
+            }
+            next();
+            return true;
+        }
+
+        private SelectAst parseSelect(String sourceName, boolean distinct) {
             List<List<Token>> items = new ArrayList<>();
             items.add(readClauseItem("SHOW"));
             while (match(TokenType.COMMA)) {
@@ -181,7 +206,7 @@ public final class NaturalQueryParser {
                 throw error("SHOW requires 'all' or one or more projected fields", peek().position);
             }
             if (items.size() == 1 && isWildcardItem(items.get(0))) {
-                return new SelectAst(true, List.of(), sourceName);
+                return new SelectAst(true, List.of(), sourceName, distinct);
             }
 
             ArrayList<SelectFieldAst> fields = new ArrayList<>(items.size());
@@ -194,7 +219,7 @@ public final class NaturalQueryParser {
                 }
                 fields.add(parseSelectField(item));
             }
-            return new SelectAst(false, fields, sourceName);
+            return new SelectAst(false, fields, sourceName, distinct);
         }
 
         private SelectFieldAst parseSelectField(List<Token> itemTokens) {
@@ -237,7 +262,14 @@ public final class NaturalQueryParser {
                         metricPhrase.metric(),
                         metricPhrase.countAll(),
                         (TimeBucketPreset) null,
-                        false
+                        false,
+                        null,
+                        List.of(),
+                        List.of(),
+                        null,
+                        false,
+                        QueryWindowFrame.running(),
+                        metricPhrase.argument()
                 );
             }
             TimeBucketPhrase timeBucketPhrase = tryParseTimeBucketPhrase(fieldTokens, "SHOW");
@@ -298,8 +330,16 @@ public final class NaturalQueryParser {
         private FilterExpressionAst parsePredicate(boolean allowAggregateReferences,
                                                   String clauseName,
                                                   boolean allowBooleanShorthand) {
-            if (peek().type == TokenType.LEFT_PAREN || peek().type == TokenType.RIGHT_PAREN) {
-                throw error("Parentheses are not supported in MVP natural queries", peek().position);
+            if (peek().type == TokenType.RIGHT_PAREN) {
+                throw error("Unexpected ')' in " + clauseName, peek().position);
+            }
+            if (peek().type == TokenType.LEFT_PAREN) {
+                return parseGroup(allowAggregateReferences, clauseName, allowBooleanShorthand);
+            }
+            if (isWord(peek(), "not") && tokenAt(index + 1).type == TokenType.LEFT_PAREN) {
+                int position = next().position;
+                FilterExpressionAst grouped = parseGroup(allowAggregateReferences, clauseName, allowBooleanShorthand);
+                return FilterExpressionNegation.negate(grouped, message -> error(message, position));
             }
             if (isWord(peek(), "exists")) {
                 return parseExistsPredicate(false, clauseName);
@@ -323,8 +363,13 @@ public final class NaturalQueryParser {
             String field = parseReference(fieldTokens, allowAggregateReferences, clauseName);
 
             index = operator.endIndex();
+            if (operator.operator().shape == ValueShape.RANGE) {
+                return parseRange(field, operator.operator());
+            }
             Object value;
-            if (operator.operator().clause == Clauses.IN) {
+            if (operator.operator().shape == ValueShape.LIST) {
+                value = parseListValue(operator.operator());
+            } else if (operator.operator().clause == Clauses.IN) {
                 requireWhereSubquery(clauseName);
                 BoundedNaturalSubquery subquery = parseBoundedSubquery();
                 value = new SubqueryValueAst(subquery.source(), subquery.ast());
@@ -333,9 +378,76 @@ public final class NaturalQueryParser {
                 if (valueTokens.isEmpty()) {
                     throw error("Expected value after operator", peek().position);
                 }
+                if (endsWithIgnoringCase(valueTokens)) {
+                    return parseIgnoringCase(field, operator.operator(), valueTokens);
+                }
                 value = parseValue(valueTokens, operator.operator());
             }
             return new FilterPredicateAst(new FilterAst(field, operator.operator().clause, value, null));
+        }
+
+        /**
+         * {@code <text phrase> <value> ignoring case}: contains, starts with, ends with, and
+         * their {@code does not} forms, lowered to a case-insensitive literal regex.
+         */
+        private FilterExpressionAst parseIgnoringCase(String field, Operator operator, List<Token> valueTokens) {
+            Token suffix = valueTokens.get(valueTokens.size() - 2);
+            LiteralMatchPattern pattern = operator.caseInsensitivePattern();
+            if (pattern == null) {
+                throw error("'ignoring case' only applies to contains, starts with, and ends with"
+                        + " (and their 'does not' forms); quote a value that ends with these words", suffix.position);
+            }
+            List<Token> literal = valueTokens.subList(0, valueTokens.size() - 2);
+            if (literal.isEmpty()) {
+                throw error("Expected value before 'ignoring case'", suffix.position);
+            }
+            Clauses clause = operator.isNegatedText() ? Clauses.NOT_MATCHES : Clauses.MATCHES;
+            return new FilterPredicateAst(new FilterAst(field, clause, parseValue(literal, pattern), null));
+        }
+
+        private static boolean endsWithIgnoringCase(List<Token> valueTokens) {
+            int size = valueTokens.size();
+            return size >= 2
+                    && isWord(valueTokens.get(size - 2), "ignoring")
+                    && isWord(valueTokens.get(size - 1), "case");
+        }
+
+        private FilterExpressionAst parseGroup(boolean allowAggregateReferences,
+                                               String clauseName,
+                                               boolean allowBooleanShorthand) {
+            next();
+            FilterExpressionAst grouped = parseOrExpression(allowAggregateReferences, clauseName, allowBooleanShorthand);
+            if (!match(TokenType.RIGHT_PAREN)) {
+                throw error("Expected ')' to close group in " + clauseName, peek().position);
+            }
+            return grouped;
+        }
+
+        /**
+         * {@code field is [not] between <low> and <high>}: inclusive on both ends, lowered to
+         * {@code field >= low and field <= high} (negated with the usual De Morgan rules).
+         */
+        private FilterExpressionAst parseRange(String field, Operator operator) {
+            Object low = parseRangeBound(operator);
+            if (!matchWord("and")) {
+                throw error("Expected 'and' in 'is between <low> and <high>'", peek().position);
+            }
+            Object high = parseRangeBound(operator);
+            FilterExpressionAst range = new FilterBinaryAst(
+                    new FilterPredicateAst(new FilterAst(field, Clauses.BIGGER_EQUAL, low, null)),
+                    new FilterPredicateAst(new FilterAst(field, Clauses.SMALLER_EQUAL, high, null)),
+                    Separator.AND);
+            return operator.clause == Clauses.NOT_EQUAL
+                    ? FilterExpressionNegation.negate(range, message -> error(message, peek().position))
+                    : range;
+        }
+
+        private Object parseRangeBound(Operator operator) {
+            List<Token> valueTokens = readValueTokens();
+            if (valueTokens.isEmpty()) {
+                throw error("Expected value in 'is between <low> and <high>'", peek().position);
+            }
+            return parseValue(valueTokens, operator);
         }
 
         private FilterExpressionAst parseExistsPredicate(boolean negated, String clauseName) {
@@ -474,7 +586,8 @@ public final class NaturalQueryParser {
         private OperatorMatch findOperator(String clauseName) {
             int start = index;
             while (start < tokens.size()) {
-                if ((isBooleanBoundary(tokens.get(start)) || isClauseBoundary(start))
+                Token token = tokens.get(start);
+                if ((isBooleanBoundary(token) || isClauseBoundary(start) || isParenthesis(token))
                         && !isQualifyWindowFieldContinuation(clauseName, start)) {
                     return null;
                 }
@@ -528,6 +641,43 @@ public final class NaturalQueryParser {
             return isClauseBoundary(tokenIndex);
         }
 
+        /**
+         * Values after {@code is [not] one of}: comma-separated values, or one list parameter.
+         * A value containing "and" / "or" must be quoted, since those words end the list.
+         */
+        private Object parseListValue(Operator operator) {
+            List<Token> first = readValueTokens();
+            if (first.isEmpty()) {
+                throw error("Expected a value list after '" + String.join(" ", operator.phrase) + "'", peek().position);
+            }
+            if (isParameterReference(first) && peek().type != TokenType.COMMA) {
+                return parseValue(first, operator);
+            }
+            ArrayList<Object> values = new ArrayList<>();
+            List<Token> item = first;
+            while (true) {
+                if (isParameterReference(item)) {
+                    throw error("Parameters inside a value list are not supported; bind one list parameter"
+                            + " instead: " + String.join(" ", operator.phrase) + " :values", item.get(0).position);
+                }
+                values.add(parseValue(item, operator));
+                if (peek().type != TokenType.COMMA) {
+                    return java.util.Collections.unmodifiableList(values);
+                }
+                next();
+                item = readValueTokens();
+                if (item.isEmpty()) {
+                    throw error("Expected a value after ',' in the value list", peek().position);
+                }
+            }
+        }
+
+        private static boolean isParameterReference(List<Token> tokens) {
+            return tokens.size() == 1
+                    && tokens.get(0).type != TokenType.STRING
+                    && tokens.get(0).text.startsWith(":");
+        }
+
         private List<Token> readValueTokens() {
             ArrayList<Token> value = new ArrayList<>();
             while (true) {
@@ -535,7 +685,7 @@ public final class NaturalQueryParser {
                 if (token.isEof() || isBooleanBoundary(token) || isClauseBoundary(index)) {
                     break;
                 }
-                if (token.type == TokenType.COMMA) {
+                if (token.type == TokenType.COMMA || token.type == TokenType.RIGHT_PAREN) {
                     break;
                 }
                 value.add(next());
@@ -547,7 +697,8 @@ public final class NaturalQueryParser {
             ArrayList<Token> field = new ArrayList<>();
             while (true) {
                 Token token = peek();
-                if (token.isEof() || isBooleanBoundary(token) || isClauseBoundary(index) || token.type == TokenType.COMMA) {
+                if (token.isEof() || isBooleanBoundary(token) || isClauseBoundary(index)
+                        || token.type == TokenType.COMMA || isParenthesis(token)) {
                     break;
                 }
                 field.add(next());
@@ -567,6 +718,10 @@ public final class NaturalQueryParser {
             return token.type == TokenType.RAW
                     && (WILDCARD_TERMS.contains(token.text.toLowerCase(Locale.ROOT))
                     || resolveKnownSourceAlias(token.text) != null);
+        }
+
+        private boolean isParenthesis(Token token) {
+            return token.type == TokenType.LEFT_PAREN || token.type == TokenType.RIGHT_PAREN;
         }
 
         private boolean isBooleanBoundary(Token token) {
@@ -878,25 +1033,99 @@ public final class NaturalQueryParser {
             if (tokens == null || tokens.isEmpty()) {
                 return null;
             }
-            Metric metric = metricFromWord(tokens.get(0));
-            if (metric == null) {
-                return null;
-            }
-            int fieldStart = 1;
-            if (fieldStart < tokens.size() && isWord(tokens.get(fieldStart), "of")) {
-                fieldStart++;
+            StatisticHead statistic = statisticHead(tokens);
+            Metric metric;
+            Double argument = null;
+            int fieldStart;
+            if (statistic != null) {
+                metric = statistic.metric();
+                argument = statistic.argument();
+                fieldStart = statistic.width();
+            } else {
+                metric = metricFromWord(tokens.get(0));
+                if (metric == null) {
+                    return null;
+                }
+                fieldStart = 1;
+                if (fieldStart < tokens.size() && isWord(tokens.get(fieldStart), "of")) {
+                    fieldStart++;
+                }
             }
             if (fieldStart >= tokens.size()) {
                 throw error("Expected field after aggregate phrase in " + clauseName, tokens.get(0).position);
             }
             List<Token> fieldTokens = tokens.subList(fieldStart, tokens.size());
             if (metric == Metric.COUNT && isWildcardItem(fieldTokens)) {
-                return new MetricPhrase(metric, true, "*");
+                return new MetricPhrase(metric, true, "*", null);
+            }
+            if (metric == Metric.COUNT && fieldTokens.size() > 1 && isWord(fieldTokens.get(0), "distinct")) {
+                // "count of distinct department": distinct non-null values.
+                metric = Metric.COUNT_DISTINCT;
+                fieldTokens = fieldTokens.subList(1, fieldTokens.size());
             }
             if (isWildcardItem(fieldTokens)) {
                 throw error(metric.name() + " of wildcard terms is not supported in " + clauseName, fieldTokens.get(0).position);
             }
-            return new MetricPhrase(metric, false, normalizeTrackedReference(fieldTokens));
+            return new MetricPhrase(metric, false, normalizeTrackedReference(fieldTokens), argument);
+        }
+
+        /**
+         * Statistical aggregate heads, always followed by {@code of}: {@code median of},
+         * {@code standard deviation of} / {@code stddev of}, {@code variance of},
+         * {@code population standard deviation of}, {@code population variance of}, and
+         * {@code <n>th percentile of}. Requiring {@code of} keeps field phrases such as
+         * {@code median income} working.
+         */
+        private StatisticHead statisticHead(List<Token> tokens) {
+            StatisticHead head = null;
+            if (startsWithWords(tokens, "median")) {
+                head = new StatisticHead(Metric.MEDIAN, null, 1);
+            } else if (startsWithWords(tokens, "stddev") || startsWithWords(tokens, "standard", "deviation")) {
+                head = new StatisticHead(Metric.STDDEV, null, isWord(tokens.get(0), "stddev") ? 1 : 2);
+            } else if (startsWithWords(tokens, "variance")) {
+                head = new StatisticHead(Metric.VARIANCE, null, 1);
+            } else if (startsWithWords(tokens, "population", "standard", "deviation")) {
+                head = new StatisticHead(Metric.STDDEV_POP, null, 3);
+            } else if (startsWithWords(tokens, "population", "variance")) {
+                head = new StatisticHead(Metric.VAR_POP, null, 2);
+            } else if (tokens.size() > 1 && isWord(tokens.get(1), "percentile")) {
+                Double fraction = ordinalPercentile(tokens.get(0));
+                head = fraction == null ? null : new StatisticHead(Metric.PERCENTILE, fraction, 2);
+            }
+            if (head == null || head.width() >= tokens.size() || !isWord(tokens.get(head.width()), "of")) {
+                return null;
+            }
+            return new StatisticHead(head.metric(), head.argument(), head.width() + 1);
+        }
+
+        /**
+         * {@code 90th} -> {@code 0.9}; {@code null} unless the token is an ordinal from 0 to 100.
+         */
+        private Double ordinalPercentile(Token token) {
+            if (token.type != TokenType.RAW) {
+                return null;
+            }
+            Matcher matcher = ORDINAL_PERCENT.matcher(token.text.toLowerCase(Locale.ROOT));
+            if (!matcher.matches()) {
+                return null;
+            }
+            double percent = Double.parseDouble(matcher.group(1));
+            if (percent > 100d) {
+                throw error("Percentile must be from 0th to 100th: " + token.text, token.position);
+            }
+            return percent / 100d;
+        }
+
+        private static boolean startsWithWords(List<Token> tokens, String... words) {
+            if (tokens.size() < words.length) {
+                return false;
+            }
+            for (int i = 0; i < words.length; i++) {
+                if (!isWord(tokens.get(i), words[i])) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private TimeBucketPhrase tryParseTimeBucketPhrase(List<Token> tokens, String clauseName) {
@@ -1423,10 +1652,8 @@ public final class NaturalQueryParser {
         }
 
         private String renderMetricReference(MetricPhrase metricPhrase) {
-            return metricPhrase.metric().name().toLowerCase(Locale.ROOT)
-                    + "("
-                    + (metricPhrase.countAll() ? "*" : metricPhrase.field())
-                    + ")";
+            return AggregateExpressionSupport.canonical(
+                    metricPhrase.metric(), metricPhrase.countAll() ? "*" : metricPhrase.field(), metricPhrase.argument());
         }
     }
 
@@ -1563,10 +1790,18 @@ public final class NaturalQueryParser {
 
     private static Object parseValue(List<Token> tokens, Operator operator) {
         Objects.requireNonNull(operator, "operator must not be null");
+        return parseValue(tokens, operator.literalPattern);
+    }
+
+    /**
+     * @param literalPattern lowers a literal (or a bound parameter) to a regex; {@code null}
+     *                       keeps the value as is
+     */
+    private static Object parseValue(List<Token> tokens, LiteralMatchPattern literalPattern) {
         if (tokens.size() == 1) {
             Token token = tokens.get(0);
             if (token.type == TokenType.STRING) {
-                return operator.transform(token.text);
+                return lower(literalPattern, token.text);
             }
             String raw = token.text;
             if (raw.startsWith(":")) {
@@ -1574,24 +1809,33 @@ public final class NaturalQueryParser {
                 if (parameterName.isEmpty()) {
                     throw new IllegalArgumentException("Expected parameter name after ':'");
                 }
-                return new ParameterValueAst(parameterName);
+                return literalPattern == null
+                        ? new ParameterValueAst(parameterName)
+                        : new PatternParameterValue(parameterName, literalPattern);
             }
             if ("true".equalsIgnoreCase(raw)) {
-                return operator.transform(Boolean.TRUE);
+                return lower(literalPattern, Boolean.TRUE);
             }
             if ("false".equalsIgnoreCase(raw)) {
-                return operator.transform(Boolean.FALSE);
+                return lower(literalPattern, Boolean.FALSE);
             }
             if ("null".equalsIgnoreCase(raw)) {
-                return operator.transform(null);
+                return lower(literalPattern, null);
             }
             Number number = tryParseNumber(raw);
             if (number != null) {
-                return operator.transform(number);
+                return lower(literalPattern, number);
             }
-            return operator.transform(raw);
+            return lower(literalPattern, raw);
         }
-        return operator.transform(joinTokens(tokens));
+        return lower(literalPattern, joinTokens(tokens));
+    }
+
+    private static Object lower(LiteralMatchPattern literalPattern, Object value) {
+        if (literalPattern == null) {
+            return value;
+        }
+        return literalPattern.toRegex(value == null ? "" : String.valueOf(value));
     }
 
     private static List<Token> stripLeadingReferenceFillers(List<Token> tokens) {
@@ -1599,7 +1843,8 @@ public final class NaturalQueryParser {
             return List.of();
         }
         int start = 0;
-        while (start < tokens.size() && isOptionalReferenceFiller(tokens.get(start))) {
+        // Keep the last token: a field may itself be named like a filler word ("a", "the").
+        while (start < tokens.size() - 1 && isOptionalReferenceFiller(tokens.get(start))) {
             start++;
         }
         return start == 0 ? tokens : List.copyOf(tokens.subList(start, tokens.size()));
@@ -1750,6 +1995,12 @@ public final class NaturalQueryParser {
     }
 
     private enum Operator {
+        // List and range phrases first: operators match in declaration order, and
+        // "is not" / "is" would otherwise claim these.
+        IS_NOT_ONE_OF(new String[]{"is", "not", "one", "of"}, Clauses.NOT_EQUAL, ValueShape.LIST),
+        IS_ONE_OF(new String[]{"is", "one", "of"}, Clauses.IN, ValueShape.LIST),
+        IS_NOT_BETWEEN(new String[]{"is", "not", "between"}, Clauses.NOT_EQUAL, ValueShape.RANGE),
+        IS_BETWEEN(new String[]{"is", "between"}, Clauses.EQUAL, ValueShape.RANGE),
         IS_NOT_EQUAL_TO(new String[]{"is", "not", "equal", "to"}, Clauses.NOT_EQUAL),
         NOT_EQUAL_TO(new String[]{"not", "equal", "to"}, Clauses.NOT_EQUAL),
         IS_GREATER_THAN_OR_EQUAL_TO(new String[]{"is", "greater", "than", "or", "equal", "to"}, Clauses.BIGGER_EQUAL),
@@ -1770,30 +2021,15 @@ public final class NaturalQueryParser {
         IS_BELOW(new String[]{"is", "below"}, Clauses.SMALLER),
         IS_BEFORE(new String[]{"is", "before"}, Clauses.SMALLER),
         IS_AFTER(new String[]{"is", "after"}, Clauses.BIGGER),
-        STARTING_WITH(new String[]{"starting", "with"}, Clauses.MATCHES) {
-            @Override
-            Object transform(Object value) {
-                return toRegex(value, true, false);
-            }
-        },
-        STARTS_WITH(new String[]{"starts", "with"}, Clauses.MATCHES) {
-            @Override
-            Object transform(Object value) {
-                return toRegex(value, true, false);
-            }
-        },
-        ENDING_WITH(new String[]{"ending", "with"}, Clauses.MATCHES) {
-            @Override
-            Object transform(Object value) {
-                return toRegex(value, false, true);
-            }
-        },
-        ENDS_WITH(new String[]{"ends", "with"}, Clauses.MATCHES) {
-            @Override
-            Object transform(Object value) {
-                return toRegex(value, false, true);
-            }
-        },
+        DOES_NOT_CONTAIN(new String[]{"does", "not", "contain"}, Clauses.NOT_CONTAINS),
+        DOES_NOT_START_WITH(new String[]{"does", "not", "start", "with"}, LiteralMatchPattern.STARTS_WITH,
+                Clauses.NOT_MATCHES),
+        DOES_NOT_END_WITH(new String[]{"does", "not", "end", "with"}, LiteralMatchPattern.ENDS_WITH,
+                Clauses.NOT_MATCHES),
+        STARTING_WITH(new String[]{"starting", "with"}, LiteralMatchPattern.STARTS_WITH),
+        STARTS_WITH(new String[]{"starts", "with"}, LiteralMatchPattern.STARTS_WITH),
+        ENDING_WITH(new String[]{"ending", "with"}, LiteralMatchPattern.ENDS_WITH),
+        ENDS_WITH(new String[]{"ends", "with"}, LiteralMatchPattern.ENDS_WITH),
         GREATER_THAN(new String[]{"greater", "than"}, Clauses.BIGGER),
         AT_LEAST(new String[]{"at", "least"}, Clauses.BIGGER_EQUAL),
         AT_MOST(new String[]{"at", "most"}, Clauses.SMALLER_EQUAL),
@@ -1809,24 +2045,62 @@ public final class NaturalQueryParser {
 
         private final String[] phrase;
         private final Clauses clause;
+        private final LiteralMatchPattern literalPattern;
+        private final ValueShape shape;
 
         Operator(String[] phrase, Clauses clause) {
+            this(phrase, clause, ValueShape.SINGLE);
+        }
+
+        Operator(String[] phrase, Clauses clause, ValueShape shape) {
             this.phrase = phrase;
             this.clause = clause;
+            this.literalPattern = null;
+            this.shape = shape;
         }
 
-        Object transform(Object value) {
-            return value;
+        Operator(String[] phrase, LiteralMatchPattern literalPattern) {
+            this(phrase, literalPattern, Clauses.MATCHES);
         }
 
-        private static String toRegex(Object value, boolean prefix, boolean suffix) {
-            String raw = value == null ? "" : String.valueOf(value);
-            StringBuilder regex = new StringBuilder();
-            regex.append(prefix ? "^" : ".*");
-            regex.append(Pattern.quote(raw));
-            regex.append(suffix ? "$" : ".*");
-            return regex.toString();
+        Operator(String[] phrase, LiteralMatchPattern literalPattern, Clauses clause) {
+            this.phrase = phrase;
+            this.clause = clause;
+            this.literalPattern = literalPattern;
+            this.shape = ValueShape.SINGLE;
         }
+
+        /**
+         * Case-insensitive form for {@code ... ignoring case}, or {@code null} when the
+         * phrase is not a text match.
+         */
+        LiteralMatchPattern caseInsensitivePattern() {
+            if (clause == Clauses.CONTAINS || clause == Clauses.NOT_CONTAINS) {
+                return LiteralMatchPattern.CONTAINS_IGNORE_CASE;
+            }
+            if (literalPattern == LiteralMatchPattern.STARTS_WITH) {
+                return LiteralMatchPattern.STARTS_WITH_IGNORE_CASE;
+            }
+            if (literalPattern == LiteralMatchPattern.ENDS_WITH) {
+                return LiteralMatchPattern.ENDS_WITH_IGNORE_CASE;
+            }
+            return null;
+        }
+
+        boolean isNegatedText() {
+            return clause == Clauses.NOT_CONTAINS || clause == Clauses.NOT_MATCHES;
+        }
+    }
+
+    /**
+     * Operand form after an operator phrase. {@code LIST} takes comma-separated values (or one
+     * list parameter); {@code RANGE} takes {@code <low> and <high>}, where a
+     * {@code NOT_EQUAL} clause marks the negated form.
+     */
+    private enum ValueShape {
+        SINGLE,
+        LIST,
+        RANGE
     }
 
     private record PaginationValue(Integer literal, String parameterName) {
@@ -1839,7 +2113,10 @@ public final class NaturalQueryParser {
         }
     }
 
-    private record MetricPhrase(Metric metric, boolean countAll, String field) {
+    private record MetricPhrase(Metric metric, boolean countAll, String field, Double argument) {
+    }
+
+    private record StatisticHead(Metric metric, Double argument, int width) {
     }
 
     private record TimeBucketPhrase(String field, TimeBucketPreset preset) {

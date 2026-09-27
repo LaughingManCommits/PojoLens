@@ -53,11 +53,17 @@ type.
 ## String Predicates
 
 `contains(value)` matches rows where the field includes the substring (case-sensitive).
-`containsIgnoreCase(value)` is the case-insensitive equivalent — lowers to a
-`MATCHES` pattern using `(?i)` and `Pattern.quote` so regex special characters in
-the value are treated as literals.
+`containsIgnoreCase(value)` is the case-insensitive equivalent. It folds
+non-ASCII letters too (`"ZOË"` matches `"Zoë"`), matches across line breaks,
+and treats regex special characters in the value as literals. It lowers to a
+`MATCHES` pattern with `(?siu)` flags and `Pattern.quote`.
 `matches(pattern)` matches rows where the field satisfies the regex pattern.
 `contains` and `matches` mirror the SQL-like `CONTAINS` and `MATCHES` operators.
+`startsWith(prefix)` and `endsWith(suffix)` are case-sensitive literal
+prefix/suffix matches with `String.startsWith` / `String.endsWith` semantics:
+regex metacharacters in the value match literally and multi-line values are
+supported. They lower to the same `MATCHES` pattern that natural
+`starts with` / `ends with` phrases produce.
 
 ```java
 // case-sensitive: "Ali" matches "Alice", not "alice"
@@ -74,14 +80,35 @@ List<Employee> result2 = TypedQuery.from(Employee.class)
 // static factory equivalent
 TypedPredicate<Employee> pred = TypedPredicate.containsIgnoreCase(
     EmployeeTypedFields.NAME, "ali");
+
+// literal prefix / suffix: "Eng" matches "Engineering"; "A." matches only a literal dot
+List<Employee> result3 = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.DEPARTMENT.startsWith("Eng")
+        .and(EmployeeTypedFields.NAME.endsWith("e")))
+    .filter(employees);
+
+TypedPredicate<Employee> prefix = TypedPredicate.startsWith(EmployeeTypedFields.NAME, "Al");
 ```
 
-`NOT(CONTAINS)`, `NOT(CONTAINS_IGNORE_CASE)`, and `NOT(MATCHES)` are not
-supported — use SQL-like or filter in application code for negated string predicates.
+All five string predicates can be negated with `.not()`:
+`NAME.startsWith("Al").not()` keeps names that do not start with `Al`. As with every
+value comparison, a negated string predicate never matches a null field.
 
 ## Basic Filtering, Ordering, And Limits
 
 `TypedQuery` is immutable. Each fluent call returns a new query definition.
+
+Comparisons follow the shared rules in
+[sql-like.md](sql-like.md#comparison-semantics). In particular, a `null` field
+never matches `eq`, `ne`, or range predicates: `NAME.ne("x")` and
+`NAME.eq("x").not()` exclude rows whose `name` is null. Use `isNull()` /
+`isNotNull()` to select them explicitly.
+
+Field names are validated against the entity (plus computed fields, and output
+aliases where aliases are allowed) before execution: a typo such as
+`TypedField.of("naem", String.class)` throws `IllegalArgumentException` with
+suggestions, and `diagnostics()` reports it. Queries with joins skip this check,
+because joined field names are only known from the join bindings at execution.
 
 ```java
 List<Employee> rows = TypedQuery.from(Employee.class)
@@ -234,6 +261,17 @@ is returned. The stream API surface is identical to what callers would write,
 so if a future version introduces true lazy streaming from the engine, call
 sites will not need to change.
 
+`iterator(...)` offers the same four overloads for callers that need an
+`Iterator<T>` (for example, to feed an API that pulls rows one at a time). It
+wraps `stream(...)`, so the same materialisation caveat applies, and
+`remove()` is unsupported.
+
+```java
+Iterator<Employee> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .iterator(employees);
+```
+
 ## Range Checks
 
 `between(lo, hi)` is a convenience for `gte(lo).and(lte(hi))` and is available
@@ -375,6 +413,28 @@ List<DepartmentPayroll> rows = TypedQuery.from(Employee.class)
 ```
 
 `having(...)` is limited to grouped fields and metric aliases.
+
+`countDistinct(field, alias)` (or `metric(field, Metric.COUNT_DISTINCT, alias)`)
+counts distinct non-null values per group, like SQL `COUNT(DISTINCT field)`.
+
+Statistical metrics use `metric(field, Metric.MEDIAN | STDDEV | STDDEV_POP | VARIANCE |
+VAR_POP, alias)`, and percentiles use `percentile(field, 0.9, alias)` (linear
+interpolation; `Metric.PERCENTILE` through `metric(...)` is rejected because it needs
+the fraction). Results are `Double`; see the SQL-like guide for the sample vs.
+population rules.
+
+`distinct()` returns distinct result rows, like SQL `SELECT DISTINCT`: rows whose
+selected values are equal collapse to the first one in `orderBy` order, and
+`offset`/`limit` apply afterwards. With `select(...)`, `orderBy` must use selected
+fields.
+
+```java
+List<Employee> departments = TypedQuery.from(Employee.class)
+    .select(EmployeeTypedFields.DEPARTMENT)
+    .distinct()
+    .orderBy(EmployeeTypedFields.DEPARTMENT)
+    .filter(employees);
+```
 
 ## Windows And QUALIFY
 
@@ -555,7 +615,6 @@ is synthetic, for example `typed:Employee`.
 - `orderBy(TypedSortOrder...)` supports per-field direction.
 - `having(...)` only accepts grouped fields and metric aliases.
 - `qualify(...)` only accepts selected window aliases.
-- `NOT(CONTAINS)`, `NOT(CONTAINS_IGNORE_CASE)`, and `NOT(MATCHES)` are not supported; use SQL-like or application-code filtering instead.
 - `NOT(IN_SUBQUERY)` is not supported; use `NOT EXISTS` instead.
 - Correlated/scalar subqueries and broader named-source planning remain on
   [sql-like.md](sql-like.md) or [natural.md](natural.md).

@@ -13,6 +13,7 @@ import static laughing.man.commits.dsl.TypedPredicate.Operator.AND;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.ANY;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS_IGNORE_CASE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.ENDS_WITH;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.EQ;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.GT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.GTE;
@@ -26,6 +27,7 @@ import static laughing.man.commits.dsl.TypedPredicate.Operator.NE;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.NONE;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.NOT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.OR;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.STARTS_WITH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -195,6 +197,42 @@ public class TypedPredicateContractTest {
         TypedPredicate<Employee> fromStatic = TypedPredicate.containsIgnoreCase(NAME, "ali");
         assertEquals(fromStatic.operator(), fromField.operator());
         assertEquals(fromStatic.value(), fromField.value());
+    }
+
+    @Test
+    void startsWithPredicateCarriesFieldOperatorAndPrefix() {
+        TypedPredicate<Employee> p = NAME.startsWith("Al");
+        assertTrue(p.isLeaf());
+        assertEquals(STARTS_WITH, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("Al", p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void endsWithPredicateCarriesFieldOperatorAndSuffix() {
+        TypedPredicate<Employee> p = NAME.endsWith("ce");
+        assertTrue(p.isLeaf());
+        assertEquals(ENDS_WITH, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("ce", p.value());
+    }
+
+    @Test
+    void startsWithAndEndsWithFieldInstanceMethodsMatchStaticFactories() {
+        assertEquals(TypedPredicate.startsWith(NAME, "Al").operator(), NAME.startsWith("Al").operator());
+        assertEquals(TypedPredicate.startsWith(NAME, "Al").value(), NAME.startsWith("Al").value());
+        assertEquals(TypedPredicate.endsWith(NAME, "ce").operator(), NAME.endsWith("ce").operator());
+        assertEquals(TypedPredicate.endsWith(NAME, "ce").value(), NAME.endsWith("ce").value());
+    }
+
+    @Test
+    void nullPrefixOrSuffixThrows() {
+        NullPointerException prefix = assertThrows(NullPointerException.class, () -> NAME.startsWith(null));
+        NullPointerException suffix = assertThrows(NullPointerException.class, () -> NAME.endsWith(null));
+
+        assertEquals("prefix must not be null for startsWith", prefix.getMessage());
+        assertEquals("suffix must not be null for endsWith", suffix.getMessage());
     }
 
     @Test

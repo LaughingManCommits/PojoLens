@@ -73,6 +73,27 @@ class ObjectUtilTest {
     }
 
     @Test
+    void negatedTextClausesComplementTextMatchesOverNonNullText() {
+        assertTrue(ObjectUtil.compareObject("alpha", "z", Clauses.NOT_CONTAINS, null));
+        assertFalse(ObjectUtil.compareObject("alpha", "lp", Clauses.NOT_CONTAINS, null));
+        assertTrue(ObjectUtil.compareObject("alpha", "b.*", Clauses.NOT_MATCHES, null));
+        assertFalse(ObjectUtil.compareObject("alpha", "a.*", Clauses.NOT_MATCHES, null));
+        // A null field or null value never matches, negated or not.
+        assertFalse(ObjectUtil.compareObject(null, "z", Clauses.NOT_CONTAINS, null));
+        assertFalse(ObjectUtil.compareObject("alpha", null, Clauses.NOT_CONTAINS, null));
+        // An invalid regex never matches, negated or not.
+        assertFalse(ObjectUtil.compareObject("alpha", "[", Clauses.NOT_MATCHES, null));
+    }
+
+    @Test
+    void negatedTextClausesOverListsMeanNoneMatch() {
+        assertTrue(ObjectUtil.compareObject("alpha", List.of("x", "y"), Clauses.NOT_CONTAINS, null));
+        assertFalse(ObjectUtil.compareObject("alpha", List.of("x", "lp"), Clauses.NOT_CONTAINS, null));
+        assertTrue(ObjectUtil.compareObject("alpha", java.util.Arrays.asList("x", null), Clauses.NOT_CONTAINS, null));
+        assertFalse(ObjectUtil.compareObject("alpha", new String[]{"b.*", "a.*"}, Clauses.NOT_MATCHES, null));
+    }
+
+    @Test
     void compareObjectShouldCoerceNumericStringsForScalarComparisons() {
         assertTrue(ObjectUtil.compareObject(42, "42.0", Clauses.EQUAL, null));
         assertTrue(ObjectUtil.compareObject(42L, "41.0", Clauses.BIGGER, null));

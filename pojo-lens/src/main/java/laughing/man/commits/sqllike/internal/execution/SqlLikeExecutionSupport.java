@@ -106,10 +106,10 @@ public final class SqlLikeExecutionSupport {
         for (int i = 0; i < n; i++) {
             int srcIdx = sourceIndexes[i];
             if (srcIdx == -2) {
-                values[i] = SqlExpressionEvaluator.evaluateNumeric(
+                values[i] = SqlExpressionEvaluator.toNullable(SqlExpressionEvaluator.evaluateNumeric(
                         fields.get(i).field(),
                         id -> resolveIndexedQueryRowFieldValue(rowFields, id, fieldIndexMap)
-                );
+                ));
             } else if (sourceNames[i] != null) {
                 values[i] = queryRowFieldValue(rowFields, sourceNames[i], srcIdx);
             }
@@ -139,10 +139,10 @@ public final class SqlLikeExecutionSupport {
                 for (SelectFieldAst field : select.fields()) {
                     Object value;
                     if (field.computedField()) {
-                        value = SqlExpressionEvaluator.evaluateNumeric(
+                        value = SqlExpressionEvaluator.toNullable(SqlExpressionEvaluator.evaluateNumeric(
                                 field.field(),
                                 identifier -> resolveFieldValue(sourceRow, identifier)
-                        );
+                        ));
                     } else {
                         value = resolveProjectedFieldValue(sourceRow, field);
                     }
@@ -162,10 +162,10 @@ public final class SqlLikeExecutionSupport {
             for (SelectFieldAst field : select.fields()) {
                 Object value;
                 if (field.computedField()) {
-                    value = SqlExpressionEvaluator.evaluateNumeric(
+                    value = SqlExpressionEvaluator.toNullable(SqlExpressionEvaluator.evaluateNumeric(
                             field.field(),
                             identifier -> resolveFieldValue(sourceRow, identifier)
-                    );
+                    ));
                 } else {
                     value = resolveProjectedFieldValue(sourceRow, field);
                 }
@@ -250,6 +250,9 @@ public final class SqlLikeExecutionSupport {
     }
 
     private static void ensureNoArgConstructor(Class<?> targetClass) throws NoSuchMethodException {
+        if (targetClass.isRecord()) {
+            return; // records are built through their canonical constructor
+        }
         targetClass.getDeclaredConstructor();
     }
 

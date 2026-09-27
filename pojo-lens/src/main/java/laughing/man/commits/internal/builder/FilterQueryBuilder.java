@@ -5,6 +5,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.builder.FieldSelector;
 import laughing.man.commits.builder.FieldSelectors;
+import laughing.man.commits.internal.NumericStatistics;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -137,6 +138,12 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     @Override
+    public FilterQueryBuilder distinctRows() {
+        spec.setDistinctRows(true);
+        return this;
+    }
+
+    @Override
     public FilterQueryBuilder offset(int rowOffset) {
         if (rowOffset < 0) {
             throw new IllegalArgumentException("rowOffset must be >= 0");
@@ -166,6 +173,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         explain.put("orderBy", new TreeMap<>(spec.getOrderFields()));
         explain.put("orderSorts", new TreeMap<>(spec.getOrderSorts()));
         explain.put("distinct", new TreeMap<>(spec.getDistinctFields()));
+        explain.put("distinctRows", spec.isDistinctRows());
         explain.put("indexes", new ArrayList<>(spec.getIndexedFields()));
         explain.put("whereRuleCount", spec.getFilterValues().size());
         explain.put("whereSubqueryCount", filterSubqueryCount());
@@ -436,6 +444,18 @@ public class FilterQueryBuilder implements QueryBuilder {
     @Override
     public FilterQueryBuilder addMetric(String field, Metric metric, String alias) {
         Metric normalizedMetric = requireMetric(metric);
+        if (normalizedMetric.requiresArgument()) {
+            throw new IllegalArgumentException("PERCENTILE needs a fraction; use addPercentile(field, percentile, alias)");
+        }
+        return addMetricWithArgument(field, normalizedMetric, null, alias);
+    }
+
+    @Override
+    public FilterQueryBuilder addPercentile(String field, double percentile, String alias) {
+        return addMetricWithArgument(field, Metric.PERCENTILE, NumericStatistics.requirePercentile(percentile), alias);
+    }
+
+    private FilterQueryBuilder addMetricWithArgument(String field, Metric normalizedMetric, Double argument, String alias) {
         String normalizedAlias = requireIdentifier(alias, "alias");
         ensureOutputAliasAvailable(normalizedAlias);
         String normalizedField = requireIdentifier(field, "field");
@@ -443,7 +463,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (normalizedMetric.requiresNumericField()) {
             ensureNumericField(normalizedField, normalizedMetric);
         }
-        spec.getMetrics().add(QueryMetric.of(normalizedField, normalizedMetric, normalizedAlias));
+        spec.getMetrics().add(QueryMetric.of(normalizedField, normalizedMetric, argument, normalizedAlias));
         markExecutionPlanShapeChanged();
         return this;
     }
@@ -920,6 +940,10 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public boolean isFilterAlwaysFalse() {
         return spec.isFilterAlwaysFalse();
+    }
+
+    public boolean isDistinctRows() {
+        return spec.isDistinctRows();
     }
 
     /**
@@ -1539,9 +1563,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (metric == null) {
             throw new IllegalArgumentException("metric is required");
         }
-        if (Metric.COUNT.equals(metric)) {
-            throw new IllegalArgumentException("Use addCount(alias) for row count");
-        }
+        // COUNT with a field counts that field's non-null values; addCount(alias) counts rows.
         return metric;
     }
 
@@ -1855,7 +1877,7 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private void addMetricSourceFields(LinkedHashSet<String> selected) {
         for (QueryMetric metric : spec.getMetrics()) {
-            if (!Metric.COUNT.equals(metric.getMetric())) {
+            if (metric.getField() != null) {
                 addSelectedField(selected, spec.getSourceFieldTypes(), metric.getField());
             }
         }
@@ -1957,7 +1979,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         addSelectedFields(selected, childFieldTypes, spec.getGroupFields().values());
         addWindowSourceFields(selected, childFieldTypes);
         for (QueryMetric metric : spec.getMetrics()) {
-            if (!Metric.COUNT.equals(metric.getMetric())) {
+            if (metric.getField() != null) {
                 addSelectedField(selected, childFieldTypes, metric.getField());
             }
         }

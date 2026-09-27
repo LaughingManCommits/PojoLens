@@ -81,6 +81,8 @@ import laughing.man.commits.tree.TreeEntry;
 import laughing.man.commits.tree.TreeTraversalBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
+import java.io.Reader;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Constructor;
@@ -202,6 +204,28 @@ public class StablePublicApiContractTest {
         requirePublicMethod(FileLoadRuntime.class, "jsonl", Path.class, Class.class, JsonOptions.class);
         requirePublicMethod(FileLoadRuntime.class, "jsonlWithReport", Path.class, Class.class);
         requirePublicMethod(FileLoadRuntime.class, "jsonlWithReport", Path.class, Class.class, JsonOptions.class);
+    }
+
+    @Test
+    public void stableStreamLoaderContractsShouldRemainAvailable() throws Exception {
+        Map<String, Class<?>> optionsTypeByFormat = Map.of(
+                "csv", CsvOptions.class,
+                "tsv", CsvOptions.class,
+                "json", JsonOptions.class,
+                "jsonl", JsonOptions.class
+        );
+        for (Class<?> sourceType : List.of(Reader.class, InputStream.class)) {
+            for (Map.Entry<String, Class<?>> format : optionsTypeByFormat.entrySet()) {
+                for (String name : List.of(format.getKey(), format.getKey() + "WithReport")) {
+                    requirePublicStaticMethod(PojoLensFiles.class, name, sourceType, Class.class);
+                    requirePublicStaticMethod(PojoLensFiles.class, name, sourceType, Class.class, format.getValue());
+                    requirePublicMethod(FileLoadRuntime.class, name, sourceType, Class.class);
+                    requirePublicMethod(FileLoadRuntime.class, name, sourceType, Class.class, format.getValue());
+                }
+            }
+        }
+        requirePublicMethod(CsvLoadReport.class, "sourceName");
+        requirePublicMethod(JsonLoadReport.class, "sourceName");
     }
 
     @Test
@@ -559,6 +583,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, List.class, TypedQuery.class);
         requirePublicMethod(TypedField.class, "containsIgnoreCase", String.class);
+        requirePublicMethod(TypedField.class, "startsWith", String.class);
+        requirePublicMethod(TypedField.class, "endsWith", String.class);
 
         requirePublicMethod(TypedPredicate.class, "operator");
         requirePublicMethod(TypedPredicate.class, "field");
@@ -584,6 +610,8 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "containsIgnoreCase", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "startsWith", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "endsWith", TypedField.class, String.class);
         requirePublicStaticMethod(TypedPredicate.class, "any");
         requirePublicStaticMethod(TypedPredicate.class, "none");
 
@@ -641,6 +669,10 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "stream", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class);
         requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "iterator", List.class);
+        requirePublicMethod(TypedQuery.class, "iterator", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "iterator", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "computedFields", ComputedFieldRegistry.class);
         requirePublicMethod(TypedQuery.class, "hasComputedFields");
         requirePublicMethod(TypedQuery.class, "computedFieldRegistry");

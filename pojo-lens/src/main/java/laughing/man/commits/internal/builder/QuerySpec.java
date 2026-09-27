@@ -63,6 +63,7 @@ final class QuerySpec {
     private List<List<QueryRule>> qualifyAnyOfGroups = new ArrayList<>();
     private List<FluentSubqueryPredicate> filterSubqueries = new ArrayList<>();
     private boolean filterAlwaysFalse;
+    private boolean distinctRows;
     private Integer limit;
     private Integer offset;
 
@@ -266,6 +267,14 @@ final class QuerySpec {
         this.filterAlwaysFalse = filterAlwaysFalse;
     }
 
+    boolean isDistinctRows() {
+        return distinctRows;
+    }
+
+    void setDistinctRows(boolean distinctRows) {
+        this.distinctRows = distinctRows;
+    }
+
     Integer getLimit() {
         return limit;
     }
@@ -366,6 +375,7 @@ final class QuerySpec {
         copy.qualifyAnyOfGroups = qualifyAnyOfGroups;
         copy.filterSubqueries = filterSubqueries;
         copy.filterAlwaysFalse = filterAlwaysFalse;
+        copy.distinctRows = distinctRows;
         copy.limit = limit;
         copy.offset = offset;
         return copy;
@@ -438,6 +448,7 @@ final class QuerySpec {
         target.filterSubqueries.clear();
         target.filterSubqueries.addAll(filterSubqueries);
         target.filterAlwaysFalse = filterAlwaysFalse;
+        target.distinctRows = distinctRows;
         target.limit = limit;
         target.offset = offset;
     }

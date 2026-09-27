@@ -9,6 +9,7 @@ import java.util.List;
 public final class JsonLoadReport {
 
     private final Path path;
+    private final String sourceName;
     private final Class<?> rowType;
     private final JsonOptions options;
     private final List<String> resolvedSchema;
@@ -37,7 +38,42 @@ public final class JsonLoadReport {
                           String failureField,
                           String failureMessage,
                           long durationNanos) {
+        this(
+                path,
+                path == null ? null : path.toString(),
+                rowType,
+                options,
+                resolvedSchema,
+                rejectedFields,
+                missingFields,
+                logicalRecordCount,
+                loadedRowCount,
+                success,
+                failureStage,
+                failureRowNumber,
+                failureField,
+                failureMessage,
+                durationNanos
+        );
+    }
+
+    public JsonLoadReport(Path path,
+                          String sourceName,
+                          Class<?> rowType,
+                          JsonOptions options,
+                          List<String> resolvedSchema,
+                          List<String> rejectedFields,
+                          List<String> missingFields,
+                          int logicalRecordCount,
+                          int loadedRowCount,
+                          boolean success,
+                          String failureStage,
+                          Integer failureRowNumber,
+                          String failureField,
+                          String failureMessage,
+                          long durationNanos) {
         this.path = path;
+        this.sourceName = sourceName;
         this.rowType = rowType;
         this.options = options;
         this.resolvedSchema = List.copyOf(resolvedSchema == null ? List.of() : resolvedSchema);
@@ -53,8 +89,21 @@ public final class JsonLoadReport {
         this.durationNanos = durationNanos;
     }
 
+    /**
+     * File path for path-based loads; {@code null} when rows were loaded from a
+     * {@code Reader} or {@code InputStream}.
+     */
     public Path path() {
         return path;
+    }
+
+    /**
+     * Diagnostic name of the loaded source: the file path for path-based loads,
+     * or {@code <reader>} / {@code <input-stream>} for stream-based loads.
+     * {@code null} only when a path-based load was given a {@code null} path.
+     */
+    public String sourceName() {
+        return sourceName;
     }
 
     public Class<?> rowType() {

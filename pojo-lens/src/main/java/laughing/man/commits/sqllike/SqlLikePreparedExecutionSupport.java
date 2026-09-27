@@ -138,7 +138,7 @@ final class SqlLikePreparedExecutionSupport {
                 strictParameterTypes,
                 computedFieldRegistry
         );
-        FilterQueryBuilder boundBuilder = (FilterQueryBuilder) SqlLikeBinder.bind(
+        FilterQueryBuilder boundBuilder = (FilterQueryBuilder) SqlLikeBinder.bindValidated(
                 normalizedAst,
                 pojos,
                 joinSources,

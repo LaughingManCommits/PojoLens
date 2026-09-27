@@ -113,6 +113,14 @@ public final class TypedField<T, V> {
         return TypedPredicate.matches(this, pattern);
     }
 
+    public TypedPredicate<T> startsWith(String prefix) {
+        return TypedPredicate.startsWith(this, prefix);
+    }
+
+    public TypedPredicate<T> endsWith(String suffix) {
+        return TypedPredicate.endsWith(this, suffix);
+    }
+
     public TypedPredicate<T> inSubquery(TypedField<T, ? extends V> subqueryOutputField, TypedQuery<T> subquery) {
         return TypedPredicate.inSubquery(this, subqueryOutputField, subquery);
     }

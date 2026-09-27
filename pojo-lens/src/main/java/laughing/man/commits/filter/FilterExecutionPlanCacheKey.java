@@ -253,7 +253,9 @@ public final class FilterExecutionPlanCacheKey {
         ArrayList<MetricShape> shapes = new ArrayList<>(metrics.size());
         for (QueryMetric metric : metrics) {
             shapes.add(new MetricShape(
-                    String.valueOf(metric.getMetric()),
+                    metric.getArgument() == null
+                            ? String.valueOf(metric.getMetric())
+                            : metric.getMetric() + "(" + metric.getArgument() + ")",
                     metric.getField(),
                     metric.getAlias()
             ));

@@ -54,7 +54,9 @@ public final class PlanPreviewFilter {
     /**
      * Returns the comparison operator as a SQL-like string
      * (e.g. {@code "="}, {@code "!="}, {@code "<"}, {@code ">"}, {@code "IN"},
-     * {@code "CONTAINS"}, {@code "MATCHES"}, {@code "EXISTS"}, {@code "NOT EXISTS"}).
+     * {@code "NOT IN"}, {@code "IS NULL"}, {@code "IS NOT NULL"}, {@code "CONTAINS"},
+     * {@code "NOT CONTAINS"}, {@code "MATCHES"}, {@code "NOT MATCHES"}, {@code "EXISTS"},
+     * {@code "NOT EXISTS"}).
      *
      * @return operator string
      */

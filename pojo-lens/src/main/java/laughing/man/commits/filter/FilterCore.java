@@ -1,6 +1,5 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.EngineDefaults;
 import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.domain.QueryRow;
@@ -278,19 +277,12 @@ public class FilterCore {
                     if (row == null) {
                         continue;
                     }
-                    String[] distValues = new String[distinctFieldCount];
+                    Object[] distValues = new Object[distinctFieldCount];
                     int valueCount = 0;
                     for (int fieldIndex : fieldIndexes) {
-                        String fieldValue = ObjectUtil.castToString(row.getValueAt(fieldIndex));
-                        if (!StringUtil.isNull(fieldValue)) {
-                            distValues[valueCount++] = fieldValue;
-                        }
+                        distValues[valueCount++] = row.getValueAt(fieldIndex);
                     }
-                    QueryKey distKey = new QueryKey(distValues, valueCount);
-
-                    if (!distKey.isEmpty()) {
-                        distinct.put(distKey, row);
-                    }
+                    distinct.put(new QueryKey(distValues, valueCount), row);
                 }
 
                 return new ArrayList<>(distinct.values());
@@ -370,10 +362,10 @@ public class FilterCore {
             if (!SqlExpressionEvaluator.looksLikeExpression(rule.getColumn())) {
                 return false;
             }
-            fieldValue = SqlExpressionEvaluator.evaluateNumeric(
+            fieldValue = SqlExpressionEvaluator.toNullable(SqlExpressionEvaluator.evaluateNumeric(
                     rule.getColumn(),
                     identifier -> resolveRowValue(row, plan, identifier)
-            );
+            ));
         } else {
             fieldValue = row.getValueAt(fieldIndex);
         }
@@ -387,16 +379,19 @@ public class FilterCore {
             return false;
         }
         if (fieldValue == null) {
-            return Clauses.NOT_EQUAL.equals(rule.getClause());
+            // Same as the flat and fast paths: a null field only matches "= null" / "!= null"
+            // literals (handled above), never a comparison with a concrete value.
+            return false;
         }
-        String dateFormat = StringUtil.isNull(rule.getDateFormat()) ? EngineDefaults.SDF : rule.getDateFormat();
+        // null = no explicit format: default temporal precision rules apply.
+        String dateFormat = StringUtil.isNull(rule.getDateFormat()) ? null : rule.getDateFormat();
         return ObjectUtil.compareObject(fieldValue, rule.getValue(), rule.getClause(), dateFormat);
     }
 
     private Object resolveRowValue(QueryRow row, FilterExecutionPlan plan, String identifier) {
         int index = plan.findFieldIndex(identifier);
         if (index < 0 || index >= row.getFieldCount()) {
-            return null;
+            return SqlExpressionEvaluator.UNKNOWN_IDENTIFIER;
         }
         return row.getValueAt(index);
     }

@@ -201,7 +201,7 @@ final class OrderEngine {
             return 1;
         }
         if (leftValue instanceof Number && rightValue instanceof Number) {
-            return Double.compare(((Number) leftValue).doubleValue(), ((Number) rightValue).doubleValue());
+            return ObjectUtil.compareNumeric((Number) leftValue, (Number) rightValue);
         }
         if (leftValue instanceof java.util.Date && rightValue instanceof java.util.Date) {
             return ((java.util.Date) leftValue).compareTo((java.util.Date) rightValue);

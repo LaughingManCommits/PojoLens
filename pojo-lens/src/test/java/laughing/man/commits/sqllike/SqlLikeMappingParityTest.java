@@ -24,8 +24,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 

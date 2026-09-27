@@ -44,6 +44,7 @@ final class FastPojoStreamSupport {
                 && builder.getGroupFields().isEmpty()
                 && builder.getTimeBuckets().isEmpty()
                 && builder.getDistinctFields().isEmpty()
+                && !builder.isDistinctRows()
                 && builder.getOrderFields().isEmpty()
                 && builder.getHavingFields().isEmpty()
                 && builder.getHavingAllOfGroups().isEmpty()

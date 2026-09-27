@@ -19,6 +19,10 @@ Load this file only for benchmark, threshold, or profiling tasks.
 
 ## Current Position
 
+- `2026-09-27`: Added diagnostic `benchmark-suite-semantics.args` (temporal literals, keyset placements, stream loaders, records) with `CoreSemanticsBenchmarkParityTest`. First run found records ~10x slower than POJOs; a per-result compiled record plan fixed it (recordFilter 620 -> 42 us at 1k, POJO 51 us). Typed `Instant` filter is 159 -> 72 us vs `85b842e`. Representative numbers live in `docs/benchmarking.md`; no thresholds until CI data exists.
+- `2026-09-27`: Warmed before/after JMH (`-f 1 -wi 3 -i 5`, 500 ms) of commit `85b842e` vs the WP-18 to WP-23 working tree on the same machine: no regressions. Core 56 benchmarks geo-mean 0.961 (grouped metrics ~10% faster, simple filter ~19% faster); chart 48 geo-mean 0.966 (three 1k JSON-export flags flipped direction on an interleaved 2-fork recheck = noise); reflection hotspot geo-mean 1.015.
+- `2026-09-27`: The official hotspot guardrail fails on this machine for both baseline and current (`reflectionToDomainRows` ~58/595 us vs 45/450 budgets); environmental, not CI or release gating.
+- `2026-09-27`: Pre-release guardrail run after WP-18 to WP-23 (local Windows, CI flags `-f 1 -wi 0 -i 1 -r 100ms`): core 56/56 and chart 48/48 strict thresholds pass; chart parity passes (worst `SCATTER 1000` ratio 1.31); closest core budget is CSV multiline 1k at ~13% of its limit. Use the fresh `target/*-<version>-benchmarks.jar`; a stale `2026.04.17.1834` runner jar also sits in `target/`.
 - `2026-04-26`: WP15 is complete. JFR-guided scatter profiling showed the
   remaining SQL-like chart parity cost came from eager per-row scatter x-string
   materialization plus repeated direct-field name lookup in typed multi-series

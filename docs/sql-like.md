@@ -2,15 +2,16 @@
 
 ## Supported Grammar
 
-- `SELECT` (optional, supports `AS` aliases)
+- `SELECT` (optional, supports `AS` aliases), `SELECT DISTINCT`
 - chained `JOIN` clauses (`INNER`, `LEFT`, `RIGHT`) with deterministic `ON <lhs> = <rhs>` binding
-- `WHERE` (`AND`/`OR` predicates, including bounded subqueries)
-- aggregate functions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+- `WHERE` (`AND`/`OR`/`NOT` predicates and parenthesized groups, including bounded subqueries)
+- aggregate functions: `COUNT(*)`, `COUNT(field)` (non-null values), `COUNT(DISTINCT field)` (distinct non-null values), `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+- statistical aggregates: `MEDIAN(field)`, `PERCENTILE(field, fraction)`, `STDDEV(field)` / `STDDEV_SAMP(field)`, `STDDEV_POP(field)`, `VARIANCE(field)` / `VAR_SAMP(field)`, `VAR_POP(field)` (see Aggregates below)
 - rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
 - aggregate window functions: `COUNT(field|*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)` with `OVER (...)`
 - `GROUP BY`
-- `HAVING` (`AND`/`OR` predicates)
-- `QUALIFY` (`AND`/`OR` predicates against window outputs)
+- `HAVING` (`AND`/`OR`/`NOT` predicates)
+- `QUALIFY` (`AND`/`OR`/`NOT` predicates against window outputs)
 - time bucket function: `bucket(dateField, 'hour|day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
 - `ORDER BY`
 - `LIMIT`
@@ -21,10 +22,152 @@ Current non-goals:
 
 Supported operators in `WHERE`:
 - `=`, `!=`, `<>`, `>`, `>=`, `<`, `<=`
-- `CONTAINS`
-- `MATCHES`
+- `CONTAINS`, `NOT CONTAINS`
+- `LIKE`, `NOT LIKE`, `ILIKE`, `NOT ILIKE` with `%` / `_` wildcards and optional
+  `ESCAPE` (see LIKE And ILIKE)
+- `MATCHES`, `NOT MATCHES` (full-value regular expression)
+- `IN ('a', 'b', ...)`, `NOT IN (...)`: literal lists of text, numbers, booleans, or `NULL`
+- `IN :values`, `NOT IN :values`: one parameter bound to a list (parameters inside a
+  literal list are rejected; bind the whole list instead)
 - `IN (select ...)`
 - `EXISTS (select ...)`, `NOT EXISTS (select ...)`
+- `IS NULL`, `IS NOT NULL` (same as `= null` / `!= null`)
+- `BETWEEN low AND high`, `NOT BETWEEN low AND high`: inclusive on both ends, like
+  typed `between(...)`; bounds are literals or parameters
+- `NOT <predicate>`, `NOT (<group>)`: negates one predicate or a parenthesized group
+
+`NOT IN` excludes rows whose field is null, and a `NULL` list element never matches
+(see Comparison Semantics). `NOT IN (select ...)` is not supported; use
+`NOT EXISTS (select ...)`.
+
+`NOT` binds tighter than `AND`/`OR` (`not a = 1 and b = 2` is `(not a = 1) and b = 2`)
+and is rewritten before execution with the same rules as typed `not()`: `=`/`!=`,
+`<`/`>=`, `>`/`<=`, `IN`/`NOT IN`, `IS NULL`/`IS NOT NULL`, `CONTAINS`/`NOT CONTAINS`,
+`MATCHES`/`NOT MATCHES`, and `EXISTS`/`NOT EXISTS` swap, and `NOT (a AND b)`
+becomes `NOT a OR NOT b`. A negated comparison still excludes null fields, as in
+SQL: `not (department = 'Finance')` and `department not contains 'Fin'` skip rows
+whose department is null. `NOT` cannot negate an `IN (select ...)` subquery (use
+`NOT EXISTS`); that fails at parse time.
+
+`NOT CONTAINS` against a list parameter means the text contains none of the values.
+An invalid `MATCHES` / `NOT MATCHES` pattern never matches.
+
+```sql
+where department is not null and salary between 50000 and 90000
+where hireDate not between '2024-01-01' and '2024-12-31'
+where not (department = 'Finance' or active = false)
+```
+
+### LIKE And ILIKE
+
+Use `LIKE` for prefix, suffix, and substring matches. The pattern covers the whole
+value: `%` matches any run of characters (including none), `_` exactly one
+character, and everything else matches itself, including regex characters such as
+`.` or `$`. `ILIKE` is the case-insensitive form (Unicode case folding), and
+`NOT LIKE` / `NOT ILIKE` negate them.
+
+```sql
+where department like 'Eng%'
+where email like '%@example.com'
+where name ilike '%smith%'
+where code not like 'TMP\_%'
+where name like :pattern
+```
+
+The escape character is a backslash by default (`'100\%'` matches the text
+`100%`; backslashes are literal inside SQL-like strings, so write one). Choose
+another with `ESCAPE` (`like '100!%' escape '!'`), or turn escaping off with
+`ESCAPE ''`. A pattern that ends with the escape character is rejected. A
+`:pattern` parameter is bound as a `LIKE` pattern, not a regex.
+
+`%` and `_` also match line terminators. A null field never matches `LIKE` or
+`NOT LIKE`, and `LIKE NULL` matches nothing. `LIKE`, `ILIKE`, and `ESCAPE` are not
+reserved words: fields with those names keep working.
+
+`LIKE` lowers to a `MATCHES` regex, so plan preview and explain show `MATCHES` /
+`NOT MATCHES`. Use `MATCHES` directly when you need a full regular expression; like
+`LIKE`, it must match the whole value (`where email matches '.*@example[.]com'`).
+
+### Comparison Semantics
+
+These rules are shared by SQL-like, natural, and typed queries:
+
+- A `null` field never matches a comparison with a value, including `!=`:
+  `tag != 'x'` excludes rows where `tag` is null. Use `tag IS NULL` /
+  `tag IS NOT NULL` (or `= null` / `!= null`, typed `isNull()` / `isNotNull()`)
+  to test for null.
+- A `null` inside an `IN` list or subquery result never matches, and never
+  matches the text `'null'`.
+- Numbers compare exactly: whole numbers as `long` (so IDs above 2^53 stay
+  distinct), `BigDecimal`/`BigInteger` as decimals, and only `float`/`double`
+  values with IEEE `double` rules. Numeric text such as `'1.5'` parses the
+  same in every locale.
+- Text fields support `>`, `>=`, `<`, `<=` in lexicographic (`compareTo`)
+  order; against a number (`tag > 9`) the text is compared numerically.
+- Enum fields compare by constant name (`status = 'ACTIVE'`); ordering
+  operators follow declaration order. `char`/`Character` fields compare as
+  one-character text.
+- Date/time precision: two date/time values (typed arguments, bound parameters,
+  keyset cursors) compare exactly. A text literal compares at the precision it is
+  written: `'2024-01-02'` covers that whole day, `'2024-01-02 10:00:00'` that
+  second, `'2024-01-02T10:00:00.500Z'` that millisecond. Literals use ISO-8601
+  (`T` or a space between date and time; optional offset or zone). Literals
+  without an offset are local time in the system zone.
+- `BigDecimal`, `BigInteger`, `UUID`, and `LocalTime` fields are queryable
+  scalars. Other non-POJO field types (collections, arrays) are carried through
+  projection unchanged and compare by value.
+- Inherited fields of user-defined superclasses are queryable and projected.
+- Records work as source rows (components are queryable, nested records by dotted
+  path such as `region.code`) and as result classes (built through the canonical
+  constructor). `final` fields of regular classes are not part of the query schema,
+  because results cannot assign them; use a record or non-final fields.
+
+Aggregates:
+
+- `SUM`/`MIN`/`MAX` over whole-number fields are exact; a `SUM` that exceeds the
+  `long` range fails with `ArithmeticException` instead of returning a wrong
+  total.
+- An aggregate without `GROUP BY` returns one row even when there is no input
+  (`count(*)` is `0`, other aggregates are `null`).
+- `GROUP BY` keeps distinct values apart: `null` and `''` are different groups,
+  and date/time values group by their exact value.
+- `COUNT(DISTINCT field)` counts distinct non-null values with the same rule
+  (`''` counts, `null` does not). It works in `SELECT`, `HAVING`, and `ORDER BY`,
+  but not as a window function, and `DISTINCT` is rejected inside other aggregates.
+- Statistical aggregates skip nulls, read values as `double`, and return a `Double`
+  (`null` without input):
+  - `PERCENTILE(field, 0.9)` interpolates linearly between the two closest ranks,
+    like SQL `percentile_cont`; the fraction is a number from 0 to 1. `MEDIAN(field)`
+    is `PERCENTILE(field, 0.5)`, so the median of `1, 2` is `1.5`.
+  - `STDDEV` / `VARIANCE` are the sample statistics (divide by `n - 1`, `null` for a
+    single value), as in PostgreSQL; `STDDEV_SAMP` / `VAR_SAMP` are aliases.
+    `STDDEV_POP` / `VAR_POP` divide by `n`.
+  - They work in `SELECT`, `HAVING`, and `ORDER BY`, grouped or global, but not as
+    window functions. Their names are not reserved words: a field called `median`
+    or `variance` still works.
+
+### SELECT DISTINCT
+
+`SELECT DISTINCT` keeps one row for each set of selected values, compared like
+`GROUP BY` keys (`null` and `''` stay apart). It runs after `WHERE`, grouping,
+windows, and `ORDER BY`, and before `OFFSET`/`LIMIT`, so paging counts distinct
+rows: `filterPage(...)` totals are distinct totals, and keyset cursors walk distinct
+rows.
+
+```sql
+select distinct department order by department
+select distinct department, active where salary > 50000 limit 10
+select distinct *
+```
+
+- As in SQL, `ORDER BY` may only use selected fields or aliases (not needed with
+  `select distinct *`); otherwise validation fails with `EQ-SQL-VAL-012`.
+- With `GROUP BY`, every group field must be selected (the grouped rows are then
+  already distinct); otherwise validation fails with `EQ-SQL-VAL-012`.
+- `DISTINCT` is not a reserved word: `select distinct from ...` and
+  `count(distinct)` still name a field called `distinct`.
+- Plan preview reports `isDistinct()`. Pushdown preview keeps `SELECT`, `ORDER BY`,
+  and paging in memory (`DISTINCT_UNSUPPORTED`); `WHERE` can still be pushed.
 
 ## HAVING Contract
 
@@ -350,10 +493,23 @@ SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
 
 Cursor contract:
 - cursor field names must match query `ORDER BY` fields exactly
-- cursor values must be non-null
+- cursor values may be `null` (a boundary row whose sort value is null); paging
+  follows the engine's null placement: nulls sort first in `ASC` and last in
+  `DESC`, and rows with null sort values are reached like any other rows
+- `ORDER BY` may use select aliases, aggregate aliases (grouped queries), and
+  window aliases; the cursor applies at the matching stage (`WHERE`, `HAVING`, or
+  `QUALIFY`)
 - `keysetAfter(...)` resolves the "next page" window
-- `keysetBefore(...)` resolves the "previous page" window
-- token format is opaque Base64URL (current format) and preserves common scalar value types
+- `keysetBefore(...)` resolves the "previous page" window: the `LIMIT` rows
+  immediately before the cursor, returned in the query's declared order. With
+  `filterPage(...)`, `hasMore()` reports whether earlier rows exist and
+  `nextCursor()` marks the first visible row, for a further `keysetBefore(...)`
+  step.
+- token format is opaque Base64URL (current format) and preserves common scalar value
+  types: text, booleans, numbers (including `BigDecimal`/`BigInteger`), `Character`,
+  `UUID`, `Date`, `Instant`, `LocalDate`, `LocalDateTime`, `LocalTime`,
+  `OffsetDateTime`, `ZonedDateTime`, and `null`; enum values travel as their constant
+  name
 
 ### Recipe: Page Result Helper
 
@@ -387,9 +543,8 @@ Page result contract:
   `LIMIT` is applied
 - `hasMore()` is `true` when at least one row exists beyond the current page
 - `nextCursor()` is empty when `hasMore()` is `false`
-- the cursor contains one entry per `ORDER BY` field taken from the last visible row
-- all `ORDER BY` field values in the last visible row must be non-null; null values
-  prevent cursor generation and throw `EQ-SQL-PAG-003`
+- the cursor contains one entry per `ORDER BY` field taken from the last visible row;
+  a null sort value becomes a null cursor entry
 - `filterPage(...)` requires a positive static `LIMIT` clause; parameterized limits
   (`LIMIT :n`) must be bound via `params(...)` before calling `filterPage(...)`
 - `OFFSET` is rejected because cursor paging and offset paging use different
@@ -615,7 +770,10 @@ First-phase pushable stages are deliberately narrow:
 Everything else falls back to the in-memory engine, including joins, grouping,
 aggregates, windows, subqueries, `HAVING`, `QUALIFY`, computed select
 expressions, time buckets, and unsupported filter operators such as
-`CONTAINS` or `MATCHES`.
+`[NOT] CONTAINS`, `[NOT] MATCHES`, `IN`/`NOT IN` lists, or `IS [NOT] NULL` (plan
+preview reports these as `CONTAINS`, `NOT CONTAINS`, `MATCHES`, `NOT MATCHES`, `IN`,
+`NOT IN`, `IS NULL`, and `IS NOT NULL`). `BETWEEN` and
+`NOT` are rewritten first, so they preview as plain comparisons.
 
 ```java
 SqlLikePushdownPreview preview = PojoLensSql
@@ -1056,6 +1214,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use valid numeric expressions and supported comparison operators. |
 | `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` or `WHERE [NOT] EXISTS (select ...)` subqueries; named `FROM` / subquery `JOIN` sources must be bound. |
 | `EQ-SQL-VAL-011` | Field reference is ambiguous in a multi-join context. | Qualify the field with `<source>.<field>` or use the deterministic merged field name. |
+| `EQ-SQL-VAL-012` | `SELECT DISTINCT` shape is invalid. | Order by selected fields or aliases, and select every `GROUP BY` field. |
 | `EQ-SQL-PRM-001` | Required named parameter is missing. | Supply all referenced parameters. |
 | `EQ-SQL-PRM-002` | Unknown named parameter was provided. | Remove unexpected parameter names or update the query/template. |
 | `EQ-SQL-PRM-003` | Query execution started with unresolved parameters. | Call `params(...)` before `filter()`, `bindTyped()`, or `chart()`. |
@@ -1269,10 +1428,11 @@ Fix:
 ### Error Code EQ-SQL-CUR-004
 
 Meaning:
-- Cursor values were empty, null, or unsupported for tokenization.
+- Cursor values were empty or of a type the token format does not support.
 
 Fix:
-- Build cursors with non-null values and supported scalar types (for example `String`, `Boolean`, numeric types, `Date`).
+- Build cursors from supported value types (text, booleans, numbers, `UUID`, `Date`,
+  `java.time` values, enums, or `null`).
 
 ### Error Code EQ-SQL-BIND-001
 

@@ -104,7 +104,7 @@ public class NaturalQueryParserTest {
     public void shouldTranslateStartsWithToRegexMatch() {
         QueryAst ast = NaturalQueryParser.parse("show all where department starts with Eng");
         assertEquals(Clauses.MATCHES, ast.filters().get(0).clause());
-        assertEquals("^\\QEng\\E.*", ast.filters().get(0).value());
+        assertEquals("(?s)^\\QEng\\E.*", ast.filters().get(0).value());
     }
 
     @Test
@@ -120,11 +120,11 @@ public class NaturalQueryParserTest {
 
         assertEquals("name", ast.filters().get(1).field());
         assertEquals(Clauses.MATCHES, ast.filters().get(1).clause());
-        assertEquals("^\\QA\\E.*", ast.filters().get(1).value());
+        assertEquals("(?s)^\\QA\\E.*", ast.filters().get(1).value());
 
         assertEquals("name", ast.filters().get(2).field());
         assertEquals(Clauses.MATCHES, ast.filters().get(2).clause());
-        assertEquals(".*\\Qe\\E$", ast.filters().get(2).value());
+        assertEquals("(?s).*\\Qe\\E$", ast.filters().get(2).value());
     }
 
     @Test
@@ -358,12 +358,21 @@ public class NaturalQueryParserTest {
     }
 
     @Test
-    public void shouldRejectParenthesesInWhereClause() {
+    public void shouldParseParenthesesInWhereClause() {
+        QueryAst ast = NaturalQueryParser.parse("show all where (active is true or salary is above 10) and name is Bob");
+
+        assertEquals(3, ast.filters().size());
+        assertEquals(Separator.OR, ast.filters().get(1).separator());
+        assertEquals(Separator.AND, ast.filters().get(2).separator());
+    }
+
+    @Test
+    public void shouldRejectUnbalancedParenthesesInWhereClause() {
         try {
-            NaturalQueryParser.parse("show all where (active is true)");
+            NaturalQueryParser.parse("show all where active is true)");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Parentheses are not supported"));
+            assertTrue(ex.getMessage().contains("')'"), ex.getMessage());
         }
     }
 }

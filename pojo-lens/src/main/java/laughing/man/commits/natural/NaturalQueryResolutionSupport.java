@@ -230,10 +230,11 @@ final class NaturalQueryResolutionSupport {
                     resolvedWindowOrders,
                     resolvedWindowValueField,
                     resolvedWindowCountAll,
-                    field.windowFrame()
+                    field.windowFrame(),
+                    field.metricArgument()
             ));
         }
-        return new SelectAst(select.wildcard(), fields, select.sourceName());
+        return new SelectAst(select.wildcard(), fields, select.sourceName(), select.distinct());
     }
 
     private static List<JoinAst> rewriteJoins(List<JoinAst> joins, Map<String, String> resolvedByNaturalField) {
@@ -386,10 +387,9 @@ final class NaturalQueryResolutionSupport {
         if (aggregateExpression.countAll()) {
             return "count(*)";
         }
-        return aggregateExpression.metric().name().toLowerCase(Locale.ROOT)
-                + "("
-                + resolvedByNaturalField.getOrDefault(aggregateExpression.field(), aggregateExpression.field())
-                + ")";
+        return AggregateExpressionSupport.canonical(
+                aggregateExpression.metric(),
+                resolvedByNaturalField.getOrDefault(aggregateExpression.field(), aggregateExpression.field()));
     }
 
     private static boolean isWindowExpressionReference(String value) {

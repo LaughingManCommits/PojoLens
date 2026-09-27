@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike.internal.validation;
 
 import laughing.man.commits.internal.builder.QueryWindowFrame;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -74,7 +75,11 @@ public final class SqlLikeJoinResolution {
             }
 
             resolvedJoins.add(new ResolvedJoin(join, parentField, childField));
-            state.addChild(join.childSource(), childFields, childTypes);
+            if (join.joinType() == Join.RIGHT_JOIN) {
+                state.addRightChild(join.childSource(), childFields, childTypes);
+            } else {
+                state.addChild(join.childSource(), childFields, childTypes);
+            }
         }
 
         return new Plan(resolvedJoins, state.directReferences(), state.fieldTypes(), state.ambiguousReferences());
@@ -157,10 +162,11 @@ public final class SqlLikeJoinResolution {
                     resolvedWindowOrders,
                     resolvedWindowValueField,
                     resolvedWindowCountAll,
-                    field.windowFrame()
+                    field.windowFrame(),
+                    field.metricArgument()
             ));
         }
-        return new SelectAst(select.wildcard(), fields, select.sourceName());
+        return new SelectAst(select.wildcard(), fields, select.sourceName(), select.distinct());
     }
 
     private static String windowExpression(String function,
@@ -446,6 +452,71 @@ public final class SqlLikeJoinResolution {
                     uniqueRawReferences.put(field, mergedName);
                 }
             }
+        }
+
+        /**
+         * Mirrors the engine's RIGHT JOIN column order: the joined source's columns come first
+         * under their own names, and existing columns that collide take the child_ prefix.
+         */
+        private void addRightChild(String childSource, Set<String> fields, Map<String, Class<?>> types) {
+            LinkedHashSet<String> used = new LinkedHashSet<>(fields);
+            LinkedHashMap<String, String> renamed = new LinkedHashMap<>();
+            for (String existing : mergedFieldNames) {
+                String name = existing;
+                if (used.contains(name)) {
+                    name = uniqueChildName(existing, used);
+                }
+                used.add(name);
+                renamed.put(existing, name);
+            }
+
+            LinkedHashMap<String, Class<?>> previousTypes = new LinkedHashMap<>(fieldTypes);
+            fieldTypes.clear();
+            for (String field : fields) {
+                fieldTypes.put(field, types.get(field));
+            }
+            for (Map.Entry<String, String> entry : renamed.entrySet()) {
+                fieldTypes.put(entry.getValue(), previousTypes.get(entry.getKey()));
+            }
+            mergedFieldNames.clear();
+            mergedFieldNames.addAll(used);
+
+            LinkedHashMap<String, String> previousReferences = new LinkedHashMap<>(directReferences);
+            directReferences.clear();
+            for (Map.Entry<String, String> entry : previousReferences.entrySet()) {
+                if (renamed.containsKey(entry.getKey()) && entry.getKey().equals(entry.getValue())) {
+                    continue; // a bare merged-name self reference; re-added below under its new name
+                }
+                directReferences.put(entry.getKey(), renamed.getOrDefault(entry.getValue(), entry.getValue()));
+            }
+            for (String merged : renamed.values()) {
+                directReferences.put(merged, merged);
+            }
+            uniqueRawReferences.replaceAll((raw, merged) -> renamed.getOrDefault(merged, merged));
+
+            for (String field : fields) {
+                directReferences.put(field, field);
+                directReferences.put(childSource + "." + field, field);
+                if (ambiguousReferences.contains(field)) {
+                    continue;
+                }
+                if (uniqueRawReferences.containsKey(field)) {
+                    uniqueRawReferences.remove(field);
+                    ambiguousReferences.add(field);
+                } else {
+                    uniqueRawReferences.put(field, field);
+                }
+            }
+        }
+
+        private static String uniqueChildName(String baseName, Set<String> used) {
+            String candidate = "child_" + baseName;
+            int index = 1;
+            while (used.contains(candidate)) {
+                candidate = "child_" + baseName + "_" + index;
+                index++;
+            }
+            return candidate;
         }
 
         private String nextMergedName(String baseName) {

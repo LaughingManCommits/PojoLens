@@ -118,6 +118,116 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void startsWithParameterShouldMatchAsLiteralPrefix() {
+        List<Employee> rows = List.of(employeeNamed("Alice"), employeeNamed("Al"), employeeNamed("Bob"));
+
+        List<String> prefixed = PojoLensNatural.parse("show employees where name starts with :p")
+                .params(Map.of("p", "Al"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+        List<String> startingWith = PojoLensNatural.parse("show employees where name starting with :p")
+                .params(Map.of("p", "Al"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+
+        assertEquals(List.of("Alice", "Al"), prefixed);
+        assertEquals(prefixed, startingWith);
+    }
+
+    @Test
+    public void endsWithParameterShouldMatchAsLiteralSuffix() {
+        List<Employee> rows = List.of(employeeNamed("cost$"), employeeNamed("costs"), employeeNamed("$"));
+
+        List<String> suffixed = PojoLensNatural.parse("show employees where name ends with :p")
+                .params(Map.of("p", "t$"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+        List<String> endingWith = PojoLensNatural.parse("show employees where name ending with :p")
+                .params(Map.of("p", "t$"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+
+        assertEquals(List.of("cost$"), suffixed);
+        assertEquals(suffixed, endingWith);
+    }
+
+    @Test
+    public void reusedParameterShouldKeepPerUseSemantics() {
+        List<Employee> rows = List.of(
+                employeeNamed("Alice", "Finance"),
+                employeeNamed("Bob", "Al"),
+                employeeNamed("Cara", "Engineering")
+        );
+
+        List<String> matched = PojoLensNatural
+                .parse("show employees where name starts with :p or department is :p")
+                .params(Map.of("p", "Al"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+
+        assertEquals(List.of("Alice", "Bob"), matched);
+    }
+
+    @Test
+    public void nullStartsWithParameterShouldMatchNoRows() {
+        java.util.HashMap<String, Object> params = new java.util.HashMap<>();
+        params.put("p", null);
+
+        List<Employee> rows = PojoLensNatural.parse("show employees where name starts with :p")
+                .params(params)
+                .filter(sampleEmployees(), Employee.class);
+
+        assertTrue(rows.isEmpty());
+    }
+
+    @Test
+    public void startsWithParameterShouldStayVisibleAsNamedParameter() {
+        var query = PojoLensNatural.parse("show employees where name starts with :p");
+
+        IllegalArgumentException missing = assertThrows(
+                IllegalArgumentException.class,
+                () -> query.params(Map.of()).filter(sampleEmployees(), Employee.class)
+        );
+        Map<String, Object> explain = query.params(Map.of("p", "Al")).explain(sampleEmployees(), Employee.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> snapshot = (Map<String, Object>) ((Map<String, Object>) explain.get("parameterSnapshot")).get("p");
+
+        assertTrue(missing.getMessage().contains("[p]"), missing::getMessage);
+        assertEquals("select * where name matches :p", query.equivalentSqlLike());
+        assertEquals("bound", snapshot.get("status"));
+    }
+
+    @Test
+    public void strictParameterTypesShouldRejectNonStringPrefixParameter() {
+        assertThrows(IllegalArgumentException.class, () -> PojoLensNatural
+                .parse("show employees where name starts with :p")
+                .strictParameterTypes()
+                .params(Map.of("p", 42))
+                .filter(sampleEmployees(), Employee.class));
+    }
+
+    @Test
+    public void startsWithAndEndsWithShouldMatchMultiLineValues() {
+        Employee multiLine = new Employee(9, "Al\nice", "Engineering", 1, null, true);
+
+        List<Employee> prefixed = PojoLensNatural.parse("show employees where name starts with Al")
+                .filter(List.of(multiLine), Employee.class);
+        List<Employee> suffixed = PojoLensNatural.parse("show employees where name ends with ice")
+                .filter(List.of(multiLine), Employee.class);
+
+        assertEquals(1, prefixed.size());
+        assertEquals(1, suffixed.size());
+    }
+
+    private static Employee employeeNamed(String name) {
+        return employeeNamed(name, "Engineering");
+    }
+
+    private static Employee employeeNamed(String name, String department) {
+        return new Employee(0, name, department, 1, null, true);
+    }
+
+    @Test
     public void inflectedOperatorAliasesShouldExecuteDeterministically() {
         List<Employee> rows = PojoLensNatural.parse(
                         "show employees where department containing ine "
@@ -133,7 +243,7 @@ public class NaturalQueryContractTest {
                 )
                 .explain(sampleEmployees(), Employee.class);
         assertEquals(
-                "select * where ((department contains 'ine' and name matches '^\\QA\\E.*') and name matches '.*\\Qe\\E$')",
+                "select * where ((department contains 'ine' and name matches '(?s)^\\QA\\E.*') and name matches '(?s).*\\Qe\\E$')",
                 explain.get("equivalentSqlLike")
         );
     }

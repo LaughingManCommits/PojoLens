@@ -79,6 +79,7 @@ public final class SqlLikePushdownPreviewSupport {
             }
         }
         if (!inMemoryStages.contains("SELECT")
+                && !preview.isDistinct()
                 && !preview.hasGrouping()
                 && !preview.hasAggregation()
                 && !preview.hasWindows()) {
@@ -143,6 +144,10 @@ public final class SqlLikePushdownPreviewSupport {
             inMemoryStages.add("WHERE");
             fallbackReasons.add("SUBQUERY_UNSUPPORTED");
         }
+        if (preview.isDistinct()) {
+            inMemoryStages.add("DISTINCT");
+            fallbackReasons.add("DISTINCT_UNSUPPORTED");
+        }
     }
 
     private static void classifyOrderAndPaging(SqlLikePlanPreview preview,
@@ -150,6 +155,7 @@ public final class SqlLikePushdownPreviewSupport {
                                                Set<String> pushableStages,
                                                Set<String> inMemoryStages) {
         boolean canPushPostFilterStages = wherePushable
+                && !preview.isDistinct()
                 && !preview.hasJoins()
                 && !preview.hasGrouping()
                 && !preview.hasAggregation()

@@ -1,6 +1,7 @@
 package laughing.man.commits.dsl;
 
 import laughing.man.commits.DatasetBundle;
+import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Join;
@@ -29,10 +30,10 @@ import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowRankProjection;
 import org.junit.jupiter.api.Test;
 
-import java.time.DayOfWeek;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -1289,17 +1290,21 @@ public class TypedQueryContractTest {
     }
 
     @Test
-    void notContainsThrowsUnsupportedOperationException() {
-        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
-                .where(NAME.contains("Ali").not());
-        assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
+    void notContainsExcludesMatches() {
+        List<Employee> rows = TypedQuery.from(Employee.class)
+                .where(NAME.contains("Ali").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Bob", "Cara", "Dan"), rows.stream().map(e -> e.name).toList());
     }
 
     @Test
-    void notMatchesThrowsUnsupportedOperationException() {
-        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
-                .where(NAME.matches("^Al.*").not());
-        assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
+    void notMatchesExcludesMatches() {
+        List<Employee> rows = TypedQuery.from(Employee.class)
+                .where(NAME.matches("^Al.*").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Bob", "Cara", "Dan"), rows.stream().map(e -> e.name).toList());
     }
 
     @Test
@@ -1356,10 +1361,189 @@ public class TypedQueryContractTest {
     }
 
     @Test
-    void notContainsIgnoreCaseThrowsUnsupportedOperationException() {
-        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
-                .where(NAME.containsIgnoreCase("ali").not());
-        assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
+    void containsIgnoreCaseMatchesAcrossLineTerminators() {
+        List<Employee> rows = List.of(employeeNamed("Al\nice"));
+
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("ICE"))
+                .filter(rows);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void containsIgnoreCaseFoldsNonAsciiLetters() {
+        List<Employee> rows = List.of(employeeNamed("Zo\u00eb"), employeeNamed("\u00c9cole"));
+
+        List<String> upper = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("ZO\u00cb"))
+                .filter(rows)
+                .stream().map(e -> e.name).toList();
+        List<String> lower = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("\u00e9co"))
+                .filter(rows)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(List.of("Zo\u00eb"), upper);
+        assertEquals(List.of("\u00c9cole"), lower);
+    }
+
+    @Test
+    void notContainsIgnoreCaseExcludesMatches() {
+        List<Employee> rows = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("ALI").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Bob", "Cara", "Dan"), rows.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void startsWithFiltersRowsByLiteralPrefix() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("Ca"))
+                .filter(sampleEmployees());
+        assertEquals(List.of("Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void endsWithFiltersRowsByLiteralSuffix() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(DEPT.endsWith("ing").and(ACTIVE.eq(true)))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void startsWithIsCaseSensitive() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("al"))
+                .filter(sampleEmployees());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void startsWithAndEndsWithTreatRegexMetacharactersLiterally() {
+        List<Employee> rows = List.of(
+                employeeNamed("A.B"),
+                employeeNamed("AxB"),
+                employeeNamed("cost$"),
+                employeeNamed("costs")
+        );
+
+        List<String> prefixed = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("A."))
+                .filter(rows)
+                .stream().map(e -> e.name).toList();
+        List<String> suffixed = TypedQuery.from(Employee.class)
+                .where(NAME.endsWith("t$"))
+                .filter(rows)
+                .stream().map(e -> e.name).toList();
+
+        List<String> sqlRecipe = PojoLensSql.parse("WHERE name MATCHES '(?s)^\\QA.\\E.*'")
+                .filter(rows, Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(List.of("A.B"), prefixed);
+        assertEquals(List.of("cost$"), suffixed);
+        assertEquals(prefixed, sqlRecipe);
+    }
+
+    @Test
+    void startsWithAndEndsWithMatchStringReferenceSemantics() {
+        List<Employee> rows = List.of(
+                employeeNamed("Alice"),
+                employeeNamed("Al\nice"),
+                employeeNamed("Bob\nAl"),
+                employeeNamed(""),
+                employeeNamed(null)
+        );
+        for (String probe : List.of("Al", "ice", "", "Al\n", "Alice")) {
+            List<String> typedPrefix = TypedQuery.from(Employee.class)
+                    .where(NAME.startsWith(probe))
+                    .filter(rows)
+                    .stream().map(e -> e.name).toList();
+            List<String> refPrefix = rows.stream()
+                    .filter(e -> e.name != null && e.name.startsWith(probe))
+                    .map(e -> e.name).toList();
+            List<String> typedSuffix = TypedQuery.from(Employee.class)
+                    .where(NAME.endsWith(probe))
+                    .filter(rows)
+                    .stream().map(e -> e.name).toList();
+            List<String> refSuffix = rows.stream()
+                    .filter(e -> e.name != null && e.name.endsWith(probe))
+                    .map(e -> e.name).toList();
+
+            assertEquals(refPrefix, typedPrefix, () -> "startsWith(" + probe + ")");
+            assertEquals(refSuffix, typedSuffix, () -> "endsWith(" + probe + ")");
+        }
+    }
+
+    @Test
+    void startsWithAndEndsWithParityWithNaturalAndSqlLikeRecipe() {
+        List<String> typedPrefix = TypedQuery.from(Employee.class)
+                .where(DEPT.startsWith("Eng"))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream().map(e -> e.name).toList();
+        List<String> naturalPrefix = PojoLensNatural
+                .parse("show employees where department starts with Eng sort by name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+        List<String> sqlPrefix = PojoLensSql.parse("WHERE department MATCHES 'Eng.*' ORDER BY name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        List<String> typedSuffix = TypedQuery.from(Employee.class)
+                .where(NAME.endsWith("e"))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream().map(e -> e.name).toList();
+        List<String> naturalSuffix = PojoLensNatural
+                .parse("show employees where name ends with e sort by name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+        List<String> sqlSuffix = PojoLensSql.parse("WHERE name MATCHES '.*e' ORDER BY name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(List.of("Alice", "Cara", "Dan"), typedPrefix);
+        assertEquals(typedPrefix, naturalPrefix);
+        assertEquals(typedPrefix, sqlPrefix);
+        assertEquals(List.of("Alice"), typedSuffix);
+        assertEquals(typedSuffix, naturalSuffix);
+        assertEquals(typedSuffix, sqlSuffix);
+    }
+
+    @Test
+    void notStartsWithAndNotEndsWithExcludeMatches() {
+        List<Employee> notPrefix = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("Ca").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> notSuffix = TypedQuery.from(Employee.class)
+                .where(NAME.endsWith("ce").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+
+        assertEquals(List.of("Alice", "Bob", "Dan"), notPrefix.stream().map(e -> e.name).toList());
+        assertEquals(List.of("Bob", "Cara", "Dan"), notSuffix.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void planPreviewReportsStartsWithOperatorAndRawPrefix() {
+        TypedPlanPredicate filter = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("Al"))
+                .planPreview()
+                .filterExpression();
+
+        assertEquals(TypedPredicate.Operator.STARTS_WITH, filter.operator());
+        assertEquals("name", filter.field());
+        assertEquals("Al", filter.value());
+    }
+
+    private static Employee employeeNamed(String name) {
+        return new Employee(0, name, "Engineering", 1, null, true);
     }
 
     // --- Guard interop ---
@@ -1765,6 +1949,38 @@ public class TypedQueryContractTest {
                 .map(e -> e.name)
                 .toList();
         assertEquals(List.of("Alice", "Cara"), names);
+    }
+
+    @Test
+    void iteratorParityWithFilter() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Engineering"))
+                .orderBy(NAME);
+        List<String> fromIterator = new ArrayList<>();
+        q.iterator(sampleEmployees()).forEachRemaining(e -> fromIterator.add(e.name));
+
+        assertEquals(List.of("Alice", "Cara", "Dan"), fromIterator);
+    }
+
+    @Test
+    void iteratorDatasetBundleAndJoinBindingsOverloadsWork() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class).where(ACTIVE.eq(false));
+
+        Iterator<Employee> fromBundle = q.iterator(DatasetBundle.of(sampleEmployees()));
+        Iterator<Employee> fromJoins = q.iterator(sampleEmployees(), JoinBindings.empty());
+
+        assertEquals("Dan", fromBundle.next().name);
+        assertFalse(fromBundle.hasNext());
+        assertEquals("Dan", fromJoins.next().name);
+        assertFalse(fromJoins.hasNext());
+    }
+
+    @Test
+    void iteratorRejectsRemove() {
+        Iterator<Employee> iterator = TypedQuery.from(Employee.class).iterator(sampleEmployees());
+        iterator.next();
+
+        assertThrows(UnsupportedOperationException.class, iterator::remove);
     }
 
     // --- any() / none() sentinels ---

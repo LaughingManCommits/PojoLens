@@ -16,6 +16,7 @@ other user-authored query.
 - optional leading source clause: `from <source> [as <label>]`
 - explicit joins: `join|left join|right join|inner join <source> [as <label>] on <lhs> equals <rhs>`
 - `show` with explicit fields, aliases via `as`, aggregate phrases, time-bucket phrases, and deterministic window phrases
+- `show distinct <fields>` (or `show distinct all`): one row per set of shown values, like SQL-like `SELECT DISTINCT` (`sort by` must use shown fields)
 - `where`
 - `group by`
 - `having`
@@ -37,13 +38,50 @@ Canonical operator phrases in `where`, `having`, and `qualify`:
 - `is below` / `below`
 - `is before` / `before`
 - `is after` / `after`
-- `contains`
-- `starts with`
-- `ends with`
+- `contains` / `does not contain`
+- `starts with` / `does not start with`
+- `ends with` / `does not end with`
+- `is one of` / `is not one of`
+- `is between <low> and <high>` / `is not between <low> and <high>`
+- `is null` / `is not null` (the field is empty or not)
+
+`is one of` / `is not one of` take comma-separated values
+(`department is one of Engineering, 'Human Resources', Finance`) or one list parameter
+(`department is one of :departments`). Quote a value that contains a comma, `and`, or
+`or`, since those end the list. Parameters inside a value list are rejected; bind one
+list parameter instead. `is not one of` excludes rows whose field is empty (null).
+
+`starts with` / `ends with` (and `starting with` / `ending with`, `does not start
+with` / `does not end with`) always treat the value as literal text, case-sensitive,
+including a named parameter such as `name starts with :prefix`. Regex characters in
+the value or bound parameter match themselves, and multi-line values are supported.
+`equivalentSqlLike` shows the literal-text form as a `matches` regex, or as
+`matches :prefix` for a parameter. That parameter is still bound as literal text,
+not as a regex. The `does not ...` forms never match a field that is empty (null),
+and render as `not contains` / `not matches` in `equivalentSqlLike`.
+
+End a `contains`, `starts with`, or `ends with` phrase (or a `does not` form) with
+`ignoring case` to match without regard to case, including non-ASCII letters:
+`name contains smith ignoring case`, `email ends with :domain ignoring case`. On any
+other phrase `ignoring case` is rejected; quote a value that really ends with those
+words.
+
+`is between` is inclusive on both ends, like SQL-like `BETWEEN` and typed
+`between(...)`; its `and` belongs to the range (`salary is between 50000 and 90000
+and active is true`). `is not between` and a negated comparison such as
+`is not 'Finance'` exclude rows whose field is null.
 
 Canonical boolean connectors in `where`, `having`, and `qualify`:
 - `and`
 - `or`
+- `not (...)`: negates a parenthesized group
+
+Parentheses group conditions: `where (department is Finance or salary is above 90000)
+and active is true`. `not (...)` follows the SQL-like `NOT` rules (see
+[SQL-like guide](sql-like.md)): `not (department is Finance and active is true)` means
+`department is not Finance or active is not true`, and `not (name contains a)` means
+`name does not contain a`. It cannot negate an `is in query` subquery; that fails at
+parse time (use `not exists query ... end query`).
 
 Canonical bounded subquery phrases in `where`:
 - `<field> is in query <natural query> end query`
@@ -52,6 +90,14 @@ Canonical bounded subquery phrases in `where`:
 
 Canonical aggregate phrases:
 - `count of`
+- `count of distinct <field>`: distinct non-null values (SQL-like `COUNT(DISTINCT field)`)
+- `median of <field>`, `<n>th percentile of <field>` (for example `90th percentile of salary`)
+- `standard deviation of <field>` / `stddev of <field>`, `variance of <field>` (sample statistics)
+- `population standard deviation of <field>`, `population variance of <field>`
+
+The statistical phrases need `of` (so a field phrase such as `median income` still
+names a field) and follow the SQL-like rules for `MEDIAN`, `PERCENTILE`, `STDDEV`, and
+`VARIANCE`.
 - `sum of`
 - `average of` / `avg`
 - `minimum of` / `min`

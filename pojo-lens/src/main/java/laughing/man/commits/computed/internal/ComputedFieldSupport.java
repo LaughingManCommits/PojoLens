@@ -255,7 +255,7 @@ public final class ComputedFieldSupport {
                 }
                 ValueSource source = dependencySources[i];
                 if (source == null) {
-                    return null;
+                    return SqlExpressionEvaluator.UNKNOWN_IDENTIFIER;
                 }
                 if (source.computed()) {
                     return computedValues[source.index()];
@@ -267,7 +267,7 @@ public final class ComputedFieldSupport {
                 QueryField field = sourceFields.get(sourceIndex);
                 return field == null ? null : field.getValue();
             }
-            return null;
+            return SqlExpressionEvaluator.UNKNOWN_IDENTIFIER;
         }
     }
 
@@ -325,7 +325,9 @@ public final class ComputedFieldSupport {
         }
         for (CompiledComputedField definition : definitions) {
             Object value = castNumericValue(
-                    definition.expression().evaluate(values::get),
+                    definition.expression().evaluate(identifier -> values.containsKey(identifier)
+                            ? values.get(identifier)
+                            : SqlExpressionEvaluator.UNKNOWN_IDENTIFIER),
                     definition.definition().outputType()
             );
             values.put(definition.definition().name(), value);
@@ -353,6 +355,9 @@ public final class ComputedFieldSupport {
     }
 
     private static Object castNumericValue(double value, Class<?> outputType) {
+        if (Double.isNaN(value)) {
+            return null;
+        }
         if (outputType == Integer.class) {
             return (int) Math.round(value);
         }

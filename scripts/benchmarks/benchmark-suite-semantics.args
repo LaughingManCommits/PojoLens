@@ -1,0 +1,4 @@
+laughing.man.commits.benchmark.TemporalFilterJmhBenchmark.*
+laughing.man.commits.benchmark.KeysetPagingJmhBenchmark.*
+laughing.man.commits.benchmark.StreamLoadJmhBenchmark.*
+laughing.man.commits.benchmark.RecordProjectionJmhBenchmark.*

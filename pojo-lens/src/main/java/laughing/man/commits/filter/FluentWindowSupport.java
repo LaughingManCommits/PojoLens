@@ -207,7 +207,7 @@ final class FluentWindowSupport {
             return 1;
         }
         if (leftValue instanceof Number && rightValue instanceof Number) {
-            return Double.compare(((Number) leftValue).doubleValue(), ((Number) rightValue).doubleValue());
+            return ObjectUtil.compareNumeric((Number) leftValue, (Number) rightValue);
         }
         if (leftValue instanceof Date && rightValue instanceof Date) {
             return ((Date) leftValue).compareTo((Date) rightValue);
@@ -311,14 +311,16 @@ final class FluentWindowSupport {
         private final ArrayDeque<FrameEntry> entries = new ArrayDeque<>();
         private long rowCount;
         private long nonNullCount;
-        private double sum;
+        // Integral values sum exactly; floating values sum as double and are recomputed
+        // from the frame after a removal, so sliding frames never subtract away precision.
+        private long integralSum;
+        private double fractionalSum;
+        private boolean fractionalSumDirty;
         private int fractionalCount;
         private boolean minDirty;
         private boolean maxDirty;
         private Number minValue;
-        private double minDouble;
         private Number maxValue;
-        private double maxDouble;
 
         private AggregateWindowAccumulator(List<QueryRow> rows, QueryWindow window, int valueIndex) {
             this.rows = rows;
@@ -349,18 +351,18 @@ final class FluentWindowSupport {
                 entries.addLast(entry);
             }
             nonNullCount++;
-            sum += entry.asDouble();
             if (entry.fractional()) {
                 fractionalCount++;
+                fractionalSum += number.doubleValue();
+            } else {
+                integralSum = Math.addExact(integralSum, number.longValue());
             }
-            if (minValue == null || entry.asDouble() < minDouble) {
+            if (minValue == null || ObjectUtil.compareNumeric(number, minValue) < 0) {
                 minValue = number;
-                minDouble = entry.asDouble();
                 minDirty = false;
             }
-            if (maxValue == null || entry.asDouble() > maxDouble) {
+            if (maxValue == null || ObjectUtil.compareNumeric(number, maxValue) > 0) {
                 maxValue = number;
-                maxDouble = entry.asDouble();
                 maxDirty = false;
             }
         }
@@ -375,9 +377,11 @@ final class FluentWindowSupport {
                 return;
             }
             nonNullCount--;
-            sum -= entry.asDouble();
             if (entry.fractional()) {
                 fractionalCount--;
+                fractionalSumDirty = true;
+            } else {
+                integralSum = Math.subtractExact(integralSum, entry.number().longValue());
             }
             if (entry.number() == minValue) {
                 minDirty = true;
@@ -390,8 +394,8 @@ final class FluentWindowSupport {
         private Object value() {
             return switch (window.function()) {
                 case COUNT -> window.countAll() ? rowCount : nonNullCount;
-                case SUM -> nonNullCount == 0 ? null : fractionalCount > 0 ? sum : (long) sum;
-                case AVG -> nonNullCount == 0 ? null : sum / nonNullCount;
+                case SUM -> sum();
+                case AVG -> nonNullCount == 0 ? null : (fractionalSum() + integralSum) / nonNullCount;
                 case MIN -> min();
                 case MAX -> max();
                 default -> throw new IllegalArgumentException(
@@ -399,12 +403,38 @@ final class FluentWindowSupport {
             };
         }
 
+        // Separate returns on purpose: a conditional expression would promote the long sum to double.
+        private Object sum() {
+            if (nonNullCount == 0) {
+                return null;
+            }
+            if (fractionalCount > 0) {
+                return fractionalSum() + integralSum;
+            }
+            return integralSum;
+        }
+
+        private double fractionalSum() {
+            if (fractionalSumDirty) {
+                double recomputed = 0D;
+                for (FrameEntry entry : entries) {
+                    if (entry.number() != null && entry.fractional()) {
+                        recomputed += entry.number().doubleValue();
+                    }
+                }
+                fractionalSum = recomputed;
+                fractionalSumDirty = false;
+            }
+            return fractionalSum;
+        }
+
         private Number min() {
             if (nonNullCount == 0) {
                 return null;
             }
             if (minDirty) {
-                recomputeMin();
+                minValue = extreme(-1);
+                minDirty = false;
             }
             return minValue;
         }
@@ -414,51 +444,37 @@ final class FluentWindowSupport {
                 return null;
             }
             if (maxDirty) {
-                recomputeMax();
+                maxValue = extreme(1);
+                maxDirty = false;
             }
             return maxValue;
         }
 
-        private void recomputeMin() {
-            minValue = null;
+        private Number extreme(int direction) {
+            Number best = null;
             for (FrameEntry entry : entries) {
                 if (entry.number() == null) {
                     continue;
                 }
-                if (minValue == null || entry.asDouble() < minDouble) {
-                    minValue = entry.number();
-                    minDouble = entry.asDouble();
+                if (best == null || Integer.signum(ObjectUtil.compareNumeric(entry.number(), best)) == direction) {
+                    best = entry.number();
                 }
             }
-            minDirty = false;
-        }
-
-        private void recomputeMax() {
-            maxValue = null;
-            for (FrameEntry entry : entries) {
-                if (entry.number() == null) {
-                    continue;
-                }
-                if (maxValue == null || entry.asDouble() > maxDouble) {
-                    maxValue = entry.number();
-                    maxDouble = entry.asDouble();
-                }
-            }
-            maxDirty = false;
+            return best;
         }
     }
 
-    private record FrameEntry(Number number, double asDouble, boolean fractional) {
+    private record FrameEntry(Number number, boolean fractional) {
         private static FrameEntry nullValue() {
-            return new FrameEntry(null, 0D, false);
+            return new FrameEntry(null, false);
         }
 
         private static FrameEntry of(Number number) {
-            return new FrameEntry(
-                    number,
-                    number.doubleValue(),
-                    number instanceof Float || number instanceof Double
-            );
+            boolean integral = number instanceof Integer
+                    || number instanceof Long
+                    || number instanceof Short
+                    || number instanceof Byte;
+            return new FrameEntry(number, !integral);
         }
     }
 }

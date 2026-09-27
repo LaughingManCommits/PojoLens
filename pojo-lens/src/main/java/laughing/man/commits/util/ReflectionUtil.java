@@ -1,6 +1,7 @@
 package laughing.man.commits.util;
 
 import laughing.man.commits.annotations.Exclude;
+import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import org.slf4j.Logger;
@@ -8,10 +9,13 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
@@ -110,6 +114,10 @@ public final class ReflectionUtil {
             return rows;
         }
 
+        if (cls.isRecord()) {
+            return toRecords(cls, classes);
+        }
+
         List<T> result = new ArrayList<>(classes.size());
 
         try {
@@ -148,6 +156,9 @@ public final class ReflectionUtil {
         }
         if (QueryRow.class.isAssignableFrom(cls) && cls.isInstance(row)) {
             return cls.cast(row);
+        }
+        if (cls.isRecord()) {
+            return toRecords(cls, List.of(row)).get(0);
         }
         try {
             ProjectionWritePlan plan = projectionWritePlan(cls, List.of(row));
@@ -212,6 +223,10 @@ public final class ReflectionUtil {
             return queryRows;
         }
 
+        if (cls.isRecord()) {
+            return toRecords(cls, rows, sourceFieldSchema == null ? List.of() : sourceFieldSchema, sourceIndexes);
+        }
+
         List<T> result = new ArrayList<>(rows.size());
 
         try {
@@ -238,6 +253,59 @@ public final class ReflectionUtil {
         }
 
         return result;
+    }
+
+    /**
+     * Rows of one result share a schema, so the record plan is resolved once per call.
+     */
+    private static <T> List<T> toRecords(Class<T> recordType, List<QueryRow> rows) {
+        List<T> records = new ArrayList<>(rows.size());
+        RecordProjectionSupport.Plan<T> plan = null;
+        try {
+            for (QueryRow row : rows) {
+                if (row == null) {
+                    continue;
+                }
+                if (plan == null) {
+                    List<? extends QueryField> fields = row.getFields();
+                    ArrayList<String> schema = new ArrayList<>(fields.size());
+                    for (QueryField field : fields) {
+                        schema.add(field.getFieldName());
+                    }
+                    plan = RecordProjectionSupport.compile(recordType, schema);
+                }
+                records.add(plan.construct(row::getValueAt));
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            throw new IllegalStateException("Failed to convert rows to record " + recordType.getSimpleName(), e);
+        }
+        return records;
+    }
+
+    private static <T> List<T> toRecords(Class<T> recordType,
+                                         List<Object[]> rows,
+                                         List<String> schema,
+                                         int[] sourceIndexes) {
+        List<T> records = new ArrayList<>(rows.size());
+        RecordProjectionSupport.Plan<T> plan = RecordProjectionSupport.compile(recordType, schema);
+        try {
+            for (Object[] row : rows) {
+                if (row == null) {
+                    continue;
+                }
+                records.add(plan.construct(index -> arrayValue(row, sourceIndexes, index)));
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            throw new IllegalStateException("Failed to convert rows to record " + recordType.getSimpleName(), e);
+        }
+        return records;
+    }
+
+    private static Object arrayValue(Object[] row, int[] sourceIndexes, int schemaIndex) {
+        int index = sourceIndexes == null || sourceIndexes.length == 0
+                ? schemaIndex
+                : (schemaIndex < sourceIndexes.length ? sourceIndexes[schemaIndex] : -1);
+        return index >= 0 && index < row.length ? row[index] : null;
     }
 
     private static Object[] projectArrayRow(Object[] row, int[] sourceIndexes) {
@@ -470,23 +538,38 @@ public final class ReflectionUtil {
         return MUTABLE_FIELD_CACHE.get(clazz, ReflectionUtil::getFields);
     }
 
+    /**
+     * Mutable instance fields of {@code key} including those inherited from user-defined
+     * superclasses (superclass fields first; a subclass field shadows a same-named parent field).
+     */
     public static List<Field> getFields(Class<?> key) {
-        Field[] declaredFields = key.getDeclaredFields();
-        List<Field> fields = new ArrayList<>(declaredFields.length);
-
-        for (int i = 0; i < declaredFields.length; i++) {
-            Field field = declaredFields[i];
-            int mods = field.getModifiers();
-
-            if (!Modifier.isFinal(mods)
-                    && !Modifier.isStatic(mods)
-                    && !field.isAnnotationPresent(Exclude.class)) {
-                field.setAccessible(true);
-                fields.add(field);
+        LinkedHashMap<String, Field> byName = new LinkedHashMap<>();
+        for (Class<?> type : userDefinedHierarchy(key)) {
+            for (Field field : type.getDeclaredFields()) {
+                int mods = field.getModifiers();
+                if (!Modifier.isFinal(mods)
+                        && !Modifier.isStatic(mods)
+                        && !field.isAnnotationPresent(Exclude.class)) {
+                    field.setAccessible(true);
+                    byName.put(field.getName(), field);
+                }
             }
         }
+        return new ArrayList<>(byName.values());
+    }
 
-        return fields;
+    /**
+     * {@code key} and its user-defined superclasses, top-most superclass first.
+     */
+    private static List<Class<?>> userDefinedHierarchy(Class<?> key) {
+        ArrayList<Class<?>> hierarchy = new ArrayList<>();
+        for (Class<?> type = key; type != null && type != Object.class; type = type.getSuperclass()) {
+            if (type != key && !isUserDefinedType(type)) {
+                break;
+            }
+            hierarchy.add(0, type);
+        }
+        return hierarchy;
     }
 
     private static Field findMutableField(Class<?> clazz, String fieldName) {
@@ -515,14 +598,14 @@ public final class ReflectionUtil {
     }
 
     private static Map<String, Field> buildReadableFieldByNameMap(Class<?> clazz) {
-        Field[] declaredFields = clazz.getDeclaredFields();
-        Map<String, Field> byName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY, declaredFields.length * 2));
-        for (int i = 0; i < declaredFields.length; i++) {
-            Field field = declaredFields[i];
-            int mods = field.getModifiers();
-            if (!Modifier.isStatic(mods) && !field.isAnnotationPresent(Exclude.class)) {
-                field.setAccessible(true);
-                byName.put(field.getName(), field);
+        Map<String, Field> byName = new LinkedHashMap<>(DEFAULT_MAP_CAPACITY);
+        for (Class<?> type : userDefinedHierarchy(clazz)) {
+            for (Field field : type.getDeclaredFields()) {
+                int mods = field.getModifiers();
+                if (!Modifier.isStatic(mods) && !field.isAnnotationPresent(Exclude.class)) {
+                    field.setAccessible(true);
+                    byName.put(field.getName(), field);
+                }
             }
         }
         return byName;
@@ -539,6 +622,10 @@ public final class ReflectionUtil {
                 || wrapped == Byte.class
                 || wrapped == Character.class
                 || wrapped == String.class
+                || wrapped == BigDecimal.class
+                || wrapped == BigInteger.class
+                || wrapped == UUID.class
+                || wrapped == LocalTime.class
                 || wrapped == Date.class
                 || wrapped == Instant.class
                 || wrapped == LocalDate.class
@@ -560,7 +647,7 @@ public final class ReflectionUtil {
     }
 
     private static boolean isTraversableType(Class<?> type) {
-        return type != null && !isSimpleType(type) && !type.isEnum() && isUserDefinedType(type);
+        return type != null && !isSimpleType(type) && !type.isEnum() && !type.isArray() && isUserDefinedType(type);
     }
 
     private static FieldGraphDescriptor fieldGraph(Class<?> root) {
@@ -605,20 +692,24 @@ public final class ReflectionUtil {
         }
 
         try {
-            List<Field> fields = getMutableFields(type);
+            List<Field> fields = type.isRecord()
+                    ? RecordProjectionSupport.componentFields(type)
+                    : getMutableFields(type);
             for (int i = 0; i < fields.size(); i++) {
                 Field field = fields.get(i);
                 String qualifiedName = qualify(prefix, field.getName());
                 Class<?> fieldType = wrapPrimitive(field.getType());
                 pathStack[depth] = field;
 
-                if (isSimpleType(fieldType) || fieldType.isEnum()) {
+                if (isTraversableType(fieldType)) {
+                    collectFieldGraph(fieldType, qualifiedName, pathStack, depth + 1, activePath, flattenedFields);
+                } else {
+                    // Scalars, enums, and opaque values (collections, arrays, other JDK types) are
+                    // leaves: carried through projection unchanged and comparable by value.
                     flattenedFields.add(new FlattenedFieldDescriptor(
                             qualifiedName,
                             new ResolvedFieldPath(List.of(Arrays.copyOf(pathStack, depth + 1)), fieldType, true)
                     ));
-                } else if (isTraversableType(fieldType)) {
-                    collectFieldGraph(fieldType, qualifiedName, pathStack, depth + 1, activePath, flattenedFields);
                 }
             }
         } finally {

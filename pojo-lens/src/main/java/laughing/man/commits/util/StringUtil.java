@@ -1,7 +1,6 @@
 package laughing.man.commits.util;
 
-import java.text.NumberFormat;
-import java.text.ParsePosition;
+import java.math.BigDecimal;
 import java.util.Locale;
 
 /**
@@ -48,13 +47,31 @@ public final class StringUtil {
     }
 
     /**
-     * Checks whether the full input string can be parsed as a number.
+     * Checks whether the full input string is a plain decimal number
+     * ({@code 42}, {@code -1.5}, {@code 1e3}); independent of the default locale.
      */
     public static boolean isNumber(String str) {
-        NumberFormat formatter = NumberFormat.getInstance();
-        ParsePosition pos = new ParsePosition(0);
-        formatter.parse(str, pos);
-        return str.length() == pos.getIndex();
+        return parseNumber(str) != null;
+    }
+
+    /**
+     * Parses a plain decimal number ({@code 42}, {@code -1.5}, {@code 1e3}, surrounding
+     * whitespace allowed) exactly, independent of the default locale; {@code null} when the
+     * text is not a number. Grouping separators and locale decimal commas are rejected.
+     */
+    public static BigDecimal parseNumber(String str) {
+        if (str == null) {
+            return null;
+        }
+        String trimmed = str.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(trimmed);
+        } catch (NumberFormatException notANumber) {
+            return null;
+        }
     }
 
     public static String requireNonBlank(String value, String label) {

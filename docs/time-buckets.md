@@ -24,6 +24,9 @@ List<WeeklyHeadcount> rows = PojoLensSql
 Notes:
 - bucket source fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`
 - hour buckets are formatted as `YYYY-MM-DDTHH`
+- buckets are wall-clock periods in the preset timezone: in a daylight-saving
+  fall-back, both occurrences of the repeated local hour share one `HOUR`
+  bucket; use the default `UTC` zone when every elapsed hour must stay separate
 - `LocalDate` and `LocalDateTime` inputs are interpreted in the active bucket preset timezone
 - `Date`, `Instant`, `OffsetDateTime`, and `ZonedDateTime` inputs are normalized into the active bucket preset timezone before bucketing
 - timezone is optional; default is `UTC`

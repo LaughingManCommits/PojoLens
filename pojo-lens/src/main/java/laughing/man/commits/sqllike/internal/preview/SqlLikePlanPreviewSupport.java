@@ -17,6 +17,7 @@ import laughing.man.commits.sqllike.ast.FilterPredicateAst;
 import laughing.man.commits.sqllike.ast.JoinAst;
 import laughing.man.commits.sqllike.ast.OrderAst;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
+import laughing.man.commits.sqllike.internal.params.PatternParameterValue;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
@@ -25,6 +26,7 @@ import laughing.man.commits.sqllike.internal.diagnostics.SqlLikeDiagnosticsSuppo
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -66,7 +68,8 @@ public final class SqlLikePlanPreviewSupport {
                 joins,
                 paging,
                 requiredParams,
-                hasSubqueries
+                hasSubqueries,
+                ast.select() != null && ast.select().distinct()
         );
     }
 
@@ -181,7 +184,30 @@ public final class SqlLikePlanPreviewSupport {
                     paramAst.name(),
                     null
             );
-            case null, default -> new PlanPreviewFilter(f.field(), clauseOperator(f.clause()), "LITERAL", null, null);
+            case PatternParameterValue patternParam -> new PlanPreviewFilter(
+                    f.field(),
+                    clauseOperator(f.clause()),
+                    "PARAMETER",
+                    patternParam.name(),
+                    null
+            );
+            // A literal list: IN, or NOT IN when negated (never a plain, pushable "!=").
+            case Collection<?> ignored -> new PlanPreviewFilter(
+                    f.field(),
+                    f.clause() == Clauses.NOT_EQUAL ? "NOT IN" : clauseOperator(f.clause()),
+                    "LITERAL",
+                    null,
+                    null
+            );
+            // A null test: SQL needs IS [NOT] NULL, so it is never a plain, pushable "=" / "!=".
+            case null -> new PlanPreviewFilter(
+                    f.field(),
+                    f.clause() == Clauses.NOT_EQUAL ? "IS NOT NULL" : "IS NULL",
+                    "LITERAL",
+                    null,
+                    null
+            );
+            default -> new PlanPreviewFilter(f.field(), clauseOperator(f.clause()), "LITERAL", null, null);
         };
     }
 
@@ -195,6 +221,8 @@ public final class SqlLikePlanPreviewSupport {
             case BIGGER_EQUAL, NOT_SMALLER -> ">=";
             case CONTAINS -> "CONTAINS";
             case MATCHES -> "MATCHES";
+            case NOT_CONTAINS -> "NOT CONTAINS";
+            case NOT_MATCHES -> "NOT MATCHES";
             case IN -> "IN";
         };
     }

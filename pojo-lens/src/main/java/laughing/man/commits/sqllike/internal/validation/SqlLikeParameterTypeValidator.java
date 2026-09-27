@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike.internal.validation;
 
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.internal.NumericStatistics;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
@@ -44,7 +45,9 @@ final class SqlLikeParameterTypeValidator {
             return Number.class;
         }
         if (filter.clause() == Clauses.CONTAINS
-                || filter.clause() == Clauses.MATCHES) {
+                || filter.clause() == Clauses.MATCHES
+                || filter.clause() == Clauses.NOT_CONTAINS
+                || filter.clause() == Clauses.NOT_MATCHES) {
             return String.class;
         }
         return queryableFieldTypes.get(filter.field());
@@ -164,10 +167,10 @@ final class SqlLikeParameterTypeValidator {
     }
 
     private static Class<?> metricOutputType(Metric metric, Class<?> fieldType) {
-        if (metric == Metric.COUNT) {
+        if (metric == Metric.COUNT || metric == Metric.COUNT_DISTINCT) {
             return Long.class;
         }
-        if (metric == Metric.AVG) {
+        if (metric == Metric.AVG || NumericStatistics.isStatistical(metric)) {
             return Double.class;
         }
         if (fieldType == null) {
