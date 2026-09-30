@@ -794,24 +794,30 @@ public final class TypedQuery<T> {
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
     }
 
-    // Note: stream() wraps filter(...).stream() — rows are fully materialised before streaming.
+    /**
+     * Streams the query result. Simple shapes (filters of any predicate shape, projection,
+     * offset, and limit over unjoined rows) are evaluated lazily, row by row, so a consumer
+     * that stops early does not pay for the rest; ordered, grouped, windowed, joined,
+     * distinct, computed-field, and execution-guarded queries materialise first.
+     */
     public Stream<T> stream(List<T> rows) {
-        return filter(rows).stream();
+        return stream(rows, JoinBindings.empty(), entityClass);
     }
 
     public Stream<T> stream(DatasetBundle datasetBundle) {
-        return filter(datasetBundle).stream();
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return streamInternal(datasetBundle.primaryRows(), datasetBundle.joinBindings(), entityClass);
     }
 
     public Stream<T> stream(List<T> rows, JoinBindings joinBindings) {
-        return filter(rows, joinBindings).stream();
+        return stream(rows, joinBindings, entityClass);
     }
 
     public <P> Stream<P> stream(List<T> rows, JoinBindings joinBindings, Class<P> projectionClass) {
-        return filter(rows, joinBindings, projectionClass).stream();
+        return streamInternal(rows, joinBindings, projectionClass);
     }
 
-    // Note: iterator() wraps stream(...) — same materialisation caveat; remove() is unsupported.
+    // iterator() wraps stream(...), with the same laziness; remove() is unsupported.
     public Iterator<T> iterator(List<T> rows) {
         return stream(rows).iterator();
     }
@@ -985,6 +991,22 @@ public final class TypedQuery<T> {
             }
         }
         return result;
+    }
+
+    /**
+     * Guarded queries keep the materialising path, which applies every guard check.
+     */
+    private <P> Stream<P> streamInternal(List<?> rows, JoinBindings joinBindings, Class<P> projectionClass) {
+        Objects.requireNonNull(rows, "rows must not be null");
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        if (executionGuard != null) {
+            return filterInternal(rows, joinBindings, projectionClass).stream();
+        }
+        if (wherePredicate != null && wherePredicate.operator() == TypedPredicate.Operator.NONE) {
+            return Stream.empty();
+        }
+        return preparedFilter(configuredBuilder(rows, joinBindings)).stream(projectionClass);
     }
 
     private <P> PageResult<P> filterPageInternal(List<?> rows,

@@ -222,6 +222,25 @@ Interpretation:
 - For first-page style consumers, streaming cuts allocation by roughly `60x` (fluent) to `71x` (SQL-like) and reduces latency by roughly `79x` to `95x` in this workload.
 - These gains come from avoiding full result list materialization when callers only need an initial window.
 
+`2026-09-30` run after WP-33 (`size=10000`, `-f 1 -wi 1 -i 3 -r 100ms -prof gc`, local
+Windows) with the typed and `OR`-predicate cases added:
+
+| Workload | us/op | B/op (`gc.alloc.rate.norm`) |
+|---|---:|---:|
+| `fluentFilterListMaterialized` | `372.591` | `1,514,314` |
+| `fluentFilterStreamLazy` | `7.885` | `18,384` |
+| `sqlLikeFilterListMaterialized` | `665.974` | `3,143,495` |
+| `sqlLikeFilterStreamLazy` | `5.607` | `21,616` |
+| `sqlLikeOrFilterListMaterialized` | `801.251` | `3,556,216` |
+| `sqlLikeOrFilterStreamLazy` | `6.242` | `21,280` |
+| `typedFilterListMaterialized` | `756.818` | `3,627,549` |
+| `typedFilterStreamLazy` | `9.160` | `105,705` |
+
+- Typed streams (lazy since WP-33) take ~`83x` less time and ~`34x` less allocation
+  than the materialized list for a first page. Their extra ~`84 KB/op` over SQL-like
+  is per-call builder setup, mostly the snapshot copy of the 10k-row source list.
+- `OR` predicates (rule groups) now stream lazily at the same cost as flat `AND` rules.
+
 ## SQL-like Window Overhead
 
 Window queries are now benchmarked against an equivalent non-window SQL-like baseline to keep window-stage overhead visible.

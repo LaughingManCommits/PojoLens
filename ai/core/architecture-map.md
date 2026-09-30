@@ -51,4 +51,5 @@ Single owners for core semantics (established 2026-09-27, WP-18 to WP-23):
 - keyset cursors: `sqllike/internal/cursor/SqlLikeKeysetSupport` places the predicate in QUALIFY (ORDER BY on a window alias), else HAVING (grouped) or WHERE; nulls sort first in ASC and last in DESC
 - records: `util/RecordProjectionSupport` (canonical constructor); `final` fields of regular classes stay outside the query schema
 - stream file loaders: `files/internal/LoadSource` (never closes caller streams; strict UTF-8)
+- lazy query streams: `filter/FastPojoStreamSupport` for unjoined, unordered, ungrouped POJO queries on every surface (typed `stream`/`iterator` delegate to `Filter.stream` since WP-33); WHERE rule groups match via `FilterCore.matchesWhereGroups`, the same matcher as the materialized path; other shapes fall back to `filter(...).stream()`
 - text-surface negation: `sqllike/internal/expression/FilterExpressionNegation` rewrites SQL-like `NOT`/`NOT BETWEEN` and natural `not (...)`/`is not between` with the typed `not()` rules (WP-25, text clauses since WP-26); typed `NOT(text leaf)` lowers in `TypedQuery.toTextRule`; `BETWEEN` lowers to `>=`/`<=` in each parser

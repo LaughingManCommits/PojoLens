@@ -301,6 +301,15 @@ public class FilterCore {
         return new FilterExecutionPlan(builder);
     }
 
+    /**
+     * True when {@code row} satisfies the WHERE rule groups: some {@code allOf} group has
+     * every rule matching, and every {@code anyOf} group has a matching rule. Shared with
+     * the lazy streaming path so both evaluate predicates identically.
+     */
+    boolean matchesWhereGroups(QueryRow row, FilterExecutionPlan plan) {
+        return matchesExplicitGroups(row, plan, builder.getAllOfGroups(), builder.getAnyOfGroups());
+    }
+
     private boolean hasExplicitRuleGroups(List<List<QueryRule>> allOfGroups, List<List<QueryRule>> anyOfGroups) {
         return !allOfGroups.isEmpty() || !anyOfGroups.isEmpty();
     }

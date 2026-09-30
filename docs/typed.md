@@ -255,16 +255,25 @@ stream(List<T> rows, JoinBindings joins)
 stream(List<T> rows, JoinBindings joins, Class<P> projectionClass)
 ```
 
-**Laziness caveat:** the current implementation is a thin wrapper over
-`filter(...)` — rows are fully materialised into a `List` before the stream
-is returned. The stream API surface is identical to what callers would write,
-so if a future version introduces true lazy streaming from the engine, call
-sites will not need to change.
+**Laziness:** simple shapes stream lazily: `where(...)` with any predicate
+shape (`and`/`or`/`not`, `in`, `between`, null checks, text predicates),
+`select(...)`, `offset(...)`, and `limit(...)` over unjoined rows. Rows are read,
+filtered, and projected one at a time as the stream is consumed, so
+`stream(rows).limit(20)` or `findFirst()` stop early instead of materialising
+every match. Validation still happens when `stream(...)` is called; the source
+list is snapshotted then, so later changes to it are not seen.
+
+These shapes materialise before the first row, because they need every row
+first or apply checks to the whole result: `orderBy`, grouping and metrics,
+time buckets, windows and `qualify`, `distinct()`, joins, computed fields,
+and `executionGuard(...)`. Their streams behave exactly like
+`filter(...).stream()`. `inSubquery`/`exists` predicates run their subquery when
+`stream(...)` is called; the outer rows still stream lazily.
 
 `iterator(...)` offers the same four overloads for callers that need an
 `Iterator<T>` (for example, to feed an API that pulls rows one at a time). It
-wraps `stream(...)`, so the same materialisation caveat applies, and
-`remove()` is unsupported.
+wraps `stream(...)`, so it is lazy for the same shapes, and `remove()` is
+unsupported.
 
 ```java
 Iterator<Employee> rows = TypedQuery.from(Employee.class)

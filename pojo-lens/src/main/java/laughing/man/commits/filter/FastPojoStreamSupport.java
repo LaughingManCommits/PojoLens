@@ -1,6 +1,8 @@
 package laughing.man.commits.filter;
 
 import laughing.man.commits.internal.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.QueryRule;
+import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Separator;
@@ -23,7 +25,9 @@ import java.util.stream.StreamSupport;
  * Lazy row-by-row streaming path for simple POJO-source queries.
  * <p>
  * This path avoids full result materialization by evaluating filter rules and
- * projection during iteration.
+ * projection during iteration. WHERE rule groups ({@code allOf}/{@code anyOf}, which
+ * OR/NOT predicates and every typed predicate lower to) are evaluated per row by
+ * {@link FilterCore#matchesWhereGroups}, the same matcher as the materialized path.
  */
 final class FastPojoStreamSupport {
 
@@ -52,13 +56,14 @@ final class FastPojoStreamSupport {
                 && builder.getQualifyAllOfGroups().isEmpty()
                 && builder.getQualifyAnyOfGroups().isEmpty()
                 && builder.getQualifyFields().isEmpty()
-                && builder.getAllOfGroups().isEmpty()
-                && builder.getAnyOfGroups().isEmpty()
                 && builder.getWindows().isEmpty()
                 && builder.getComputedFieldRegistry().isEmpty();
     }
 
     static <T> Stream<T> stream(FilterQueryBuilder builder, Class<T> cls) {
+        if (builder.isFilterAlwaysFalse()) {
+            return Stream.empty();
+        }
         StreamingPlan plan = compileStreamingPlan(builder);
         Iterator<T> iterator = new StreamingIterator<>(builder, plan, cls);
         Spliterator<T> spliterator = Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED | Spliterator.NONNULL);
@@ -74,6 +79,7 @@ final class FastPojoStreamSupport {
                     List.of(),
                     new int[0],
                     new FastPojoRuleSupport.CompiledRuleBundle(new int[0], new CompiledRule[0][]),
+                    null,
                     normalizeOffset(builder.getOffset()),
                     builder.getLimit()
             );
@@ -96,9 +102,14 @@ final class FastPojoStreamSupport {
                 projectionSchema,
                 projectionIndexes,
                 ruleBundle,
+                hasWhereGroups(builder) ? new WhereGroupMatcher(new FilterCore(builder), plan, effectiveReadSchema) : null,
                 normalizeOffset(builder.getOffset()),
                 builder.getLimit()
         );
+    }
+
+    private static boolean hasWhereGroups(FilterQueryBuilder builder) {
+        return !builder.getAllOfGroups().isEmpty() || !builder.getAnyOfGroups().isEmpty();
     }
 
     private static int normalizeOffset(Integer offset) {
@@ -125,6 +136,7 @@ final class FastPojoStreamSupport {
 
         LinkedHashSet<String> selected = new LinkedHashSet<>();
         FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, builder.getFilterFields().values());
+        FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, whereGroupFields(builder));
         FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, builder.getReturnFields());
 
         if (selected.isEmpty()) {
@@ -138,6 +150,28 @@ final class FastPojoStreamSupport {
             }
         }
         return ordered.isEmpty() ? new ArrayList<>(sourceFieldTypes.keySet()) : ordered;
+    }
+
+    /**
+     * Fields the WHERE rule groups read, including identifiers inside expression columns.
+     */
+    private static List<String> whereGroupFields(FilterQueryBuilder builder) {
+        ArrayList<String> fields = new ArrayList<>();
+        for (List<List<QueryRule>> groups : List.of(builder.getAllOfGroups(), builder.getAnyOfGroups())) {
+            for (List<QueryRule> group : groups) {
+                for (QueryRule rule : group) {
+                    if (rule == null || rule.getColumn() == null) {
+                        continue;
+                    }
+                    if (SqlExpressionEvaluator.looksLikeExpression(rule.getColumn())) {
+                        fields.addAll(SqlExpressionEvaluator.collectIdentifiers(rule.getColumn()));
+                    } else {
+                        fields.add(rule.getColumn());
+                    }
+                }
+            }
+        }
+        return fields;
     }
 
     // Empty ruleBundle means no filter rules — all rows pass in the streaming path.
@@ -248,7 +282,7 @@ final class FastPojoStreamSupport {
                 } catch (IllegalAccessException e) {
                     throw new IllegalStateException("Failed to read streaming source row", e);
                 }
-                if (!passesFilter(buffer, plan.ruleBundle())) {
+                if (!passes(buffer)) {
                     continue;
                 }
                 if (skipped < plan.offset()) {
@@ -265,12 +299,66 @@ final class FastPojoStreamSupport {
             }
             done = true;
         }
+
+        // Like FilterCore, explicit WHERE groups take precedence over flat rules.
+        private boolean passes(Object[] values) {
+            WhereGroupMatcher groups = plan.whereGroups();
+            return groups == null ? passesFilter(values, plan.ruleBundle()) : groups.matches(values);
+        }
     }
 
+    /**
+     * Evaluates WHERE rule groups against the read buffer through a reusable row view.
+     */
+    private static final class WhereGroupMatcher {
+        private final FilterCore core;
+        private final FilterExecutionPlan plan;
+        private final BufferRow row;
+
+        private WhereGroupMatcher(FilterCore core, FilterExecutionPlan plan, List<String> schema) {
+            this.core = core;
+            this.plan = plan;
+            this.row = new BufferRow(schema.size());
+        }
+
+        private boolean matches(Object[] values) {
+            row.values = values;
+            return core.matchesWhereGroups(row, plan);
+        }
+    }
+
+    /**
+     * Zero-copy {@link QueryRow} over the streaming read buffer; only indexed access is
+     * supported, which is all rule matching uses.
+     */
+    private static final class BufferRow extends QueryRow {
+        private final int fieldCount;
+        private Object[] values;
+
+        private BufferRow(int fieldCount) {
+            this.fieldCount = fieldCount;
+        }
+
+        @Override
+        public Object getValueAt(int index) {
+            return index < 0 || index >= fieldCount ? null : values[index];
+        }
+
+        @Override
+        public int getFieldCount() {
+            return fieldCount;
+        }
+    }
+
+    /**
+     * @param whereGroups the WHERE rule-group matcher, or {@code null} when the query has
+     *                    flat rules only
+     */
     private record StreamingPlan(ReflectionUtil.FlatRowReadPlan readPlan,
                                  List<String> projectionSchema,
                                  int[] projectionIndexes,
                                  FastPojoRuleSupport.CompiledRuleBundle ruleBundle,
+                                 WhereGroupMatcher whereGroups,
                                  int offset,
                                  Integer limit) {
     }

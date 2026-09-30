@@ -9,7 +9,7 @@
 ## Focus
 - `2026-05-18`: The extracted local AI runtime moved to `neon`; PojoLens now keeps only the Java library plus repo-memory helpers, and release `2026.05.18.1353` was backfilled on `main`.
 - `2026-06-06`: WP-12 to WP-17 and the README/mixed-sort/memory quick fixes are done.
-- `2026-09-30`: WP-31 is committed (`480966f`); WP-32 is done but uncommitted; user reviews and commits.
+- `2026-09-30`: WP-31 (`480966f`) and WP-32 (`e6937e9`) are committed; WP-33 is done but uncommitted; user reviews and commits.
 
 ## Facts
 - `2026-05-18`: Surviving `scripts/ai/` tools are repo-memory helpers: `refresh-ai-memory.*`, `query-ai-memory.*`, and `benchmark-ai-memory.*`.

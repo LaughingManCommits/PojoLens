@@ -9,7 +9,7 @@ lands in the shared engine first, then SQL-like, then natural where the controll
 grammar can express it. Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
-Next priority: WP-33 (lazy typed `stream()`). WP-7 to WP-32 are unreleased;
+Next priority: none open; WP-1 to WP-33 are done. WP-7 to WP-33 are unreleased;
 a release cut (`RELEASE.md`) can happen before or after the P1 filtering packages.
 
 ### Quick fixes (no WP needed)
@@ -571,7 +571,7 @@ keys (an unknown key used to skip the join). Classes come from the bound rows; t
 
 ---
 
-### WP-33 — Lazy typed `stream()`  [P3]
+### ~~WP-33 — Lazy typed `stream()`~~ ✓ DONE 2026-09-30
 
 **Problem:** `TypedQuery.stream(...)` and `iterator(...)` materialise the full result
 before streaming (`docs/typed.md` laziness caveat), so early-exit consumers pay for
@@ -582,6 +582,15 @@ full execution.
   simple typed shapes (filter, order with limit, projection); keep materialising
   for grouped/window shapes
 - Benchmark with the streaming suite; update the laziness caveat
+
+**Done:** typed `stream`/`iterator` delegate to the engine's `Filter.stream`, whose lazy
+path (`FastPojoStreamSupport`) now also evaluates WHERE rule groups via
+`FilterCore.matchesWhereGroups` (zero-copy row view), so every typed predicate shape and
+SQL-like/natural `OR`/`NOT` stream lazily. Ordered shapes stay materialised (ordering
+needs every row before the first result, so "order with limit" gains nothing lazily), as
+do grouped, windowed, distinct, joined, computed-field, and execution-guarded queries.
+Streaming suite (10k rows, first page): typed 9.2 us vs 757 us materialised. Coverage in
+`TypedLazyStreamTest`; 1508 runtime tests.
 
 ---
 
@@ -621,6 +630,7 @@ full execution.
 - [x] `2026-09-27`: WP-22 — core engine correctness pass (comparison, precision, grouping, paging, joins, projection); 1299 runtime tests.
 - [x] `2026-09-27`: WP-24 — literal `IN`/`NOT IN` lists and list parameters on SQL-like; natural `is [not] one of`.
 - [x] `2026-09-27`: WP-25 — SQL-like `IS [NOT] NULL`, `[NOT] BETWEEN`, `NOT`; natural `is [not] between`, groups, `not (...)`; 1341 runtime tests.
+- [x] `2026-09-30`: WP-33 — lazy typed `stream()`/`iterator()`; WHERE rule groups stream lazily on every surface; 1508 runtime tests.
 - [x] `2026-09-30`: WP-32 — typed field validation for joined queries (merged join naming, join keys, declared join source classes); 1501 runtime tests.
 - [x] `2026-09-30`: WP-31 — `LAG`/`LEAD` and windows/`QUALIFY` over grouped rows on SQL-like, typed, natural, fluent; 1494 runtime tests.
 - [x] `2026-09-27`: WP-30 — MEDIAN, PERCENTILE, STDDEV/STDDEV_POP, VARIANCE/VAR_POP on SQL-like, typed, natural; 1393 runtime tests.

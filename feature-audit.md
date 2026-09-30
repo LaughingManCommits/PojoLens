@@ -24,7 +24,8 @@ SQL-like and natural filtering gap is closed. WP-28 added `SELECT DISTINCT` and
 `COUNT(DISTINCT)`, WP-30 statistical aggregates, and WP-29 text, null, and date-part
 expression functions (also in `GROUP BY`/`ORDER BY` and computed fields), and WP-31
 `LAG`/`LEAD` plus windows and `QUALIFY` over grouped rows, and WP-32 typed field
-validation for joined queries. The remaining gap is lazy typed streaming (WP-33).
+validation for joined queries, and WP-33 lazy typed streaming. No audited gap remains
+open.
 
 No correctness blocker is open: the 2026-09-27 core bug hunt fixes shipped as
 WP-22/WP-23, and release gates (tests, japicmp, lint baseline, SpotBugs,
@@ -72,7 +73,7 @@ breadth, P3 is completeness.
 | P2 (done) | Aggregation | Only COUNT/SUM/AVG/MIN/MAX. | `sql-like.md` aggregate list. | WP-30 |
 | P2 (done) | Windows | No `LAG`/`LEAD`; windows cannot combine with GROUP BY. | `sql-like.md` Current Limitations and Window Functions Contract. | WP-31 |
 | P3 (done) | Typed validation | Field-name validation skipped for joined typed queries. | `typed.md` validation note. | WP-32 |
-| P3 | Typed execution | `stream()`/`iterator()` materialise before streaming. | `typed.md` laziness caveat. | WP-33 |
+| P3 (done) | Typed execution | `stream()`/`iterator()` materialise before streaming. | `typed.md` laziness caveat. | WP-33 |
 
 ## Resolved Since The 2026-05-18 Audit
 
@@ -99,7 +100,7 @@ breadth, P3 is completeness.
 3. WP-28, WP-30, WP-31: output and aggregation breadth.
 4. WP-29: done 2026-09-28 (`docs/design/wp-29-expression-functions.md`).
    WP-31: done 2026-09-30 (`docs/design/wp-31-window-gaps.md`).
-5. WP-32 (done 2026-09-30), WP-33: typed completeness.
+5. WP-32 and WP-33: typed completeness (done 2026-09-30).
 
 A release cut for the unreleased WP-7 to WP-23 work can happen before or after the
 P1 packages; its gates already pass.

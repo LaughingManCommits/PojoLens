@@ -11,6 +11,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Lazy typed `stream()`/`iterator()` (WP-33)** - `TypedQuery.stream(...)` and
+  `iterator(...)` evaluate simple shapes row by row (filters of any predicate shape,
+  projection, offset, limit over unjoined rows), so early-exit consumers such as
+  `limit(n)` or `findFirst()` no longer pay for full materialisation. Ordered, grouped,
+  windowed, distinct, joined, computed-field, and execution-guarded queries still
+  materialise first. The shared lazy path (`FastPojoStreamSupport`) now evaluates WHERE
+  rule groups through `FilterCore.matchesWhereGroups`, so SQL-like and natural `OR`/`NOT`
+  predicates stream lazily too. `StreamingExecutionJmhBenchmark` gains typed and
+  `OR`-predicate cases.
+
 - **Typed field validation for joined queries (WP-32)** - `TypedQuery` validates field
   names of joined queries against the joined rows: the entity's fields merged with each
   joined source's under the engine's naming rule (`child_<name>` on collisions, `RIGHT

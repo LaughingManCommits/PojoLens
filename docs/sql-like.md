@@ -744,8 +744,10 @@ try (Stream<Employee> rows = PojoLensSql
 ```
 
 Streaming notes:
-- simple non-joined/non-aggregate SQL-like queries can stream rows lazily
-- complex query shapes (join/group/having/qualify/ordered windows) fall back to list-backed streams
+- simple non-joined/non-aggregate SQL-like queries stream rows lazily, including
+  `OR`/`NOT`/parenthesized `WHERE` predicates
+- complex query shapes (`ORDER BY`, joins, grouping, `HAVING`, windows, `QUALIFY`,
+  `DISTINCT`, computed fields) fall back to list-backed streams
 - `bindTyped(...).stream()` is available for bind-first SQL-like flows
 
 ### Recipe: Lint Mode

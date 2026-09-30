@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-09-30`: WP-33 (lazy typed streams): `mvn -B -ntp test` passed (1508 runtime, 5 autoconfigure, 4 starter, 26 benchmark-module tests); `scripts/docs/check-doc-consistency.ps1`, lint baseline gate (0 new), SpotBugs (0 bugs), and japicmp vs `2026.05.18.1353` passed; streaming JMH suite run (`-f 1 -wi 1 -i 3 -prof gc`).
 - `2026-09-30`: WP-32 (typed joined-field validation): `mvn -B -ntp test` passed (1501 runtime, 5 autoconfigure, 4 starter, 26 benchmark-module tests); `scripts/docs/check-doc-consistency.ps1`, lint baseline gate (0 new), SpotBugs (0 bugs), and japicmp vs `2026.05.18.1353` passed.
 - `2026-09-30`: WP-31 (`LAG`/`LEAD`, grouped windows): `mvn -B -ntp test` passed (1494 runtime, 5 autoconfigure, 4 starter, 26 benchmark-module tests); `scripts/docs/check-doc-consistency.ps1`, lint baseline gate (0 new), SpotBugs (0 bugs), and japicmp vs `2026.05.18.1353` passed.
 - `2026-05-19`: Focused Maven slice passed after typed/natural pagination and HOUR bucket work: `TypedQueryContractTest`, `NaturalQueryContractTest`, `SqlLikePageResultTest`, `SqlLikeParserTest`, `TimeBucketAggregationTest`, `TimeBucketUtilTest`, `StablePublicApiContractTest`, and `PublicApiEcosystemCoverageTest`.

@@ -107,6 +107,11 @@ New, additive:
   `SelectFieldAst` outputs in grouped queries.
 - The `AGGREGATE` telemetry event is emitted after `HAVING` (its duration includes
   `HAVING`) and carries `rowsAfterHaving`.
+- Typed `stream(...)`/`iterator(...)` are lazy for simple unordered, unjoined shapes,
+  and SQL-like/natural streams with `OR`/`NOT` predicates are lazy too. Validation
+  still fails at the `stream(...)` call, but row-level errors (for example a bad
+  regex) now surface while the stream is consumed, and projection instances are
+  created on demand.
 
 See `CHANGELOG.md` for the complete list.
 

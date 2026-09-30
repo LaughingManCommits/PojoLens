@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T18:33:18.757407+02:00",
+  "generatedAt": "2026-09-30T19:11:05.383395+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -14,13 +14,13 @@
     "examples/typed-compiler-gradle-kotlin/src/test/kotlin"
   ],
   "counts": {
-    "testJavaFiles": 182,
-    "testClasses": 182
+    "testJavaFiles": 183,
+    "testClasses": 183
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 149
+      "testJavaFiles": 150
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -137,6 +137,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/domain/Foo.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedFieldContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedJoinValidationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedLazyStreamTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedPredicateContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedQueryContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedWindowGapsTest.java",
