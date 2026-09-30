@@ -2,16 +2,23 @@
 
 ## Supported Grammar
 
-- `SELECT` (optional, supports `AS` aliases)
+- `SELECT` (optional, supports `AS` aliases), `SELECT DISTINCT`
 - chained `JOIN` clauses (`INNER`, `LEFT`, `RIGHT`) with deterministic `ON <lhs> = <rhs>` binding
-- `WHERE` (`AND`/`OR` predicates, including bounded subqueries)
-- aggregate functions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+- `WHERE` (`AND`/`OR`/`NOT` predicates and parenthesized groups, including bounded subqueries)
+- aggregate functions: `COUNT(*)`, `COUNT(field)` (non-null values), `COUNT(DISTINCT field)` (distinct non-null values), `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+- statistical aggregates: `MEDIAN(field)`, `PERCENTILE(field, fraction)`, `STDDEV(field)` / `STDDEV_SAMP(field)`, `STDDEV_POP(field)`, `VARIANCE(field)` / `VAR_SAMP(field)`, `VAR_POP(field)` (see Aggregates below)
 - rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
 - aggregate window functions: `COUNT(field|*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)` with `OVER (...)`
+- offset window functions: `LAG(field[, offset[, default]])`, `LEAD(field[, offset[, default]])` with `OVER (...)`
+- window functions over grouped rows (after `GROUP BY`/`HAVING`)
 - `GROUP BY`
-- `HAVING` (`AND`/`OR` predicates)
-- `QUALIFY` (`AND`/`OR` predicates against window outputs)
-- time bucket function: `bucket(dateField, 'day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
+- `HAVING` (`AND`/`OR`/`NOT` predicates)
+- `QUALIFY` (`AND`/`OR`/`NOT` predicates against window outputs, including on grouped queries)
+- time bucket function: `bucket(dateField, 'hour|day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
+- expressions: arithmetic, `'text'` and `null` literals, and text, null, and date-part
+  functions such as `lower(...)`, `coalesce(...)`, and `year(...)` in `WHERE`,
+  `GROUP BY`, `HAVING`, `ORDER BY`, and `SELECT ... AS alias` (see Expressions And
+  Functions)
 - `ORDER BY`
 - `LIMIT`
 - `OFFSET`
@@ -21,10 +28,230 @@ Current non-goals:
 
 Supported operators in `WHERE`:
 - `=`, `!=`, `<>`, `>`, `>=`, `<`, `<=`
-- `CONTAINS`
-- `MATCHES`
+- `CONTAINS`, `NOT CONTAINS`
+- `LIKE`, `NOT LIKE`, `ILIKE`, `NOT ILIKE` with `%` / `_` wildcards and optional
+  `ESCAPE` (see LIKE And ILIKE)
+- `MATCHES`, `NOT MATCHES` (full-value regular expression)
+- `IN ('a', 'b', ...)`, `NOT IN (...)`: literal lists of text, numbers, booleans, or `NULL`
+- `IN :values`, `NOT IN :values`: one parameter bound to a list (parameters inside a
+  literal list are rejected; bind the whole list instead)
 - `IN (select ...)`
 - `EXISTS (select ...)`, `NOT EXISTS (select ...)`
+- `IS NULL`, `IS NOT NULL` (same as `= null` / `!= null`)
+- `BETWEEN low AND high`, `NOT BETWEEN low AND high`: inclusive on both ends, like
+  typed `between(...)`; bounds are literals or parameters
+- `NOT <predicate>`, `NOT (<group>)`: negates one predicate or a parenthesized group
+
+`NOT IN` excludes rows whose field is null, and a `NULL` list element never matches
+(see Comparison Semantics). `NOT IN (select ...)` is not supported; use
+`NOT EXISTS (select ...)`.
+
+`NOT` binds tighter than `AND`/`OR` (`not a = 1 and b = 2` is `(not a = 1) and b = 2`)
+and is rewritten before execution with the same rules as typed `not()`: `=`/`!=`,
+`<`/`>=`, `>`/`<=`, `IN`/`NOT IN`, `IS NULL`/`IS NOT NULL`, `CONTAINS`/`NOT CONTAINS`,
+`MATCHES`/`NOT MATCHES`, and `EXISTS`/`NOT EXISTS` swap, and `NOT (a AND b)`
+becomes `NOT a OR NOT b`. A negated comparison still excludes null fields, as in
+SQL: `not (department = 'Finance')` and `department not contains 'Fin'` skip rows
+whose department is null. `NOT` cannot negate an `IN (select ...)` subquery (use
+`NOT EXISTS`); that fails at parse time.
+
+`NOT CONTAINS` against a list parameter means the text contains none of the values.
+An invalid `MATCHES` / `NOT MATCHES` pattern never matches.
+
+```sql
+where department is not null and salary between 50000 and 90000
+where hireDate not between '2024-01-01' and '2024-12-31'
+where not (department = 'Finance' or active = false)
+```
+
+### LIKE And ILIKE
+
+Use `LIKE` for prefix, suffix, and substring matches. The pattern covers the whole
+value: `%` matches any run of characters (including none), `_` exactly one
+character, and everything else matches itself, including regex characters such as
+`.` or `$`. `ILIKE` is the case-insensitive form (Unicode case folding), and
+`NOT LIKE` / `NOT ILIKE` negate them.
+
+```sql
+where department like 'Eng%'
+where email like '%@example.com'
+where name ilike '%smith%'
+where code not like 'TMP\_%'
+where name like :pattern
+```
+
+The escape character is a backslash by default (`'100\%'` matches the text
+`100%`; backslashes are literal inside SQL-like strings, so write one). Choose
+another with `ESCAPE` (`like '100!%' escape '!'`), or turn escaping off with
+`ESCAPE ''`. A pattern that ends with the escape character is rejected. A
+`:pattern` parameter is bound as a `LIKE` pattern, not a regex.
+
+`%` and `_` also match line terminators. A null field never matches `LIKE` or
+`NOT LIKE`, and `LIKE NULL` matches nothing. `LIKE`, `ILIKE`, and `ESCAPE` are not
+reserved words: fields with those names keep working.
+
+`LIKE` lowers to a `MATCHES` regex, so plan preview and explain show `MATCHES` /
+`NOT MATCHES`. Use `MATCHES` directly when you need a full regular expression; like
+`LIKE`, it must match the whole value (`where email matches '.*@example[.]com'`).
+
+### Comparison Semantics
+
+These rules are shared by SQL-like, natural, and typed queries:
+
+- A `null` field never matches a comparison with a value, including `!=`:
+  `tag != 'x'` excludes rows where `tag` is null. Use `tag IS NULL` /
+  `tag IS NOT NULL` (or `= null` / `!= null`, typed `isNull()` / `isNotNull()`)
+  to test for null.
+- A `null` inside an `IN` list or subquery result never matches, and never
+  matches the text `'null'`.
+- Numbers compare exactly: whole numbers as `long` (so IDs above 2^53 stay
+  distinct), `BigDecimal`/`BigInteger` as decimals, and only `float`/`double`
+  values with IEEE `double` rules. Numeric text such as `'1.5'` parses the
+  same in every locale.
+- Text fields support `>`, `>=`, `<`, `<=` in lexicographic (`compareTo`)
+  order; against a number (`tag > 9`) the text is compared numerically.
+- Enum fields compare by constant name (`status = 'ACTIVE'`); ordering
+  operators follow declaration order. `char`/`Character` fields compare as
+  one-character text.
+- Date/time precision: two date/time values (typed arguments, bound parameters,
+  keyset cursors) compare exactly. A text literal compares at the precision it is
+  written: `'2024-01-02'` covers that whole day, `'2024-01-02 10:00:00'` that
+  second, `'2024-01-02T10:00:00.500Z'` that millisecond. Literals use ISO-8601
+  (`T` or a space between date and time; optional offset or zone). Literals
+  without an offset are local time in the system zone.
+- `BigDecimal`, `BigInteger`, `UUID`, and `LocalTime` fields are queryable
+  scalars. Other non-POJO field types (collections, arrays) are carried through
+  projection unchanged and compare by value.
+- Inherited fields of user-defined superclasses are queryable and projected.
+- Records work as source rows (components are queryable, nested records by dotted
+  path such as `region.code`) and as result classes (built through the canonical
+  constructor). `final` fields of regular classes are not part of the query schema,
+  because results cannot assign them; use a record or non-final fields.
+
+Aggregates:
+
+- `SUM`/`MIN`/`MAX` over whole-number fields are exact; a `SUM` that exceeds the
+  `long` range fails with `ArithmeticException` instead of returning a wrong
+  total.
+- An aggregate without `GROUP BY` returns one row even when there is no input
+  (`count(*)` is `0`, other aggregates are `null`).
+- `GROUP BY` keeps distinct values apart: `null` and `''` are different groups,
+  and date/time values group by their exact value.
+- `COUNT(DISTINCT field)` counts distinct non-null values with the same rule
+  (`''` counts, `null` does not). It works in `SELECT`, `HAVING`, and `ORDER BY`,
+  but not as a window function, and `DISTINCT` is rejected inside other aggregates.
+- Statistical aggregates skip nulls, read values as `double`, and return a `Double`
+  (`null` without input):
+  - `PERCENTILE(field, 0.9)` interpolates linearly between the two closest ranks,
+    like SQL `percentile_cont`; the fraction is a number from 0 to 1. `MEDIAN(field)`
+    is `PERCENTILE(field, 0.5)`, so the median of `1, 2` is `1.5`.
+  - `STDDEV` / `VARIANCE` are the sample statistics (divide by `n - 1`, `null` for a
+    single value), as in PostgreSQL; `STDDEV_SAMP` / `VAR_SAMP` are aliases.
+    `STDDEV_POP` / `VAR_POP` divide by `n`.
+  - They work in `SELECT`, `HAVING`, and `ORDER BY`, grouped or global, but not as
+    window functions. Their names are not reserved words: a field called `median`
+    or `variance` still works.
+
+### SELECT DISTINCT
+
+`SELECT DISTINCT` keeps one row for each set of selected values, compared like
+`GROUP BY` keys (`null` and `''` stay apart). It runs after `WHERE`, grouping,
+windows, and `ORDER BY`, and before `OFFSET`/`LIMIT`, so paging counts distinct
+rows: `filterPage(...)` totals are distinct totals, and keyset cursors walk distinct
+rows.
+
+```sql
+select distinct department order by department
+select distinct department, active where salary > 50000 limit 10
+select distinct *
+```
+
+- As in SQL, `ORDER BY` may only use selected fields or aliases (not needed with
+  `select distinct *`); otherwise validation fails with `EQ-SQL-VAL-012`.
+- With `GROUP BY`, every group field must be selected (the grouped rows are then
+  already distinct); otherwise validation fails with `EQ-SQL-VAL-012`.
+- `DISTINCT` is not a reserved word: `select distinct from ...` and
+  `count(distinct)` still name a field called `distinct`.
+- Plan preview reports `isDistinct()`. Pushdown preview keeps `SELECT`, `ORDER BY`,
+  and paging in memory (`DISTINCT_UNSUPPORTED`); `WHERE` can still be pushed.
+
+### Expressions And Functions
+
+Expressions combine fields, numbers, `'text'` literals (`''` escapes a quote), `null`,
+`+ - * /`, and the functions below. Semantics follow PostgreSQL.
+
+| Function | Result |
+|---|---|
+| `lower(text)`, `upper(text)` | text, case-mapped without locale rules (`Locale.ROOT`) |
+| `trim(text)` | text without leading and trailing Unicode whitespace (PostgreSQL trims spaces only) |
+| `length(text)` | `Integer`, counted in Unicode code points |
+| `substring(text, start[, count])` | text; 1-based code-point positions, clipped to the text (`substring('abc', 0, 2)` is `'a'`) |
+| `concat(a, b, ...)` | text; joins any values and skips nulls |
+| `coalesce(a, b, ...)` | the first non-null argument |
+| `nullif(a, b)` | `null` when `a = b`, otherwise `a` |
+| `abs(x)`, `round(x)`, `floor(x)`, `ceil(x)` / `ceiling(x)` | `Double` |
+| `year`, `quarter`, `month`, `day`, `hour`, `minute`, `day_of_week` — each `(date[, 'Zone/Id'])` | `Integer`; `day_of_week` is ISO (1 = Monday, 7 = Sunday) |
+
+```sql
+where lower(email) = :email
+where coalesce(nickname, name) like 'A%'
+where nullif(status, 'n/a') is not null
+where year(hireDate) = 2024 and month(hireDate, 'Europe/Amsterdam') in (6, 7, 8)
+select name, concat(firstName, ' ', lastName) as fullName, length(name) as nameLength
+```
+
+Date parts read the same types and zones as time buckets (see
+`docs/time-buckets.md`): the default zone is `UTC`, and the optional zone must be a
+text literal. `year(x, zone)` always equals the year of `bucket(x, 'year', zone)`,
+and likewise for the other parts. `hour` and `minute` of a `LocalDate` are `0`.
+
+- Expressions work in `WHERE`, `GROUP BY`, `ORDER BY`, `HAVING`, and as computed
+  `SELECT` outputs (with `AS alias`), grouped or not. See Grouping And Sorting By
+  Expressions below.
+- A null argument gives a null result, except for `coalesce`, `nullif`, and `concat`.
+  A null result never matches a comparison (see Comparison Semantics); test it with
+  `IS NULL`.
+- Text functions read text, `char`, and enum values (by constant name). `concat`
+  accepts any value. Arithmetic is done in `double`, and whole results print without
+  `.0` (`concat('#', id + 1)` is `#2`).
+- Each computed output has one Java type. Arithmetic gives `Double`, `length` gives
+  `Integer`, and text functions give `String`. `coalesce` / `nullif` keep the field
+  class when all fields share one (`coalesce(bonus, 0)` over an `Integer` field is
+  `Integer`); otherwise the result is `Double` for numbers and `String` for text.
+- Types are checked during validation (`EQ-SQL-VAL-009`): `lower(salary)`,
+  `name * 2`, and `coalesce(salary, name)` fail before the query runs. `CONTAINS`,
+  `MATCHES`, and `LIKE` need an expression that returns text.
+- `lower(x) = lower(y)` can disagree with `x ILIKE y` for a few characters (`ß`,
+  Turkish dotted/dotless `i`), because `ILIKE` uses Unicode case folding.
+- Function names are not reserved words: a field called `length`, `trim`, or `year`
+  keeps working. Inside an expression, `null` is the null literal.
+- Parameters cannot appear inside an expression; compare the expression with a
+  parameter instead (`lower(name) = :name`).
+
+#### Grouping And Sorting By Expressions
+
+```sql
+select year(hireDate) as hireYear, count(*) as hires group by year(hireDate) order by hireYear
+select lower(department) as dept, count(*) as total group by dept
+select count(*) as total group by month(hireDate)
+select name order by lower(name), length(name) desc
+```
+
+- An expression in `GROUP BY` or `ORDER BY` becomes a column that is computed before
+  `WHERE`, like a registry computed field. When a computed `SELECT` output has the same
+  expression (compared ignoring spacing and function-name case) or is named by its
+  alias, that output is the column; otherwise the column is hidden and never appears in
+  results.
+- In a grouped query, a computed `SELECT` output over source fields must be grouped,
+  by its expression or its alias, like any other selected field; its alias must not be
+  a field name. `HAVING year(hireDate) > 2024` reads the grouped column when
+  `year(hireDate)` is grouped.
+- `ORDER BY` in a grouped query accepts a grouped expression; other expressions over
+  grouped fields are not supported.
+- With `SELECT DISTINCT`, an `ORDER BY` expression must be selected.
+- Keyset paging (`filterPage`, `keysetAfter`) reads the cursor from result rows, so sort
+  by a selected alias (`select lower(name) as sortKey ... order by sortKey`) rather than
+  an unselected expression.
 
 ## HAVING Contract
 
@@ -54,29 +281,28 @@ Validation errors for invalid `HAVING`:
 
 ## QUALIFY Contract
 
-`QUALIFY` is defined for non-aggregate SQL-like queries and is evaluated after window computation.
+`QUALIFY` is evaluated after window computation, on plain and on grouped queries.
 
 Clause order:
-- `SELECT ... FROM/implicit source ... WHERE ... QUALIFY ... ORDER BY ... LIMIT ... OFFSET`
+- `SELECT ... FROM/implicit source ... WHERE ... GROUP BY ... HAVING ... QUALIFY ... ORDER BY ... LIMIT ... OFFSET`
 
 Allowed references in `QUALIFY`:
 - window aliases defined in `SELECT`
 - direct rank-window expressions that match a selected window expression
 
 Disallowed references in `QUALIFY`:
-- non-window source fields
+- non-window source fields, group fields, and aggregate outputs (filter grouped rows with `HAVING`)
 - unknown names
 - subqueries
-- grouped/aggregate query shapes
 
 Validation errors for invalid `QUALIFY`:
 - `QUALIFY requires at least one window SELECT output`
-- `QUALIFY is only supported for non-aggregate SQL-like queries`
 - `Unknown field '<name>' in QUALIFY clause`
 
 ## Window Functions Contract
 
-Window functions are supported for non-aggregate SQL-like query shapes and execute after `WHERE` and before `QUALIFY`.
+Window functions execute after `WHERE` (and, on grouped queries, after `GROUP BY` and
+`HAVING`) and before `QUALIFY`, `ORDER BY`, `DISTINCT`, and `LIMIT`/`OFFSET`.
 
 Rank windows:
 - `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`
@@ -92,6 +318,29 @@ Aggregate windows:
   - `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
 
 Unsupported window frame expressions fail fast with actionable parser errors.
+
+Offset windows:
+- `LAG(field[, offset[, default]])` reads `field` from the row `offset` rows before the
+  current row in its partition; `LEAD(...)` reads the row `offset` rows after it
+- `offset` is a non-negative integer literal (default `1`; `0` is the current row);
+  negative offsets are rejected, so use the other function
+- `default` is a literal (number, `'text'`, `true`/`false`, `null`) returned only when
+  the offset row is outside the partition; a `null` value at the offset row stays `null`
+- `default` must fit the field: numbers convert exactly to the field's numeric type
+  (`lag(intField, 1, 0.5)` is rejected), text needs a text field, and other field
+  types accept only `null`
+- require `OVER(... ORDER BY ...)` and take no `ROWS` frame
+- the output has the field's type
+- the function names are not reserved: fields called `lag` or `lead` keep working
+
+Windows over grouped rows:
+- a grouped query's window arguments, `PARTITION BY`, and window `ORDER BY` reference
+  grouped outputs: `GROUP BY` fields (or their `SELECT` aliases), time-bucket aliases,
+  and aggregate aliases
+- aggregate calls inside `OVER (...)` are not supported; select the aggregate with an
+  alias and reference the alias (`rank() over (order by total desc)`)
+- aggregate windows over grouped rows need numeric grouped outputs
+- query `ORDER BY` may reference window aliases
 
 ## Execution Model
 
@@ -193,8 +442,9 @@ Pre-execution diagnostics:
 - Diagnostics are for tooling, config screens, tests, and CI guardrails. Use
   `explain(...)` when you need execution-stage row counts.
 
-Sort limitation:
-- `ORDER BY` must use one global direction (all `ASC` or all `DESC`)
+Sort behavior:
+- `ORDER BY` supports per-field direction, for example
+  `ORDER BY department ASC, salary DESC`.
 
 ## Current Limitations
 
@@ -212,12 +462,17 @@ Sort limitation:
 - Correlated subqueries, scalar subqueries, and arbitrary nested SQL planning
   remain unsupported.
 - SQL-like aggregate queries require explicit `SELECT` fields.
+- Expressions are not accepted inside aggregate arguments (`sum(price * qty)`) or over
+  aggregate outputs (`sum(a) / count(*)`, `total / 2`); register the expression as a
+  computed field and aggregate its name. Subqueries do not accept expressions in
+  `GROUP BY` or `ORDER BY`.
 - SQL-like aggregate `ORDER BY` must reference a group-by field, aggregate output alias/name, or aggregate expression.
-- Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
+- Window functions support rank, aggregate, and offset (`LAG`/`LEAD`) windows on plain and grouped queries.
 - Aggregate windows currently support only explicit `ROWS` frames from the supported frame menu above.
 - `RANGE`, `GROUPS`, following-row frames, and expression-based frame offsets remain unsupported.
-- Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
-- `QUALIFY` requires at least one selected window output and currently applies only to non-aggregate query shapes.
+- `FIRST_VALUE`/`LAST_VALUE`/`NTH_VALUE`, `NTILE`, `PERCENT_RANK`, and `CUME_DIST` remain unsupported.
+- `LAG`/`LEAD` offsets and defaults are literals; parameters are not accepted there.
+- `QUALIFY` requires at least one selected window output and filters window outputs only.
 - Time bucket input fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`.
 - Time bucket defaults are `UTC` + ISO-week (`MONDAY`) unless explicit SQL-like bucket arguments override them.
 - `weekStart` is supported only for `bucket(..., 'week', ...)`.
@@ -315,6 +570,36 @@ List<DepartmentRunningTotal> rows = PojoLensSql
     .filter(source, DepartmentRunningTotal.class);
 ```
 
+### Recipe: Previous and Next Rows (`LAG` / `LEAD`)
+
+```java
+List<MonthlySales> rows = PojoLensSql
+    .parse("select region, month, amount, "
+        + "lag(amount) over (partition by region order by month) as prevAmount, "
+        + "lead(amount, 1, 0) over (partition by region order by month) as nextAmount "
+        + "order by region, month")
+    .filter(sales, MonthlySales.class);
+```
+
+Offset notes:
+- the first row of each region has a `null` `prevAmount`; the last has `nextAmount = 0`
+- `qualify prevAmount is null` keeps the first row per partition
+
+### Recipe: Rank and Running Totals over Grouped Rows
+
+```java
+List<RegionRank> rows = PojoLensSql
+    .parse("select region, sum(amount) as total, "
+        + "rank() over (order by total desc) as salesRank, "
+        + "lag(total) over (order by total desc) as nextHigherTotal "
+        + "group by region having total > 0 qualify salesRank <= 3 order by salesRank")
+    .filter(sales, RegionRank.class);
+```
+
+Grouped window notes:
+- windows run after `GROUP BY` and `HAVING`, so they only see the kept groups
+- reference aggregates by alias inside `OVER (...)`; `order by sum(amount)` is rejected
+
 ### Recipe: Trailing Window (`ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`)
 
 ```java
@@ -349,10 +634,27 @@ SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
 
 Cursor contract:
 - cursor field names must match query `ORDER BY` fields exactly
-- cursor values must be non-null
+- cursor values may be `null` (a boundary row whose sort value is null); paging
+  follows the engine's null placement: nulls sort first in `ASC` and last in
+  `DESC`, and rows with null sort values are reached like any other rows
+- `ORDER BY` may use select aliases, aggregate aliases (grouped queries), and
+  window aliases; the cursor applies at the matching stage (`WHERE`, `HAVING`, or
+  `QUALIFY`)
+- a cursor on a window alias applies at `QUALIFY`, after windows run; a cursor on
+  other fields applies before windows (`WHERE`, or `HAVING` for grouped queries), so
+  later pages compute window values over the remaining rows only. Order by a window
+  alias to page stable window values
 - `keysetAfter(...)` resolves the "next page" window
-- `keysetBefore(...)` resolves the "previous page" window
-- token format is opaque Base64URL (current format) and preserves common scalar value types
+- `keysetBefore(...)` resolves the "previous page" window: the `LIMIT` rows
+  immediately before the cursor, returned in the query's declared order. With
+  `filterPage(...)`, `hasMore()` reports whether earlier rows exist and
+  `nextCursor()` marks the first visible row, for a further `keysetBefore(...)`
+  step.
+- token format is opaque Base64URL (current format) and preserves common scalar value
+  types: text, booleans, numbers (including `BigDecimal`/`BigInteger`), `Character`,
+  `UUID`, `Date`, `Instant`, `LocalDate`, `LocalDateTime`, `LocalTime`,
+  `OffsetDateTime`, `ZonedDateTime`, and `null`; enum values travel as their constant
+  name
 
 ### Recipe: Page Result Helper
 
@@ -368,6 +670,7 @@ PageResult<Employee> page = PojoLensSql
     .filterPage(source, Employee.class);
 
 List<Employee> rows = page.rows();     // up to 20 rows
+long totalRows      = page.totalRows(); // count before LIMIT/cursor page trim
 boolean more       = page.hasMore();   // true when more rows exist
 
 // Next page — apply cursor from previous result
@@ -381,11 +684,12 @@ page.nextCursor().ifPresent(cursor -> {
 
 Page result contract:
 - `rows()` contains at most `LIMIT` rows (the extra lookahead row is never returned)
+- `totalRows()` is the row count after query filters and cursor boundaries, before
+  `LIMIT` is applied
 - `hasMore()` is `true` when at least one row exists beyond the current page
 - `nextCursor()` is empty when `hasMore()` is `false`
-- the cursor contains one entry per `ORDER BY` field taken from the last visible row
-- all `ORDER BY` field values in the last visible row must be non-null; null values
-  prevent cursor generation and throw `EQ-SQL-PAG-003`
+- the cursor contains one entry per `ORDER BY` field taken from the last visible row;
+  a null sort value becomes a null cursor entry
 - `filterPage(...)` requires a positive static `LIMIT` clause; parameterized limits
   (`LIMIT :n`) must be bound via `params(...)` before calling `filterPage(...)`
 - `OFFSET` is rejected because cursor paging and offset paging use different
@@ -440,8 +744,10 @@ try (Stream<Employee> rows = PojoLensSql
 ```
 
 Streaming notes:
-- simple non-joined/non-aggregate SQL-like queries can stream rows lazily
-- complex query shapes (join/group/having/qualify/ordered windows) fall back to list-backed streams
+- simple non-joined/non-aggregate SQL-like queries stream rows lazily, including
+  `OR`/`NOT`/parenthesized `WHERE` predicates
+- complex query shapes (`ORDER BY`, joins, grouping, `HAVING`, windows, `QUALIFY`,
+  `DISTINCT`, computed fields) fall back to list-backed streams
 - `bindTyped(...).stream()` is available for bind-first SQL-like flows
 
 ### Recipe: Lint Mode
@@ -611,7 +917,10 @@ First-phase pushable stages are deliberately narrow:
 Everything else falls back to the in-memory engine, including joins, grouping,
 aggregates, windows, subqueries, `HAVING`, `QUALIFY`, computed select
 expressions, time buckets, and unsupported filter operators such as
-`CONTAINS` or `MATCHES`.
+`[NOT] CONTAINS`, `[NOT] MATCHES`, `IN`/`NOT IN` lists, or `IS [NOT] NULL` (plan
+preview reports these as `CONTAINS`, `NOT CONTAINS`, `MATCHES`, `NOT MATCHES`, `IN`,
+`NOT IN`, `IS NULL`, and `IS NOT NULL`). `BETWEEN` and
+`NOT` are rewritten first, so they preview as plain comparisons.
 
 ```java
 SqlLikePushdownPreview preview = PojoLensSql
@@ -1048,10 +1357,11 @@ Parse errors include deterministic location text:
 | `EQ-SQL-VAL-005` | Invalid, ambiguous, or unsupported `HAVING` reference. | Restrict `HAVING` to grouped fields and aggregate outputs. |
 | `EQ-SQL-VAL-006` | Aggregate or `GROUP BY` semantics are invalid. | Add required aggregates/groups or remove unsupported combinations. |
 | `EQ-SQL-VAL-007` | Computed `SELECT` projection is invalid. | Use computed expressions only in non-aggregate queries and add `AS`. |
-| `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a `Date` field, give it an alias, and include the alias in `GROUP BY`. |
-| `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use valid numeric expressions and supported comparison operators. |
+| `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a supported date/time field, give it an alias, and include the alias in `GROUP BY`. |
+| `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use supported functions with the right argument types, and text operators only on text expressions. |
 | `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` or `WHERE [NOT] EXISTS (select ...)` subqueries; named `FROM` / subquery `JOIN` sources must be bound. |
 | `EQ-SQL-VAL-011` | Field reference is ambiguous in a multi-join context. | Qualify the field with `<source>.<field>` or use the deterministic merged field name. |
+| `EQ-SQL-VAL-012` | `SELECT DISTINCT` shape is invalid. | Order by selected fields or aliases, and select every `GROUP BY` field. |
 | `EQ-SQL-PRM-001` | Required named parameter is missing. | Supply all referenced parameters. |
 | `EQ-SQL-PRM-002` | Unknown named parameter was provided. | Remove unexpected parameter names or update the query/template. |
 | `EQ-SQL-PRM-003` | Query execution started with unresolved parameters. | Call `params(...)` before `filter()`, `bindTyped()`, or `chart()`. |
@@ -1061,7 +1371,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-CUR-002` | Cursor fields do not match `ORDER BY` fields. | Provide cursor values for every `ORDER BY` field using matching names. |
 | `EQ-SQL-CUR-003` | Cursor token is invalid/malformed. | Use tokens generated by `SqlLikeCursor.toToken()` and pass them unchanged. |
 | `EQ-SQL-CUR-004` | Cursor value is invalid for keyset paging. | Use non-null cursor values and supported tokenizable scalar types. |
-| `EQ-SQL-BIND-001` | `ORDER BY` directions are mixed. | Use all `ASC` or all `DESC`. |
+| `EQ-SQL-BIND-001` | A single-direction sort accessor was asked to collapse mixed `ORDER BY` directions. | Read `ast().orders()` / plan preview order fields when per-column direction matters, or use a single-direction `ORDER BY` before calling `sort()`. |
 | `EQ-SQL-BIND-002` | Boolean expression exploded during normalization. | Simplify nested `AND`/`OR` logic. |
 | `EQ-SQL-JOIN-001` | Duplicate typed JOIN binding name. | Register each JOIN source once. |
 | `EQ-SQL-JOIN-002` | Typed JOIN binding name was blank. | Use a non-blank JOIN source name. |
@@ -1185,15 +1495,18 @@ Meaning:
 - Time-bucket configuration is invalid.
 
 Fix:
-- Bucket only `Date` fields, alias the bucket output, and group by that alias.
+- Bucket only supported date/time fields, alias the bucket output, and group by that alias.
 
 ### Error Code EQ-SQL-VAL-009
 
 Meaning:
-- Expression identifiers/operators failed validation.
+- Expression identifiers, functions, or operators failed validation, for example an
+  unknown function, a wrong argument count, `lower(salary)` on a number, `name * 2` on
+  text, or `CONTAINS`/`LIKE` on a numeric expression.
 
 Fix:
-- Use supported numeric expressions and supported comparison operators.
+- Use the functions listed under Expressions And Functions with the right argument
+  types, and use text operators only on expressions that return text.
 
 ### Error Code EQ-SQL-PRM-001
 
@@ -1265,18 +1578,21 @@ Fix:
 ### Error Code EQ-SQL-CUR-004
 
 Meaning:
-- Cursor values were empty, null, or unsupported for tokenization.
+- Cursor values were empty or of a type the token format does not support.
 
 Fix:
-- Build cursors with non-null values and supported scalar types (for example `String`, `Boolean`, numeric types, `Date`).
+- Build cursors from supported value types (text, booleans, numbers, `UUID`, `Date`,
+  `java.time` values, enums, or `null`).
 
 ### Error Code EQ-SQL-BIND-001
 
 Meaning:
-- `ORDER BY` uses mixed sort directions.
+- A single-direction sort accessor was asked to collapse mixed `ORDER BY`
+  directions.
 
 Fix:
-- Use all `ASC` or all `DESC` in the same SQL-like query.
+- Read `ast().orders()` or plan preview order fields when per-column direction
+  matters, or keep `ORDER BY` uniform before calling `sort()`.
 
 ### Error Code EQ-SQL-BIND-002
 

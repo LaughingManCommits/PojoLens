@@ -2,6 +2,9 @@ package laughing.man.commits.benchmark;
 
 import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
+import laughing.man.commits.dsl.TypedField;
+import laughing.man.commits.dsl.TypedQuery;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.filter.Filter;
@@ -28,6 +31,8 @@ import java.util.stream.Stream;
 public class StreamingExecutionJmhBenchmark {
 
     private static final int PAGE_WINDOW = 50;
+    private static final TypedField<BenchmarkFoo, String> STRING_FIELD = TypedField.of("stringField", String.class);
+    private static final TypedField<BenchmarkFoo, Integer> INTEGER_FIELD = TypedField.of("integerField", Integer.class);
 
     @Param({"1000", "10000"})
     public int size;
@@ -35,6 +40,8 @@ public class StreamingExecutionJmhBenchmark {
     private List<BenchmarkFoo> source;
     private Filter fluentFilter;
     private SqlLikeQuery sqlLikeFilterQuery;
+    private SqlLikeQuery sqlLikeOrFilterQuery;
+    private TypedQuery<BenchmarkFoo> typedFilterQuery;
 
     @Setup
     public void setup() {
@@ -54,6 +61,14 @@ public class StreamingExecutionJmhBenchmark {
                 "select stringField, integerField "
                         + "where integerField >= 100"
         );
+        // OR predicates lower to rule groups, which stream lazily since WP-33.
+        sqlLikeOrFilterQuery = PojoLensSql.parse(
+                "select stringField, integerField "
+                        + "where integerField >= 100 or stringField = 'dept0'"
+        );
+        typedFilterQuery = TypedQuery.from(BenchmarkFoo.class)
+                .select(STRING_FIELD, INTEGER_FIELD)
+                .where(INTEGER_FIELD.gte(100));
     }
 
     @Benchmark
@@ -76,6 +91,32 @@ public class StreamingExecutionJmhBenchmark {
     @Benchmark
     public long sqlLikeFilterStreamLazy() {
         try (Stream<StreamProjectionRow> rows = sqlLikeFilterQuery.stream(source, StreamProjectionRow.class).limit(PAGE_WINDOW)) {
+            return checksumRows(rows);
+        }
+    }
+
+    @Benchmark
+    public long sqlLikeOrFilterListMaterialized() {
+        return checksumRows(sqlLikeOrFilterQuery.filter(source, StreamProjectionRow.class), PAGE_WINDOW);
+    }
+
+    @Benchmark
+    public long sqlLikeOrFilterStreamLazy() {
+        try (Stream<StreamProjectionRow> rows = sqlLikeOrFilterQuery.stream(source, StreamProjectionRow.class).limit(PAGE_WINDOW)) {
+            return checksumRows(rows);
+        }
+    }
+
+    @Benchmark
+    public long typedFilterListMaterialized() {
+        return checksumRows(typedFilterQuery.filter(source, StreamProjectionRow.class), PAGE_WINDOW);
+    }
+
+    @Benchmark
+    public long typedFilterStreamLazy() {
+        try (Stream<StreamProjectionRow> rows = typedFilterQuery
+                .stream(source, JoinBindings.empty(), StreamProjectionRow.class)
+                .limit(PAGE_WINDOW)) {
             return checksumRows(rows);
         }
     }

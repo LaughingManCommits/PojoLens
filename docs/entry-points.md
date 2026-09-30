@@ -23,7 +23,7 @@ Core execution model:
 
 | Scenario | Recommended entry point | Why |
 | --- | --- | --- |
-| Reusable in-process business query contract | `ReportDefinition.sql(...)` or `ReportDefinition.natural(...)` | Makes reusable row/chart workflows explicit without exposing mutable engine builders. |
+| Reusable in-process business query contract | `ReportDefinition.sql(...)`, `ReportDefinition.natural(...)`, or `ReportDefinition.typed(...)` | Makes reusable row/chart workflows explicit without exposing mutable engine builders. |
 | Saved/versioned report contract | `SavedReport` | Keeps query text, params, schema, and optional chart metadata in a persistence-friendly form for replay or review. |
 
 ## Boundary And Workflow Helpers
@@ -33,7 +33,7 @@ Output-helper guide:
 
 | Scenario | Recommended entry point | Why |
 | --- | --- | --- |
-| Typed file onboarding from a boundary | `PojoLensFiles.csv(...)`, `tsv(...)`, `json(...)`, or `jsonl(...)` | Keeps file loading on one bounded loader surface that produces typed rows for the same engine; use `CsvOptions` for delimited-text header/trim/coercion needs and `JsonOptions` for row-oriented JSON/JSONL rules such as single-object acceptance, blank-line handling, and unknown-field policy. |
+| Typed file onboarding from a boundary | `PojoLensFiles.csv(...)`, `tsv(...)`, `json(...)`, or `jsonl(...)` | Keeps file loading on one bounded loader surface that produces typed rows for the same engine; each format accepts a `Path`, `Reader`, or `InputStream`; use `CsvOptions` for delimited-text header/trim/coercion needs and `JsonOptions` for row-oriented JSON/JSONL rules such as single-object acceptance, blank-line handling, and unknown-field policy. |
 | File-load diagnostics and troubleshooting | `csvWithReport(...)`, `tsvWithReport(...)`, `jsonWithReport(...)`, or `jsonlWithReport(...)` | Keeps row-loading diagnostics at the file boundary, including parsed/load counts and schema failures; use `runtime.files().*WithReport(...)` when the runtime owns the relevant loader defaults. |
 | Flat parent-ID rows need subtree selection | `PojoLensTree.subtreeOf(rows, idFn, parentIdFn, rootId)` | Keeps hierarchy traversal as row shaping before normal SQL-like or natural execution; use `fromFlat(...)` when depth, pruning, or leaves-only options are needed. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |
@@ -133,6 +133,7 @@ types instead of on a facade:
 - `SqlLikeCursor.builder()` / `SqlLikeCursor.fromToken(...)`
 - `ReportDefinition.sql(...)`
 - `ReportDefinition.natural(...)`
+- `ReportDefinition.typed(...)`
 - `DatasetBundle.of(...)`
 - `SnapshotComparison.builder(...)`
 - `PojoLensTree.fromFlat(...)` / `PojoLensTree.subtreeOf(...)`

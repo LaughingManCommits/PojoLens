@@ -83,8 +83,8 @@ final class FastArrayQuerySupport {
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException("Failed to read parent join values", e);
             }
-            Object joinKey = parentValues[plan.parentJoinIndex()];
-            Object matchingChildren = childIndex.get(joinKey);
+            Object joinKey = JoinKeys.normalize(parentValues[plan.parentJoinIndex()]);
+            Object matchingChildren = joinKey == null ? null : childIndex.get(joinKey);
             if (matchingChildren instanceof Object[] childValues) {
                 joinedRows.add(materializeJoinedRow(parentValues, childValues, plan));
                 continue;
@@ -138,6 +138,7 @@ final class FastArrayQuerySupport {
             return false;
         }
         if (!builder.getDistinctFields().isEmpty()
+                || builder.isDistinctRows()
                 || !builder.getMetrics().isEmpty()
                 || !builder.getGroupFields().isEmpty()
                 || !builder.getTimeBuckets().isEmpty()
@@ -270,7 +271,7 @@ final class FastArrayQuerySupport {
         for (int i = 0; i < computedDefinitions.size(); i++) {
             ComputedFieldDefinition definition = computedDefinitions.get(i);
             SqlExpressionEvaluator.CompiledExpression expression =
-                    SqlExpressionEvaluator.compileNumeric(definition.expression());
+                    SqlExpressionEvaluator.compile(definition.expression());
             List<String> dependencyNames = new ArrayList<>(expression.identifiers());
             int[] dependencyIndexes = new int[dependencyNames.size()];
             for (int dependencyIndex = 0; dependencyIndex < dependencyNames.size(); dependencyIndex++) {
@@ -286,7 +287,8 @@ final class FastArrayQuerySupport {
             computedPlans[i] = new ComputedFieldPlan(
                     definition,
                     expression.bind(dependencyIndexes),
-                    outputIndex
+                    outputIndex,
+                    ComputedFieldSupport.usesNumericLane(definition)
             );
         }
 
@@ -429,7 +431,10 @@ final class FastArrayQuerySupport {
             }
             Object[] childValues = ReflectionUtil.readFlatRowValues(child, plan.childReadPlan());
             childRowCount++;
-            Object joinKey = childValues[childJoinIndex];
+            Object joinKey = JoinKeys.normalize(childValues[childJoinIndex]);
+            if (joinKey == null) {
+                continue;
+            }
             if (denseEligible
                     && joinKey instanceof Integer intKey
                     && intKey >= 0
@@ -573,10 +578,13 @@ final class FastArrayQuerySupport {
 
     private static void applyComputedValues(Object[] values, JoinCompilePlan plan) {
         for (ComputedFieldPlan computedPlan : plan.computedPlans()) {
-            values[computedPlan.outputIndex()] = castNumericValue(
-                    computedPlan.expression().evaluate(values),
-                    computedPlan.definition().outputType()
-            );
+            values[computedPlan.outputIndex()] = computedPlan.numericLane()
+                    ? SqlExpressionEvaluator.coerceNumber(
+                            computedPlan.expression().evaluate(values),
+                            computedPlan.definition().outputType())
+                    : ComputedFieldSupport.outputValue(
+                            computedPlan.definition(),
+                            computedPlan.expression().evaluateValue(values));
         }
     }
 
@@ -617,7 +625,7 @@ final class FastArrayQuerySupport {
             return MatchAllRowMatcher.INSTANCE;
         }
         if (rule.compareValue() instanceof Number number && isNumericClause(rule.clause())) {
-            return new SingleNumericRuleMatcher(fieldIndex, number.doubleValue(), rule);
+            return new SingleNumericRuleMatcher(fieldIndex, number, rule);
         }
         return new SingleRuleMatcher(fieldIndex, rule);
     }
@@ -686,27 +694,18 @@ final class FastArrayQuerySupport {
                 || clause == Clauses.SMALLER_EQUAL;
     }
 
-    private static boolean compareNumbers(double left, double right, Clauses clause) {
-        return switch (clause) {
-            case BIGGER -> left > right;
-            case BIGGER_EQUAL, NOT_SMALLER -> left >= right;
-            case EQUAL, IN -> left == right;
-            case NOT_BIGGER, SMALLER_EQUAL -> left <= right;
-            case NOT_EQUAL -> left != right;
-            case SMALLER -> left < right;
-            default -> false;
-        };
-    }
-
     private static List<Object[]> orderRows(List<Object[]> rows,
                                             Sort sortMethod,
                                             FilterExecutionPlan plan,
                                             Integer limit) {
-        if (sortMethod == null || rows == null || rows.isEmpty()) {
+        if (rows == null || rows.isEmpty()) {
             return rows;
         }
         List<FilterExecutionPlan.OrderColumn> columns = plan.getOrderColumns();
         if (columns.isEmpty()) {
+            return rows;
+        }
+        if (sortMethod == null && !hasColumnSorts(columns)) {
             return rows;
         }
         int topKLimit = normalizedTopKLimit(limit, rows.size());
@@ -730,6 +729,15 @@ final class FastArrayQuerySupport {
                 && rowCount >= TOP_K_MIN_INPUT_ROWS
                 && limit <= TOP_K_MAX_LIMIT
                 && limit * TOP_K_ROW_RATIO <= rowCount;
+    }
+
+    private static boolean hasColumnSorts(List<FilterExecutionPlan.OrderColumn> columns) {
+        for (FilterExecutionPlan.OrderColumn column : columns) {
+            if (column.sort() != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static List<Object[]> topKOrderedRows(List<Object[]> rows,
@@ -846,7 +854,8 @@ final class FastArrayQuerySupport {
             Object rightValue = column.fieldIndex() < right.length ? right[column.fieldIndex()] : null;
             int compared = compareValues(leftValue, rightValue, column.dateFormat());
             if (compared != 0) {
-                return Sort.DESC.equals(sortMethod) ? -compared : compared;
+                Sort columnSort = column.sort() == null ? sortMethod : column.sort();
+                return Sort.DESC.equals(columnSort) ? -compared : compared;
             }
         }
         return 0;
@@ -863,7 +872,7 @@ final class FastArrayQuerySupport {
             return 1;
         }
         if (leftValue instanceof Number && rightValue instanceof Number) {
-            return Double.compare(((Number) leftValue).doubleValue(), ((Number) rightValue).doubleValue());
+            return ObjectUtil.compareNumeric((Number) leftValue, (Number) rightValue);
         }
         if (leftValue instanceof java.util.Date && rightValue instanceof java.util.Date) {
             return ((java.util.Date) leftValue).compareTo((java.util.Date) rightValue);
@@ -919,24 +928,6 @@ final class FastArrayQuerySupport {
         return indexes;
     }
 
-    private static Object castNumericValue(double value, Class<?> outputType) {
-        if (outputType == Integer.class) {
-            return (int) Math.round(value);
-        }
-        if (outputType == Long.class) {
-            return Math.round(value);
-        }
-        if (outputType == Float.class) {
-            return (float) value;
-        }
-        if (outputType == Short.class) {
-            return (short) Math.round(value);
-        }
-        if (outputType == Byte.class) {
-            return (byte) Math.round(value);
-        }
-        return value;
-    }
     static record FastArrayState(List<String> schemaFields,
                                  Map<String, Class<?>> schemaTypes,
                                  List<Object[]> rows) {
@@ -955,7 +946,8 @@ final class FastArrayQuerySupport {
 
     private record ComputedFieldPlan(ComputedFieldDefinition definition,
                                      SqlExpressionEvaluator.BoundExpression expression,
-                                     int outputIndex) {
+                                     int outputIndex,
+                                     boolean numericLane) {
     }
 
     private interface ChildIndex {
@@ -1016,7 +1008,7 @@ final class FastArrayQuerySupport {
     }
 
     private record SingleNumericRuleMatcher(int fieldIndex,
-                                            double compareValue,
+                                            Number compareValue,
                                             CompiledRule rule) implements FastRowMatcher {
         @Override
         public boolean matches(Object[] row) {
@@ -1025,7 +1017,7 @@ final class FastArrayQuerySupport {
             }
             Object fieldValue = row[fieldIndex];
             if (fieldValue instanceof Number number) {
-                return compareNumbers(number.doubleValue(), compareValue, rule.clause());
+                return ObjectUtil.compareNumbers(number, compareValue, rule.clause());
             }
             return ObjectUtil.compareObject(fieldValue, rule.compareValue(), rule.clause(), rule.dateFormat());
         }

@@ -18,7 +18,13 @@ import laughing.man.commits.csv.CsvLoadReport;
 import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.csv.CsvRuntime;
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.dsl.TypedField;
+import laughing.man.commits.dsl.TypedPlanMetric;
+import laughing.man.commits.dsl.TypedPlanPredicate;
+import laughing.man.commits.dsl.TypedPlanPreview;
+import laughing.man.commits.dsl.TypedPlanTimeBucket;
+import laughing.man.commits.dsl.TypedPlanWindow;
 import laughing.man.commits.dsl.TypedPredicate;
 import laughing.man.commits.dsl.TypedQuery;
 import laughing.man.commits.dsl.TypedWindowOrder;
@@ -75,6 +81,8 @@ import laughing.man.commits.tree.TreeEntry;
 import laughing.man.commits.tree.TreeTraversalBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
+import java.io.Reader;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Constructor;
@@ -199,11 +207,35 @@ public class StablePublicApiContractTest {
     }
 
     @Test
+    public void stableStreamLoaderContractsShouldRemainAvailable() throws Exception {
+        Map<String, Class<?>> optionsTypeByFormat = Map.of(
+                "csv", CsvOptions.class,
+                "tsv", CsvOptions.class,
+                "json", JsonOptions.class,
+                "jsonl", JsonOptions.class
+        );
+        for (Class<?> sourceType : List.of(Reader.class, InputStream.class)) {
+            for (Map.Entry<String, Class<?>> format : optionsTypeByFormat.entrySet()) {
+                for (String name : List.of(format.getKey(), format.getKey() + "WithReport")) {
+                    requirePublicStaticMethod(PojoLensFiles.class, name, sourceType, Class.class);
+                    requirePublicStaticMethod(PojoLensFiles.class, name, sourceType, Class.class, format.getValue());
+                    requirePublicMethod(FileLoadRuntime.class, name, sourceType, Class.class);
+                    requirePublicMethod(FileLoadRuntime.class, name, sourceType, Class.class, format.getValue());
+                }
+            }
+        }
+        requirePublicMethod(CsvLoadReport.class, "sourceName");
+        requirePublicMethod(JsonLoadReport.class, "sourceName");
+    }
+
+    @Test
     public void stableReportDefinitionContractsShouldRemainAvailable() throws Exception {
         requirePublicStaticMethod(ReportDefinition.class, "sql", SqlLikeQuery.class, Class.class);
         requirePublicStaticMethod(ReportDefinition.class, "sql", SqlLikeQuery.class, Class.class, ChartSpec.class);
         requirePublicStaticMethod(ReportDefinition.class, "natural", NaturalQuery.class, Class.class);
         requirePublicStaticMethod(ReportDefinition.class, "natural", NaturalQuery.class, Class.class, ChartSpec.class);
+        requirePublicStaticMethod(ReportDefinition.class, "typed", TypedQuery.class, Class.class);
+        requirePublicStaticMethod(ReportDefinition.class, "typed", TypedQuery.class, Class.class, ChartSpec.class);
         requirePublicMethod(ReportDefinition.class, "source");
         requirePublicMethod(ReportDefinition.class, "projectionClass");
         requirePublicMethod(ReportDefinition.class, "chartSpec");
@@ -291,8 +323,10 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryExposurePolicy.class, "allowsField", String.class);
         requirePublicMethod(QueryExposurePolicy.class, "allowsSource", String.class);
         requirePublicMethod(PageResult.class, "rows");
+        requirePublicMethod(PageResult.class, "totalRows");
         requirePublicMethod(PageResult.class, "hasMore");
         requirePublicMethod(PageResult.class, "nextCursor");
+        requirePublicStaticMethod(PageResult.class, "of", List.class, long.class, boolean.class);
 
         requirePublicMethod(SqlLikePlanPreview.class, "source");
         requirePublicMethod(SqlLikePlanPreview.class, "isWildcard");
@@ -396,6 +430,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalQuery.class, "filter", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "filter", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "filter", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "filterPage", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "filterPage", DatasetBundle.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "filterPage", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "iterator", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "iterator", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
@@ -545,6 +582,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedField.class, "isNotNull");
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, List.class, TypedQuery.class);
+        requirePublicMethod(TypedField.class, "containsIgnoreCase", String.class);
+        requirePublicMethod(TypedField.class, "startsWith", String.class);
+        requirePublicMethod(TypedField.class, "endsWith", String.class);
 
         requirePublicMethod(TypedPredicate.class, "operator");
         requirePublicMethod(TypedPredicate.class, "field");
@@ -569,6 +609,11 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
+        requirePublicStaticMethod(TypedPredicate.class, "containsIgnoreCase", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "startsWith", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "endsWith", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "any");
+        requirePublicStaticMethod(TypedPredicate.class, "none");
 
         requirePublicStaticMethod(TypedQuery.class, "from", Class.class);
         requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
@@ -614,9 +659,29 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class);
+        requirePublicMethod(TypedQuery.class, "stream", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "iterator", List.class);
+        requirePublicMethod(TypedQuery.class, "iterator", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "iterator", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "computedFields", ComputedFieldRegistry.class);
+        requirePublicMethod(TypedQuery.class, "hasComputedFields");
+        requirePublicMethod(TypedQuery.class, "computedFieldRegistry");
+        requirePublicMethod(TypedQuery.class, "diagnostics");
+        requirePublicMethod(TypedQuery.class, "planPreview");
         requirePublicMethod(TypedQuery.class, "explain", List.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
         requirePublicMethod(TypedQuery.class, "explain", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "schema", Class.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class, Class.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class, JoinBindings.class);
@@ -645,6 +710,58 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryWindowFrame.class, "isFullPartition");
         requirePublicMethod(QueryWindowFrame.class, "sqlExpression");
         requirePublicMethod(QueryWindowFrame.class, "explainToken");
+        requirePublicMethod(TypedPlanPreview.class, "source");
+        requirePublicMethod(TypedPlanPreview.class, "entityClass");
+        requirePublicMethod(TypedPlanPreview.class, "selectFields");
+        requirePublicMethod(TypedPlanPreview.class, "filterExpression");
+        requirePublicMethod(TypedPlanPreview.class, "groupByFields");
+        requirePublicMethod(TypedPlanPreview.class, "metrics");
+        requirePublicMethod(TypedPlanPreview.class, "havingExpression");
+        requirePublicMethod(TypedPlanPreview.class, "windows");
+        requirePublicMethod(TypedPlanPreview.class, "qualifyExpression");
+        requirePublicMethod(TypedPlanPreview.class, "orderFields");
+        requirePublicMethod(TypedPlanPreview.class, "joins");
+        requirePublicMethod(TypedPlanPreview.class, "paging");
+        requirePublicMethod(TypedPlanPreview.class, "timeBuckets");
+        requirePublicMethod(TypedPlanPreview.class, "computedFields");
+        requirePublicMethod(TypedPlanPreview.class, "referencedFields");
+        requirePublicMethod(TypedPlanPreview.class, "outputFields");
+        requirePublicMethod(TypedPlanPreview.class, "joinSources");
+        requirePublicMethod(TypedPlanPreview.class, "executionGuard");
+        requirePublicMethod(TypedPlanPreview.class, "hasSubqueries");
+        requirePublicMethod(TypedPlanPreview.class, "hasSelect");
+        requirePublicMethod(TypedPlanPreview.class, "hasGrouping");
+        requirePublicMethod(TypedPlanPreview.class, "hasAggregation");
+        requirePublicMethod(TypedPlanPreview.class, "hasWindows");
+        requirePublicMethod(TypedPlanPreview.class, "hasJoins");
+        requirePublicMethod(TypedPlanPreview.class, "hasPaging");
+        requirePublicMethod(TypedPlanPreview.class, "hasTimeBuckets");
+        requirePublicMethod(TypedPlanPreview.class, "hasComputedFields");
+        requirePublicMethod(TypedPlanPreview.class, "hasExecutionGuard");
+        requirePublicMethod(TypedPlanPredicate.class, "operator");
+        requirePublicMethod(TypedPlanPredicate.class, "field");
+        requirePublicMethod(TypedPlanPredicate.class, "value");
+        requirePublicMethod(TypedPlanPredicate.class, "values");
+        requirePublicMethod(TypedPlanPredicate.class, "subqueryOutputField");
+        requirePublicMethod(TypedPlanPredicate.class, "subqueryExplicitSource");
+        requirePublicMethod(TypedPlanPredicate.class, "subqueryPreview");
+        requirePublicMethod(TypedPlanPredicate.class, "children");
+        requirePublicMethod(TypedPlanPredicate.class, "isLeaf");
+        requirePublicMethod(TypedPlanMetric.class, "field");
+        requirePublicMethod(TypedPlanMetric.class, "metric");
+        requirePublicMethod(TypedPlanMetric.class, "alias");
+        requirePublicMethod(TypedPlanMetric.class, "count");
+        requirePublicMethod(TypedPlanWindow.class, "function");
+        requirePublicMethod(TypedPlanWindow.class, "valueField");
+        requirePublicMethod(TypedPlanWindow.class, "countAll");
+        requirePublicMethod(TypedPlanWindow.class, "alias");
+        requirePublicMethod(TypedPlanWindow.class, "partitionFields");
+        requirePublicMethod(TypedPlanWindow.class, "orderFields");
+        requirePublicMethod(TypedPlanWindow.class, "frame");
+        requirePublicMethod(TypedPlanTimeBucket.class, "dateField");
+        requirePublicMethod(TypedPlanTimeBucket.class, "bucket");
+        requirePublicMethod(TypedPlanTimeBucket.class, "alias");
+        requirePublicMethod(TypedPlanTimeBucket.class, "presetToken");
 
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped", Class.class);
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped",

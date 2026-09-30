@@ -80,6 +80,10 @@ public final class TypedField<T, V> {
         return TypedPredicate.lte(this, value);
     }
 
+    public TypedPredicate<T> between(V lo, V hi) {
+        return TypedPredicate.between(this, lo, hi);
+    }
+
     public TypedPredicate<T> in(Collection<? extends V> values) {
         return TypedPredicate.in(this, values);
     }
@@ -95,6 +99,26 @@ public final class TypedField<T, V> {
 
     public TypedPredicate<T> isNotNull() {
         return TypedPredicate.isNotNull(this);
+    }
+
+    public TypedPredicate<T> contains(String value) {
+        return TypedPredicate.contains(this, value);
+    }
+
+    public TypedPredicate<T> containsIgnoreCase(String value) {
+        return TypedPredicate.containsIgnoreCase(this, value);
+    }
+
+    public TypedPredicate<T> matches(String pattern) {
+        return TypedPredicate.matches(this, pattern);
+    }
+
+    public TypedPredicate<T> startsWith(String prefix) {
+        return TypedPredicate.startsWith(this, prefix);
+    }
+
+    public TypedPredicate<T> endsWith(String suffix) {
+        return TypedPredicate.endsWith(this, suffix);
     }
 
     public TypedPredicate<T> inSubquery(TypedField<T, ? extends V> subqueryOutputField, TypedQuery<T> subquery) {

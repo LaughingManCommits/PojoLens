@@ -5,7 +5,10 @@ import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.internal.NameSuggestions;
+import laughing.man.commits.internal.WindowOffsetDefaults;
+import laughing.man.commits.internal.builder.QueryMetric;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -35,6 +38,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Internal query validation for SQL-like execution.
@@ -44,33 +48,90 @@ public final class SqlLikeValidator {
     private SqlLikeValidator() {
     }
 
+    /**
+     * A validated, normalized AST plus what execution needs from validation (WP-29): the
+     * static output type of each computed SELECT output (projection converts to it), the
+     * computed fields to bind (the user's plus the query's GROUP BY / ORDER BY expression
+     * columns), and the hidden expression columns that must stay out of the output.
+     */
+    public record ValidatedQuery(QueryAst ast,
+                                 Map<String, Class<?>> computedSelectTypes,
+                                 ComputedFieldRegistry computedFields,
+                                 Set<String> hiddenFields) {
+        public ValidatedQuery {
+            computedSelectTypes = Map.copyOf(computedSelectTypes);
+            hiddenFields = Set.copyOf(hiddenFields);
+        }
+    }
+
     public static QueryAst validateForFilter(QueryAst ast,
                                              Class<?> sourceClass,
                                              Class<?> projectionClass,
                                              Map<String, List<?>> joinSources,
                                              boolean strictParameterTypes,
                                              ComputedFieldRegistry computedFieldRegistry) {
+        return validateForExecution(ast, sourceClass, projectionClass, joinSources,
+                strictParameterTypes, computedFieldRegistry).ast();
+    }
+
+    public static ValidatedQuery validateForExecution(QueryAst ast,
+                                                      Class<?> sourceClass,
+                                                      Class<?> projectionClass,
+                                                      Map<String, List<?>> joinSources,
+                                                      boolean strictParameterTypes,
+                                                      ComputedFieldRegistry computedFieldRegistry) {
         Map<String, Class<?>> sourceFieldTypes = collectFieldTypes(sourceClass);
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);
         normalizedAst = normalizeAggregationAliases(normalizedAst);
         normalizedAst = normalizeQualifyWindowReferences(normalizedAst);
-        Map<String, Class<?>> queryableFieldTypes = joinPlan.isEmpty()
-                ? ComputedFieldSupport.augmentFieldTypes(sourceFieldTypes, computedFieldRegistry)
-                : ComputedFieldSupport.augmentFieldTypes(joinPlan.mergedFieldTypes(), computedFieldRegistry);
+        boolean dynamicProjection = QueryRow.class.isAssignableFrom(projectionClass);
+        Map<String, Class<?>> baseFieldTypes = joinPlan.isEmpty() ? sourceFieldTypes : joinPlan.mergedFieldTypes();
+        SqlLikeExpressionFields.Lowered lowered = SqlLikeExpressionFields.lower(normalizedAst,
+                queryableFieldTypes(baseFieldTypes, computedFieldRegistry), computedFieldRegistry, dynamicProjection);
+        normalizedAst = lowered.ast();
+        Map<String, Class<?>> queryableFieldTypes = queryableFieldTypes(baseFieldTypes, lowered.registry());
         Set<String> queryableSourceFields = new LinkedHashSet<>(queryableFieldTypes.keySet());
         Set<String> projectionFields = collectFields(projectionClass);
-        boolean dynamicProjection = QueryRow.class.isAssignableFrom(projectionClass);
         validateAggregationSemantics(normalizedAst, queryableSourceFields, queryableFieldTypes);
         validateSelect(normalizedAst, queryableSourceFields, queryableFieldTypes, projectionFields, dynamicProjection);
-        validateFilters(normalizedAst.filters(), queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
-        validateHaving(normalizedAst, queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
+        validateFilters(normalizedAst.filters(), queryableFieldTypes, sourceClass, joinSources, computedFieldRegistry);
+        validateHaving(normalizedAst, queryableFieldTypes, sourceClass, joinSources, computedFieldRegistry);
         validateQualify(normalizedAst, queryableSourceFields);
         validateOrders(normalizedAst, resolveAllowedOrderFields(normalizedAst, queryableSourceFields), queryableSourceFields);
+        validateDistinct(normalizedAst);
         if (strictParameterTypes) {
             SqlLikeParameterTypeValidator.validate(normalizedAst, queryableFieldTypes, sourceFieldTypes);
         }
-        return normalizedAst;
+        return new ValidatedQuery(normalizedAst, computedSelectTypes(normalizedAst, queryableFieldTypes),
+                lowered.registry(), lowered.hiddenFields());
+    }
+
+    /**
+     * Source field types plus the applicable computed fields, whose expressions are checked
+     * against those types (WP-29).
+     */
+    private static Map<String, Class<?>> queryableFieldTypes(Map<String, Class<?>> fieldTypes,
+                                                             ComputedFieldRegistry computedFieldRegistry) {
+        try {
+            return ComputedFieldSupport.augmentFieldTypes(fieldTypes, computedFieldRegistry);
+        } catch (IllegalArgumentException ex) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_EXPRESSION_REFERENCE, ex.getMessage());
+        }
+    }
+
+    private static Map<String, Class<?>> computedSelectTypes(QueryAst ast, Map<String, Class<?>> fieldTypes) {
+        SelectAst select = ast.select();
+        if (select == null || select.wildcard()) {
+            return Map.of();
+        }
+        LinkedHashMap<String, Class<?>> types = new LinkedHashMap<>();
+        for (SelectFieldAst field : select.fields()) {
+            if (field.computedField()) {
+                types.put(field.outputName(), expressionType(field.field(), fieldTypes::get));
+            }
+        }
+        return types;
     }
 
     static Class<?> inferListElementClass(List<?> rows) {
@@ -96,6 +157,8 @@ public final class SqlLikeValidator {
         if (select == null || select.wildcard()) {
             return;
         }
+        Map<String, Class<?>> windowFieldTypes = isGrouped(ast) ? groupedOutputTypes(ast, sourceFieldTypes) : sourceFieldTypes;
+        Set<String> windowFields = isGrouped(ast) ? windowFieldTypes.keySet() : sourceFields;
         Set<String> seenOutputNames = new HashSet<>();
         for (SelectFieldAst field : select.fields()) {
             if (field.computedField()) {
@@ -108,6 +171,7 @@ public final class SqlLikeValidator {
                             "Computed SELECT expressions require AS alias");
                 }
                 validateExpressionIdentifiers(field.field(), sourceFields, "SELECT");
+                expressionType(field.field(), sourceFieldTypes::get);
                 String outputName = field.outputName();
                 if (!seenOutputNames.add(outputName)) {
                     throw validation(SqlLikeErrorCodes.VALIDATION_DUPLICATE_SELECT_OUTPUT,
@@ -117,44 +181,7 @@ public final class SqlLikeValidator {
                 continue;
             }
             if (field.windowField()) {
-                if (ast.hasAggregation() || !ast.groupByFields().isEmpty()) {
-                    throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
-                            "Window SELECT expressions are only supported for non-aggregate queries");
-                }
-                if (!field.aliased()) {
-                    throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
-                            "Window SELECT expressions require AS alias");
-                }
-                if (isAggregateWindowFunction(field.windowFunction())) {
-                    if (field.windowCountAll() && !"COUNT".equalsIgnoreCase(field.windowFunction())) {
-                        throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
-                                field.windowFunction() + " window does not support '*' argument");
-                    }
-                    if (!field.windowCountAll()) {
-                        if (field.windowValueField() == null || field.windowValueField().isBlank()) {
-                            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
-                                    "Window SELECT expression '" + field.windowFunction()
-                                            + "' requires value field argument");
-                        }
-                        requireKnownField(field.windowValueField(), sourceFields, "SELECT");
-                        if (requiresNumericWindowFunction(field.windowFunction())) {
-                            requireNumericField(field.windowValueField(), sourceFieldTypes, field.windowFunction());
-                        }
-                    }
-                } else if (field.windowValueField() != null || field.windowCountAll()) {
-                    throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
-                            "Rank window SELECT expressions do not accept value field arguments");
-                }
-                if (field.windowOrderFields().isEmpty()) {
-                    throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
-                            "Window SELECT expressions require OVER(... ORDER BY ...)");
-                }
-                for (String partitionField : field.windowPartitionFields()) {
-                    requireKnownField(partitionField, sourceFields, "SELECT");
-                }
-                for (OrderAst order : field.windowOrderFields()) {
-                    requireKnownField(order.field(), sourceFields, "SELECT");
-                }
+                validateWindowField(field, windowFields, windowFieldTypes);
                 String outputName = field.outputName();
                 if (!seenOutputNames.add(outputName)) {
                     throw validation(SqlLikeErrorCodes.VALIDATION_DUPLICATE_SELECT_OUTPUT,
@@ -182,6 +209,92 @@ public final class SqlLikeValidator {
         }
     }
 
+    private static boolean isGrouped(QueryAst ast) {
+        return ast.hasAggregation() || !ast.groupByFields().isEmpty();
+    }
+
+    /**
+     * Columns of grouped rows, which windows over a grouped query read: GROUP BY fields,
+     * time-bucket aliases, and aggregate aliases.
+     */
+    private static Map<String, Class<?>> groupedOutputTypes(QueryAst ast, Map<String, Class<?>> sourceFieldTypes) {
+        LinkedHashMap<String, Class<?>> types = new LinkedHashMap<>();
+        for (String group : ast.groupByFields()) {
+            types.put(group, sourceFieldTypes.get(group));
+        }
+        for (SelectFieldAst field : ast.select().fields()) {
+            if (field.metricField()) {
+                Class<?> valueType = field.countAll() ? null : sourceFieldTypes.get(field.field());
+                types.put(field.outputName(), QueryMetric.outputType(field.metric(), valueType));
+            } else if (field.timeBucketField()) {
+                types.put(field.outputName(), String.class);
+            }
+        }
+        return types;
+    }
+
+    /**
+     * Checks a window SELECT output against the fields a window may reference
+     * ({@code windowFields}, typed by {@code windowFieldTypes}).
+     */
+    private static void validateWindowField(SelectFieldAst field,
+                                            Set<String> windowFields,
+                                            Map<String, Class<?>> windowFieldTypes) {
+        if (!field.aliased()) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "Window SELECT expressions require AS alias");
+        }
+        WindowFunction function = WindowFunction.fromName(field.windowFunction());
+        if (function == null) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "Unsupported window function '" + field.windowFunction() + "'");
+        }
+        if (function.isRankFunction()) {
+            if (field.windowValueField() != null || field.windowCountAll()) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                        "Rank window SELECT expressions do not accept value field arguments");
+            }
+        } else if (field.windowCountAll()) {
+            if (!function.supportsCountAll()) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                        function + " window does not support '*' argument");
+            }
+        } else {
+            if (field.windowValueField() == null || field.windowValueField().isBlank()) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                        "Window SELECT expression '" + function + "' requires value field argument");
+            }
+            requireKnownField(field.windowValueField(), windowFields, "SELECT");
+            if (function.requiresNumericField()) {
+                requireNumericField(field.windowValueField(), windowFieldTypes, function.name());
+            }
+            if (function.isOffsetFunction()) {
+                requireFittingOffsetDefault(field, function, windowFieldTypes);
+            }
+        }
+        if (field.windowOrderFields().isEmpty()) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "Window SELECT expressions require OVER(... ORDER BY ...)");
+        }
+        for (String partitionField : field.windowPartitionFields()) {
+            requireKnownField(partitionField, windowFields, "SELECT");
+        }
+        for (OrderAst order : field.windowOrderFields()) {
+            requireKnownField(order.field(), windowFields, "SELECT");
+        }
+    }
+
+    private static void requireFittingOffsetDefault(SelectFieldAst field,
+                                                    WindowFunction function,
+                                                    Map<String, Class<?>> windowFieldTypes) {
+        try {
+            WindowOffsetDefaults.coerce(function, field.windowValueField(),
+                    windowFieldTypes.get(field.windowValueField()), field.windowDefault());
+        } catch (IllegalArgumentException ex) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS, ex.getMessage());
+        }
+    }
+
     private static void requireProjectionField(String outputName,
                                                Set<String> projectionFields,
                                                boolean dynamicProjection) {
@@ -192,10 +305,11 @@ public final class SqlLikeValidator {
     }
 
     private static void validateFilters(List<FilterAst> filters,
-                                        Set<String> allowedFields,
+                                        Map<String, Class<?>> fieldTypes,
                                         Class<?> sourceClass,
                                         Map<String, List<?>> joinSources,
                                         ComputedFieldRegistry computedFieldRegistry) {
+        Set<String> allowedFields = fieldTypes.keySet();
         for (FilterAst filter : filters) {
             switch (filter.value()) {
                 case null -> {
@@ -210,11 +324,42 @@ public final class SqlLikeValidator {
                 }
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
-                ensureExpressionClauseSupported(filter, "WHERE");
                 validateExpressionIdentifiers(filter.field(), allowedFields, "WHERE");
+                ensureExpressionClauseSupported(filter, expressionType(filter.field(), fieldTypes::get), "WHERE");
                 continue;
             }
             requireKnownField(filter.field(), allowedFields, "WHERE");
+        }
+    }
+
+    /**
+     * {@code SELECT DISTINCT} keeps one row per set of selected values, so (as in SQL)
+     * {@code ORDER BY} may only use selected outputs, and with {@code GROUP BY} every group
+     * field must be selected (the grouped rows are then already distinct).
+     */
+    private static void validateDistinct(QueryAst ast) {
+        SelectAst select = ast.select();
+        if (select == null || !select.distinct() || select.wildcard()) {
+            return;
+        }
+        Set<String> outputs = new LinkedHashSet<>();
+        for (SelectFieldAst field : select.fields()) {
+            outputs.add(field.outputName());
+            if (!field.metricField() && !field.windowField() && !field.computedField() && !field.timeBucketField()) {
+                outputs.add(field.field());
+            }
+        }
+        for (OrderAst order : ast.orders()) {
+            if (!outputs.contains(order.field())) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_DISTINCT,
+                        "ORDER BY '" + order.field() + "' must reference a selected field or alias with SELECT DISTINCT");
+            }
+        }
+        for (String group : ast.groupByFields()) {
+            if (!outputs.contains(group)) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_DISTINCT,
+                        "SELECT DISTINCT with GROUP BY must select every GROUP BY field; '" + group + "' is not selected");
+            }
         }
     }
 
@@ -290,10 +435,11 @@ public final class SqlLikeValidator {
     }
 
     private static void validateHaving(QueryAst ast,
-                                       Set<String> sourceFields,
+                                       Map<String, Class<?>> sourceFieldTypes,
                                        Class<?> sourceClass,
                                        Map<String, List<?>> joinSources,
                                        ComputedFieldRegistry computedFieldRegistry) {
+        Set<String> sourceFields = sourceFieldTypes.keySet();
         List<FilterAst> having = ast.havingFilters();
         if (having.isEmpty()) {
             return;
@@ -335,8 +481,10 @@ public final class SqlLikeValidator {
                 continue;
             }
             if (SqlExpressionEvaluator.looksLikeExpression(reference)) {
-                ensureExpressionClauseSupported(filter, "HAVING");
                 validateHavingExpression(reference, groupedFields, aggregateOutputs, sourceFields);
+                Class<?> type = expressionType(reference,
+                        name -> groupedFields.contains(name) ? sourceFieldTypes.get(name) : null);
+                ensureExpressionClauseSupported(filter, type, "HAVING");
                 continue;
             }
             if (sourceFields.contains(reference)) {
@@ -351,10 +499,6 @@ public final class SqlLikeValidator {
     private static void validateQualify(QueryAst ast, Set<String> sourceFields) {
         if (!ast.hasQualifyClause()) {
             return;
-        }
-        if (ast.hasAggregation() || !ast.groupByFields().isEmpty()) {
-            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
-                    "QUALIFY is only supported for non-aggregate SQL-like queries");
         }
         SelectAst select = ast.select();
         if (select == null || select.wildcard() || !select.hasWindowFields()) {
@@ -373,14 +517,25 @@ public final class SqlLikeValidator {
                         "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
-                ensureExpressionClauseSupported(filter, "QUALIFY");
                 validateExpressionIdentifiers(filter.field(), qualifyOutputs, "QUALIFY");
+                ensureExpressionClauseSupported(filter, expressionType(filter.field(), name -> null), "QUALIFY");
                 continue;
             }
             if (!qualifyOutputs.contains(filter.field())) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
                         formatUnknownFieldMessage(filter.field(), qualifyOutputs, "QUALIFY"));
             }
+        }
+    }
+
+    /**
+     * Subqueries bind without the validator's expression lowering, so they cannot use it.
+     */
+    private static void requireNoExpressionItems(QueryAst subquery) {
+        if (SqlLikeExpressionFields.hasExpressionItems(subquery)) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
+                    "Subqueries do not support expressions in GROUP BY or ORDER BY, "
+                            + "or computed SELECT outputs in grouped subqueries");
         }
     }
 
@@ -393,6 +548,7 @@ public final class SqlLikeValidator {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                     "EXISTS subquery predicates are only supported as WHERE EXISTS/WHERE NOT EXISTS");
         }
+        requireNoExpressionItems(existsSubqueryValueAst.query());
         QueryAst subquery = existsSubqueryValueAst.query();
         SelectAst select = subquery.select();
         if (select == null) {
@@ -413,6 +569,7 @@ public final class SqlLikeValidator {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                     "Subquery values are only supported with IN");
         }
+        requireNoExpressionItems(subqueryValueAst.query());
         QueryAst subquery = subqueryValueAst.query();
         SelectAst select = subquery.select();
         if (select == null || select.wildcard() || select.fields().size() != 1) {
@@ -447,9 +604,8 @@ public final class SqlLikeValidator {
         Map<String, Class<?>> sourceFieldTypes = joinPlan.isEmpty()
                 ? collectFieldTypes(sourceClass)
                 : joinPlan.mergedFieldTypes();
-        Set<String> sourceFields = ComputedFieldSupport
-                .augmentFieldTypes(sourceFieldTypes, computedFieldRegistry)
-                .keySet();
+        Map<String, Class<?>> queryableFieldTypes = queryableFieldTypes(sourceFieldTypes, computedFieldRegistry);
+        Set<String> sourceFields = queryableFieldTypes.keySet();
         for (String group : normalizedSubquery.groupByFields()) {
             requireKnownField(group, sourceFields, "GROUP BY");
         }
@@ -460,9 +616,9 @@ public final class SqlLikeValidator {
             throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
                     "Subquery grouped field '" + fieldName + "' must be present in GROUP BY");
         }
-        validateFilters(normalizedSubquery.filters(), sourceFields, sourceClass,
+        validateFilters(normalizedSubquery.filters(), queryableFieldTypes, sourceClass,
                 joinSources, computedFieldRegistry);
-        validateHaving(normalizedSubquery, sourceFields, sourceClass,
+        validateHaving(normalizedSubquery, queryableFieldTypes, sourceClass,
                 joinSources, computedFieldRegistry);
     }
 
@@ -512,11 +668,31 @@ public final class SqlLikeValidator {
         }
     }
 
-    private static void ensureExpressionClauseSupported(FilterAst filter, String clauseName) {
-        if (filter.clause() == Clauses.CONTAINS
-                || filter.clause() == Clauses.MATCHES) {
+    /**
+     * Text operators ({@code CONTAINS}, {@code MATCHES}, and {@code LIKE}, which lowers to
+     * {@code MATCHES}) need an expression that returns text or a value of unknown type.
+     */
+    private static void ensureExpressionClauseSupported(FilterAst filter, Class<?> type, String clauseName) {
+        boolean textClause = filter.clause() == Clauses.CONTAINS
+                || filter.clause() == Clauses.MATCHES
+                || filter.clause() == Clauses.NOT_CONTAINS
+                || filter.clause() == Clauses.NOT_MATCHES;
+        if (textClause && !SqlExpressionEvaluator.isTextOrUnknown(type)) {
             throw validation(SqlLikeErrorCodes.VALIDATION_EXPRESSION_REFERENCE,
-                    "Expression references in " + clauseName + " only support numeric comparison operators");
+                    "Expression references in " + clauseName + " only support text operators on text expressions; '"
+                            + filter.field() + "' returns " + type.getSimpleName());
+        }
+    }
+
+    /**
+     * Static result type of an expression (WP-29); kind errors such as {@code lower(salary)}
+     * or {@code name * 2} fail here instead of at runtime.
+     */
+    private static Class<?> expressionType(String expression, Function<String, Class<?>> fieldTypes) {
+        try {
+            return SqlExpressionEvaluator.resultType(expression, fieldTypes);
+        } catch (IllegalArgumentException ex) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_EXPRESSION_REFERENCE, ex.getMessage());
         }
     }
 
@@ -553,8 +729,7 @@ public final class SqlLikeValidator {
 
         for (SelectFieldAst field : select.fields()) {
             if (field.windowField()) {
-                throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
-                        "Window SELECT expressions are only supported for non-aggregate queries");
+                continue;
             }
             if (field.computedField()) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_COMPUTED_SELECT,
@@ -628,7 +803,7 @@ public final class SqlLikeValidator {
         }
 
         return new QueryAst(
-                ast.select(),
+                isGrouped(ast) ? normalizeGroupedWindowReferences(select, groupedAliases) : ast.select(),
                 ast.joins(),
                 ast.filters(),
                 ast.whereExpression(),
@@ -643,6 +818,50 @@ public final class SqlLikeValidator {
                 ast.offset(),
                 ast.offsetParameter()
         );
+    }
+
+    /**
+     * Rewrites window PARTITION BY, ORDER BY, and value references to GROUP BY select
+     * aliases into the grouped source names. The window text stays as written.
+     */
+    private static SelectAst normalizeGroupedWindowReferences(SelectAst select, Map<String, String> groupedAliases) {
+        if (!select.hasWindowFields()) {
+            return select;
+        }
+        ArrayList<SelectFieldAst> fields = new ArrayList<>(select.fields().size());
+        for (SelectFieldAst field : select.fields()) {
+            fields.add(field.windowField() ? withGroupedWindowReferences(field, groupedAliases) : field);
+        }
+        return new SelectAst(select.wildcard(), fields, select.sourceName(), select.distinct());
+    }
+
+    private static SelectFieldAst withGroupedWindowReferences(SelectFieldAst field, Map<String, String> groupedAliases) {
+        ArrayList<String> partitions = new ArrayList<>(field.windowPartitionFields().size());
+        for (String partition : field.windowPartitionFields()) {
+            partitions.add(groupedAliases.getOrDefault(partition, partition));
+        }
+        ArrayList<OrderAst> orders = new ArrayList<>(field.windowOrderFields().size());
+        for (OrderAst order : field.windowOrderFields()) {
+            orders.add(new OrderAst(groupedAliases.getOrDefault(order.field(), order.field()), order.sort()));
+        }
+        String valueField = field.windowValueField() == null
+                ? null
+                : groupedAliases.getOrDefault(field.windowValueField(), field.windowValueField());
+        return new SelectFieldAst(
+                field.field(),
+                field.alias(),
+                field.metric(),
+                field.countAll(),
+                field.timeBucketPreset(),
+                field.computedField(),
+                field.windowFunction(),
+                partitions,
+                orders,
+                valueField,
+                field.windowCountAll(),
+                field.windowFrame(),
+                field.metricArgument()
+        ).withWindowOffset(field.windowOffset(), field.windowDefault());
     }
 
     private static QueryAst normalizeQualifyWindowReferences(QueryAst ast) {
@@ -757,7 +976,7 @@ public final class SqlLikeValidator {
         LinkedHashSet<String> allowed = new LinkedHashSet<>(ast.groupByFields());
         if (ast.select() != null) {
             for (SelectFieldAst field : ast.select().fields()) {
-                if (field.metricField() || field.timeBucketField()) {
+                if (field.metricField() || field.timeBucketField() || field.windowField()) {
                     allowed.add(field.outputName());
                 }
             }
@@ -834,22 +1053,6 @@ public final class SqlLikeValidator {
             return "";
         }
         return value.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
-    }
-
-    private static boolean isAggregateWindowFunction(String functionName) {
-        if (functionName == null) {
-            return false;
-        }
-        return !"ROW_NUMBER".equalsIgnoreCase(functionName)
-                && !"RANK".equalsIgnoreCase(functionName)
-                && !"DENSE_RANK".equalsIgnoreCase(functionName);
-    }
-
-    private static boolean requiresNumericWindowFunction(String functionName) {
-        return "SUM".equalsIgnoreCase(functionName)
-                || "AVG".equalsIgnoreCase(functionName)
-                || "MIN".equalsIgnoreCase(functionName)
-                || "MAX".equalsIgnoreCase(functionName);
     }
 
     static Set<String> collectFields(Class<?> root) {

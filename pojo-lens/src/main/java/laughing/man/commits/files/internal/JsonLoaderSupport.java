@@ -18,8 +18,6 @@ import laughing.man.commits.files.JsonOptions;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -35,32 +33,50 @@ public final class JsonLoaderSupport {
     }
 
     public static <T> List<T> readJson(Path path, Class<T> rowType, JsonOptions options) {
-        return readJsonWithReport(path, rowType, options).rows();
+        return readJson(LoadSource.of(path), rowType, options);
     }
 
     public static <T> JsonLoadResult<T> readJsonWithReport(Path path, Class<T> rowType, JsonOptions options) {
-        return readWithReport(path, rowType, options, InputMode.JSON);
+        return readJsonWithReport(LoadSource.of(path), rowType, options);
     }
 
     public static <T> List<T> readJsonLines(Path path, Class<T> rowType, JsonOptions options) {
-        return readJsonLinesWithReport(path, rowType, options).rows();
+        return readJsonLines(LoadSource.of(path), rowType, options);
     }
 
     public static <T> JsonLoadResult<T> readJsonLinesWithReport(Path path, Class<T> rowType, JsonOptions options) {
-        return readWithReport(path, rowType, options, InputMode.JSONL);
+        return readJsonLinesWithReport(LoadSource.of(path), rowType, options);
     }
 
-    private static <T> JsonLoadResult<T> readWithReport(Path path,
+    public static <T> List<T> readJson(LoadSource source, Class<T> rowType, JsonOptions options) {
+        return readJsonWithReport(source, rowType, options).rows();
+    }
+
+    public static <T> JsonLoadResult<T> readJsonWithReport(LoadSource source, Class<T> rowType, JsonOptions options) {
+        return readWithReport(source, rowType, options, InputMode.JSON);
+    }
+
+    public static <T> List<T> readJsonLines(LoadSource source, Class<T> rowType, JsonOptions options) {
+        return readJsonLinesWithReport(source, rowType, options).rows();
+    }
+
+    public static <T> JsonLoadResult<T> readJsonLinesWithReport(LoadSource source,
+                                                                Class<T> rowType,
+                                                                JsonOptions options) {
+        return readWithReport(source, rowType, options, InputMode.JSONL);
+    }
+
+    private static <T> JsonLoadResult<T> readWithReport(LoadSource source,
                                                         Class<T> rowType,
                                                         JsonOptions options,
                                                         InputMode inputMode) {
         long started = System.nanoTime();
-        JsonLoadReportState reportState = new JsonLoadReportState(path, rowType, options);
-        validatePreconditions(path, rowType, options, reportState, started);
-        return readWithReportValidated(path, rowType, options, inputMode, reportState, started);
+        JsonLoadReportState reportState = new JsonLoadReportState(source, rowType, options);
+        validatePreconditions(source, rowType, options, reportState, started);
+        return readWithReportValidated(source, rowType, options, inputMode, reportState, started);
     }
 
-    private static <T> JsonLoadResult<T> readWithReportValidated(Path path,
+    private static <T> JsonLoadResult<T> readWithReportValidated(LoadSource source,
                                                                  Class<T> rowType,
                                                                  JsonOptions options,
                                                                  InputMode inputMode,
@@ -81,8 +97,8 @@ public final class JsonLoaderSupport {
 
             ObjectMapper mapper = mapper(options);
             List<JsonRecord> records = inputMode == InputMode.JSON
-                    ? parseJsonRecords(path, options, mapper, reportState)
-                    : parseJsonLinesRecords(path, options, mapper, reportState);
+                    ? parseJsonRecords(source, options, mapper, reportState)
+                    : parseJsonLinesRecords(source, options, mapper, reportState);
             if (records.isEmpty()) {
                 return new JsonLoadResult<>(List.of(), reportState.success(System.nanoTime() - started));
             }
@@ -114,13 +130,13 @@ public final class JsonLoaderSupport {
         }
     }
 
-    private static void validatePreconditions(Path path,
+    private static void validatePreconditions(LoadSource source,
                                               Class<?> rowType,
                                               JsonOptions options,
                                               JsonLoadReportState reportState,
                                               long started) {
-        if (path == null) {
-            throw preflightFailure(reportState, started, "path must not be null");
+        if (source.isMissing()) {
+            throw preflightFailure(reportState, started, source.missingMessage());
         }
         if (rowType == null) {
             throw preflightFailure(reportState, started, "rowType must not be null");
@@ -128,7 +144,7 @@ public final class JsonLoaderSupport {
         if (options == null) {
             throw preflightFailure(reportState, started, "options must not be null");
         }
-        if (!Files.isRegularFile(path)) {
+        if (!source.isReadable()) {
             throw preflightFailure(reportState, started, "path must point to an existing file");
         }
     }
@@ -143,15 +159,15 @@ public final class JsonLoaderSupport {
         return new JsonLoadException(message, report);
     }
 
-    private static List<JsonRecord> parseJsonRecords(Path path,
+    private static List<JsonRecord> parseJsonRecords(LoadSource source,
                                                      JsonOptions options,
                                                      ObjectMapper mapper,
                                                      JsonLoadReportState reportState) {
         JsonNode root;
         try {
-            root = mapper.readTree(Files.readString(path, StandardCharsets.UTF_8));
+            root = mapper.readTree(source.readAll());
         } catch (IOException ex) {
-            throw new UncheckedIOException("Failed to read JSON file '" + path + "'", ex);
+            throw new UncheckedIOException("Failed to read " + source.describe("JSON"), ex);
         }
         if (root == null || root.isNull()) {
             return List.of();
@@ -201,12 +217,12 @@ public final class JsonLoaderSupport {
         );
     }
 
-    private static List<JsonRecord> parseJsonLinesRecords(Path path,
+    private static List<JsonRecord> parseJsonLinesRecords(LoadSource source,
                                                           JsonOptions options,
                                                           ObjectMapper mapper,
                                                           JsonLoadReportState reportState) {
         ArrayList<JsonRecord> records = new ArrayList<>();
-        try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+        try (BufferedReader reader = source.openReader()) {
             String line;
             int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
@@ -238,7 +254,7 @@ public final class JsonLoaderSupport {
                 records.add(new JsonRecord(lineNumber, node));
             }
         } catch (IOException ex) {
-            throw new UncheckedIOException("Failed to read JSONL file '" + path + "'", ex);
+            throw new UncheckedIOException("Failed to read " + source.describe("JSONL"), ex);
         }
         reportState.logicalRecordCount(records.size());
         return List.copyOf(records);
@@ -431,6 +447,7 @@ public final class JsonLoaderSupport {
 
     private static final class JsonLoadReportState {
         private final Path path;
+        private final String sourceName;
         private final Class<?> rowType;
         private final JsonOptions options;
         private List<String> resolvedSchema = List.of();
@@ -439,8 +456,9 @@ public final class JsonLoaderSupport {
         private int logicalRecordCount;
         private int loadedRowCount;
 
-        private JsonLoadReportState(Path path, Class<?> rowType, JsonOptions options) {
-            this.path = path;
+        private JsonLoadReportState(LoadSource source, Class<?> rowType, JsonOptions options) {
+            this.path = source.path();
+            this.sourceName = source.name();
             this.rowType = rowType;
             this.options = options;
         }
@@ -483,6 +501,7 @@ public final class JsonLoaderSupport {
         private JsonLoadReport success(long durationNanos) {
             return new JsonLoadReport(
                     path,
+                    sourceName,
                     rowType,
                     options,
                     resolvedSchema,
@@ -504,6 +523,7 @@ public final class JsonLoaderSupport {
             missingFields(failure.missingFields());
             return new JsonLoadReport(
                     path,
+                    sourceName,
                     rowType,
                     options,
                     resolvedSchema,

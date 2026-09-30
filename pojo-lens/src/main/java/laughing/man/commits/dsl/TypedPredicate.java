@@ -17,8 +17,10 @@ public final class TypedPredicate<T> {
 
     public enum Operator {
         EQ, NE, GT, GTE, LT, LTE, IN, IS_NULL, IS_NOT_NULL,
+        CONTAINS, CONTAINS_IGNORE_CASE, MATCHES, STARTS_WITH, ENDS_WITH,
         IN_SUBQUERY, EXISTS, NOT_EXISTS,
-        AND, OR, NOT
+        AND, OR, NOT,
+        ANY, NONE
     }
 
     private final Operator operator;
@@ -72,19 +74,56 @@ public final class TypedPredicate<T> {
         return operator != Operator.AND && operator != Operator.OR && operator != Operator.NOT;
     }
 
+    boolean isTextMatch() {
+        return switch (operator) {
+            case CONTAINS, CONTAINS_IGNORE_CASE, MATCHES, STARTS_WITH, ENDS_WITH -> true;
+            default -> false;
+        };
+    }
+
     // --- Instance combinators ---
 
     public TypedPredicate<T> and(TypedPredicate<T> other) {
         Objects.requireNonNull(other, "other must not be null");
+        if (this.operator == Operator.ANY) {
+            return other;
+        }
+        if (other.operator() == Operator.ANY) {
+            return this;
+        }
+        if (this.operator == Operator.NONE) {
+            return this;
+        }
+        if (other.operator() == Operator.NONE) {
+            return other;
+        }
         return compound(Operator.AND, List.of(this, other));
     }
 
     public TypedPredicate<T> or(TypedPredicate<T> other) {
         Objects.requireNonNull(other, "other must not be null");
+        if (this.operator == Operator.ANY) {
+            return this;
+        }
+        if (other.operator() == Operator.ANY) {
+            return other;
+        }
+        if (this.operator == Operator.NONE) {
+            return other;
+        }
+        if (other.operator() == Operator.NONE) {
+            return this;
+        }
         return compound(Operator.OR, List.of(this, other));
     }
 
     public TypedPredicate<T> not() {
+        if (this.operator == Operator.ANY) {
+            return TypedPredicate.none();
+        }
+        if (this.operator == Operator.NONE) {
+            return TypedPredicate.any();
+        }
         return compound(Operator.NOT, List.of(this));
     }
 
@@ -124,6 +163,13 @@ public final class TypedPredicate<T> {
         return scalar(Operator.LTE, field, value);
     }
 
+    public static <T, V> TypedPredicate<T> between(TypedField<T, V> field, V lo, V hi) {
+        requireField(field);
+        Objects.requireNonNull(lo, "lo must not be null for between");
+        Objects.requireNonNull(hi, "hi must not be null for between");
+        return gte(field, lo).and(lte(field, hi));
+    }
+
     public static <T> TypedPredicate<T> isNull(TypedField<T, ?> field) {
         requireField(field);
         return new TypedPredicate<>(Operator.IS_NULL, field, null, List.of(), List.of(), null);
@@ -132,6 +178,46 @@ public final class TypedPredicate<T> {
     public static <T> TypedPredicate<T> isNotNull(TypedField<T, ?> field) {
         requireField(field);
         return new TypedPredicate<>(Operator.IS_NOT_NULL, field, null, List.of(), List.of(), null);
+    }
+
+    // --- Static string-match factories ---
+
+    public static <T> TypedPredicate<T> contains(TypedField<T, ?> field, String value) {
+        requireField(field);
+        Objects.requireNonNull(value, "value must not be null for contains");
+        return new TypedPredicate<>(Operator.CONTAINS, field, value, null, null, null);
+    }
+
+    public static <T> TypedPredicate<T> containsIgnoreCase(TypedField<T, ?> field, String value) {
+        requireField(field);
+        Objects.requireNonNull(value, "value must not be null for containsIgnoreCase");
+        return new TypedPredicate<>(Operator.CONTAINS_IGNORE_CASE, field, value, null, null, null);
+    }
+
+    public static <T> TypedPredicate<T> matches(TypedField<T, ?> field, String pattern) {
+        requireField(field);
+        Objects.requireNonNull(pattern, "pattern must not be null for matches");
+        return new TypedPredicate<>(Operator.MATCHES, field, pattern, null, null, null);
+    }
+
+    /**
+     * Case-sensitive literal prefix match, equivalent to {@link String#startsWith(String)}.
+     * Regex metacharacters in {@code prefix} are matched literally.
+     */
+    public static <T> TypedPredicate<T> startsWith(TypedField<T, ?> field, String prefix) {
+        requireField(field);
+        Objects.requireNonNull(prefix, "prefix must not be null for startsWith");
+        return new TypedPredicate<>(Operator.STARTS_WITH, field, prefix, null, null, null);
+    }
+
+    /**
+     * Case-sensitive literal suffix match, equivalent to {@link String#endsWith(String)}.
+     * Regex metacharacters in {@code suffix} are matched literally.
+     */
+    public static <T> TypedPredicate<T> endsWith(TypedField<T, ?> field, String suffix) {
+        requireField(field);
+        Objects.requireNonNull(suffix, "suffix must not be null for endsWith");
+        return new TypedPredicate<>(Operator.ENDS_WITH, field, suffix, null, null, null);
     }
 
     // --- Static IN factories ---
@@ -270,7 +356,26 @@ public final class TypedPredicate<T> {
         if (predicates.length == 1) {
             return predicates[0];
         }
-        return compound(Operator.AND, copyPredicateList(predicates));
+        // absorption: any NONE absorbs the entire AND
+        for (TypedPredicate<T> p : predicates) {
+            if (p.operator == Operator.NONE) {
+                return TypedPredicate.none();
+            }
+        }
+        // identity: ANY is identity for AND — filter it out
+        List<TypedPredicate<T>> filtered = new java.util.ArrayList<>();
+        for (TypedPredicate<T> p : predicates) {
+            if (p.operator != Operator.ANY) {
+                filtered.add(p);
+            }
+        }
+        if (filtered.isEmpty()) {
+            return TypedPredicate.any();
+        }
+        if (filtered.size() == 1) {
+            return filtered.get(0);
+        }
+        return compound(Operator.AND, List.copyOf(filtered));
     }
 
     @SafeVarargs
@@ -279,7 +384,36 @@ public final class TypedPredicate<T> {
         if (predicates.length == 1) {
             return predicates[0];
         }
-        return compound(Operator.OR, copyPredicateList(predicates));
+        // absorption: any ANY absorbs the entire OR
+        for (TypedPredicate<T> p : predicates) {
+            if (p.operator == Operator.ANY) {
+                return TypedPredicate.any();
+            }
+        }
+        // identity: NONE is identity for OR — filter it out
+        List<TypedPredicate<T>> filtered = new java.util.ArrayList<>();
+        for (TypedPredicate<T> p : predicates) {
+            if (p.operator != Operator.NONE) {
+                filtered.add(p);
+            }
+        }
+        if (filtered.isEmpty()) {
+            return TypedPredicate.none();
+        }
+        if (filtered.size() == 1) {
+            return filtered.get(0);
+        }
+        return compound(Operator.OR, List.copyOf(filtered));
+    }
+
+    /** Always-true sentinel: lowers to no WHERE clause, returning all rows. */
+    public static <T> TypedPredicate<T> any() {
+        return new TypedPredicate<>(Operator.ANY, null, null, List.of(), List.of(), null);
+    }
+
+    /** Always-false sentinel: lowers to an empty result, returning no rows. */
+    public static <T> TypedPredicate<T> none() {
+        return new TypedPredicate<>(Operator.NONE, null, null, List.of(), List.of(), null);
     }
 
     // --- Package-private helpers used by TypedQuery lowering ---
@@ -290,6 +424,64 @@ public final class TypedPredicate<T> {
 
     TypedSubqueryDescriptor subqueryDescriptor() {
         return subquery;
+    }
+
+    /**
+     * Negates {@code node} using DeMorgan's laws, distributing NOT down to leaves.
+     * Called by TypedQuery lowering when a NOT compound is encountered.
+     * <p>
+     * Rules:
+     * <ul>
+     *   <li>NOT(NOT(x)) → x</li>
+     *   <li>NOT(AND(a,b,...)) → OR(NOT(a), NOT(b), ...)</li>
+     *   <li>NOT(OR(a,b,...)) → AND(NOT(a), NOT(b), ...)</li>
+     *   <li>NOT(EQ) → NE, NOT(NE) → EQ, NOT(GT) → LTE, NOT(GTE) → LT,
+     *       NOT(LT) → GTE, NOT(LTE) → GT</li>
+     *   <li>NOT(IS_NULL) → IS_NOT_NULL, NOT(IS_NOT_NULL) → IS_NULL</li>
+     *   <li>NOT(EXISTS) → NOT_EXISTS, NOT(NOT_EXISTS) → EXISTS</li>
+     *   <li>NOT(IN(v1,v2,...)) → AND(NE(v1), NE(v2), ...)</li>
+     *   <li>NOT(CONTAINS | CONTAINS_IGNORE_CASE | MATCHES | STARTS_WITH | ENDS_WITH) stays a
+     *       NOT over the leaf; lowering maps it to the engine's negated text clause</li>
+     *   <li>NOT(IN_SUBQUERY) → throws; use NOT EXISTS instead</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    static <T> TypedPredicate<T> negate(TypedPredicate<T> node) {
+        return switch (node.operator()) {
+            case NOT -> (TypedPredicate<T>) node.children().get(0);
+            case AND -> {
+                List<TypedPredicate<T>> negated = node.children().stream()
+                        .map(c -> TypedPredicate.negate(c)).toList();
+                yield negated.size() == 1 ? negated.get(0) : compound(Operator.OR, negated);
+            }
+            case OR -> {
+                List<TypedPredicate<T>> negated = node.children().stream()
+                        .map(c -> TypedPredicate.negate(c)).toList();
+                yield negated.size() == 1 ? negated.get(0) : compound(Operator.AND, negated);
+            }
+            case EQ -> new TypedPredicate<>(Operator.NE, node.field(), node.value(), null, null, null);
+            case NE -> new TypedPredicate<>(Operator.EQ, node.field(), node.value(), null, null, null);
+            case GT -> new TypedPredicate<>(Operator.LTE, node.field(), node.value(), null, null, null);
+            case GTE -> new TypedPredicate<>(Operator.LT, node.field(), node.value(), null, null, null);
+            case LT -> new TypedPredicate<>(Operator.GTE, node.field(), node.value(), null, null, null);
+            case LTE -> new TypedPredicate<>(Operator.GT, node.field(), node.value(), null, null, null);
+            case IS_NULL -> new TypedPredicate<>(Operator.IS_NOT_NULL, node.field(), null, null, null, null);
+            case IS_NOT_NULL -> new TypedPredicate<>(Operator.IS_NULL, node.field(), null, null, null, null);
+            case EXISTS -> new TypedPredicate<>(Operator.NOT_EXISTS, null, null, null, null, node.subqueryDescriptor());
+            case NOT_EXISTS -> new TypedPredicate<>(Operator.EXISTS, null, null, null, null, node.subqueryDescriptor());
+            case IN -> {
+                List<TypedPredicate<T>> nePredicates = node.values().stream()
+                        .map(v -> new TypedPredicate<T>(Operator.NE, node.field(), v, null, null, null))
+                        .toList();
+                yield nePredicates.size() == 1 ? nePredicates.get(0) : compound(Operator.AND, nePredicates);
+            }
+            case ANY -> TypedPredicate.none();
+            case NONE -> TypedPredicate.any();
+            case CONTAINS, CONTAINS_IGNORE_CASE, MATCHES, STARTS_WITH, ENDS_WITH ->
+                    compound(Operator.NOT, List.of(node));
+            case IN_SUBQUERY -> throw new UnsupportedOperationException(
+                    "NOT(IN_SUBQUERY) is not supported in TypedQuery. Use NOT EXISTS instead.");
+        };
     }
 
     // --- Private helpers ---
@@ -304,15 +496,6 @@ public final class TypedPredicate<T> {
 
     private static List<Object> asObjectList(Collection<?> source) {
         return Collections.unmodifiableList(new ArrayList<>(source));
-    }
-
-    private static <T> List<TypedPredicate<T>> copyPredicateList(TypedPredicate<T>[] predicates) {
-        List<TypedPredicate<T>> list = new ArrayList<>(predicates.length);
-        for (TypedPredicate<T> predicate : predicates) {
-            Objects.requireNonNull(predicate, "predicate element must not be null");
-            list.add(predicate);
-        }
-        return Collections.unmodifiableList(list);
     }
 
     private static void requireField(TypedField<?, ?> field) {

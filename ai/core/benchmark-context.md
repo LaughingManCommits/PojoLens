@@ -10,6 +10,7 @@ Load only when work touches benchmark suites, threshold budgets, or performance 
 - Baseline suite: `scripts/benchmarks/benchmark-suite-baseline.args`
 - Cache suite: `scripts/benchmarks/benchmark-suite-cache.args`
 - Hotspot suite: `scripts/benchmarks/benchmark-suite-hotspots.args`
+- Core semantics suite (diagnostic, no thresholds): `scripts/benchmarks/benchmark-suite-semantics.args` (temporal literals, keyset placements, stream loaders, records), locked by `CoreSemanticsBenchmarkParityTest`
 
 ## Interpretation Rules
 

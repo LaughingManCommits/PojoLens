@@ -24,8 +24,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 
@@ -105,19 +103,17 @@ public class SqlLikeMappingParityTest {
     }
 
     @Test
-    public void mixedOrderDirectionsShouldBeRejected() {
+    public void mixedOrderDirectionsShouldSortByConfiguredDirections() {
         List<Foo> source = Arrays.asList(
                 new Foo("abc", new Date(), 1),
+                new Foo("abc", new Date(), 3),
                 new Foo("xyz", new Date(), 2)
         );
 
-        try {
-            PojoLensSql.parse("where integerField >= 1 order by stringField asc, integerField desc")
-                    .filter(source, Foo.class);
-            fail("Expected mixed ORDER BY directions to fail");
-        } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Mixed ORDER BY directions are not supported in v1"));
-        }
+        List<Foo> result = PojoLensSql.parse("where integerField >= 1 order by stringField asc, integerField desc")
+                .filter(source, Foo.class);
+
+        assertEquals(List.of(3, 1, 2), result.stream().map(Foo::getIntegerField).toList());
     }
 
     @Test

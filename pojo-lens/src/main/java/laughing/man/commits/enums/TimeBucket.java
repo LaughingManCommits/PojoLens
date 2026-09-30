@@ -6,6 +6,7 @@ import java.util.Locale;
  * Time bucket granularities for date grouping.
  */
 public enum TimeBucket {
+    HOUR,
     DAY,
     WEEK,
     MONTH,

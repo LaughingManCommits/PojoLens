@@ -26,6 +26,7 @@ public final class SqlLikeErrorCodes {
     public static final String VALIDATION_EXPRESSION_REFERENCE = "EQ-SQL-VAL-009";
     public static final String VALIDATION_SUBQUERY = "EQ-SQL-VAL-010";
     public static final String VALIDATION_AMBIGUOUS_FIELD = "EQ-SQL-VAL-011";
+    public static final String VALIDATION_DISTINCT = "EQ-SQL-VAL-012";
 
     public static final String PARAM_MISSING = "EQ-SQL-PRM-001";
     public static final String PARAM_UNKNOWN = "EQ-SQL-PRM-002";

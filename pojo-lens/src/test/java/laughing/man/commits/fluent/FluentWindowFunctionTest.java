@@ -83,7 +83,7 @@ public class FluentWindowFunctionTest {
     }
 
     @Test
-    public void fluentWindowShouldRejectAggregateShape() {
+    public void fluentWindowOverGroupedRowsShouldRejectNonGroupedFields() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
                 () -> FluentEngine.newQueryBuilder(sampleEmployees())
@@ -98,7 +98,35 @@ public class FluentWindowFunctionTest {
                         .initFilter()
                         .filter(DepartmentAgg.class)
         );
-        assertTrue(ex.getMessage().contains("Window functions are only supported for non-aggregate fluent queries"));
+        assertTrue(ex.getMessage().contains("Unknown window field 'salary'"), ex::getMessage);
+    }
+
+    @Test
+    public void fluentWindowsOverGroupedRowsShouldReadMetricAliases() {
+        List<DepartmentLag> rows = FluentEngine.newQueryBuilder(sampleEmployees())
+                .addGroup("department")
+                .addMetric("salary", Metric.SUM, "totalSalary")
+                .addOffsetWindow("previousTotal", WindowFunction.LAG, "totalSalary", 1, 0,
+                        List.of(), List.of(QueryWindowOrder.of("department", Sort.ASC)))
+                .addWindow("salaryRank", WindowFunction.RANK, List.of(),
+                        List.of(QueryWindowOrder.of("totalSalary", Sort.DESC)))
+                .addOrder("department", 1)
+                .initFilter()
+                .filter(DepartmentLag.class);
+
+        assertEquals(List.of("Engineering", "Finance"), rows.stream().map(row -> row.department).toList());
+        assertEquals(List.of(0L, 360000L), rows.stream().map(row -> row.previousTotal).toList());
+        assertEquals(List.of(1L, 2L), rows.stream().map(row -> row.salaryRank).toList());
+    }
+
+    public static class DepartmentLag {
+        public String department;
+        public long totalSalary;
+        public Long previousTotal;
+        public long salaryRank;
+
+        public DepartmentLag() {
+        }
     }
 
     @Test

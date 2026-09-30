@@ -35,6 +35,7 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
@@ -49,6 +50,8 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
     public void sqlLikeQuerySortShouldReturnNullWithoutOrderAndDirectionWithOrder() {
         assertNull(SqlLikeQuery.of("where integerField >= 1").sort());
         assertEquals(Sort.DESC, SqlLikeQuery.of("where integerField >= 1 order by integerField desc").sort());
+        assertThrows(IllegalArgumentException.class,
+                () -> SqlLikeQuery.of("where integerField >= 1 order by integerField asc, stringField desc").sort());
     }
 
     @Test

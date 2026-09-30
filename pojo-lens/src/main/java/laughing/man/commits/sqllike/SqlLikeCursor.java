@@ -9,12 +9,19 @@ import java.math.BigInteger;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Immutable keyset cursor payload for SQL-like paging.
@@ -113,10 +120,11 @@ public final class SqlLikeCursor {
             }
             String type = parts[1];
             Object value = EncodedValue.decode(type, decodeComponent(parts[2]));
-            if (values.putIfAbsent(field, value) != null) {
+            if (values.containsKey(field)) {
                 throw cursor(SqlLikeErrorCodes.CURSOR_TOKEN_INVALID,
                         "Cursor token contains duplicate field '" + field + "'");
             }
+            values.put(field, value);
         }
         return new SqlLikeCursor(values);
     }
@@ -148,12 +156,12 @@ public final class SqlLikeCursor {
         private Builder() {
         }
 
+        /**
+         * Adds one ORDER BY boundary value. {@code null} is allowed: it marks a boundary row
+         * whose sort value is null (nulls sort first in ASC and last in DESC).
+         */
         public Builder put(String field, Object value) {
             String normalized = normalizeField(field);
-            if (value == null) {
-                throw cursor(SqlLikeErrorCodes.CURSOR_VALUE_INVALID,
-                        "Cursor value for field '" + normalized + "' must not be null");
-            }
             values.put(normalized, value);
             return this;
         }
@@ -184,7 +192,18 @@ public final class SqlLikeCursor {
     private record EncodedValue(String type, String value) {
         private static EncodedValue encode(Object value) {
             return switch (value) {
+                case null -> new EncodedValue("NULL", "");
                 case String stringValue -> new EncodedValue("STR", stringValue);
+                // Enums travel as their constant name; comparisons resolve names to constants.
+                case Enum<?> enumValue -> new EncodedValue("STR", enumValue.name());
+                case Character charValue -> new EncodedValue("CHAR", String.valueOf(charValue));
+                case UUID uuidValue -> new EncodedValue("UUID", uuidValue.toString());
+                case Instant instantValue -> new EncodedValue("INSTANT", instantValue.toString());
+                case LocalDate localDateValue -> new EncodedValue("LDATE", localDateValue.toString());
+                case LocalDateTime localDateTimeValue -> new EncodedValue("LDT", localDateTimeValue.toString());
+                case LocalTime localTimeValue -> new EncodedValue("LTIME", localTimeValue.toString());
+                case OffsetDateTime offsetValue -> new EncodedValue("ODT", offsetValue.toString());
+                case ZonedDateTime zonedValue -> new EncodedValue("ZDT", zonedValue.toString());
                 case Boolean booleanValue -> new EncodedValue("BOOL", Boolean.toString(booleanValue));
                 case Integer integerValue -> new EncodedValue("INT", Integer.toString(integerValue));
                 case Long longValue -> new EncodedValue("LONG", Long.toString(longValue));
@@ -203,7 +222,16 @@ public final class SqlLikeCursor {
         private static Object decode(String type, String value) {
             try {
                 return switch (type) {
+                    case "NULL" -> null;
                     case "STR" -> value;
+                    case "CHAR" -> value.charAt(0);
+                    case "UUID" -> UUID.fromString(value);
+                    case "INSTANT" -> Instant.parse(value);
+                    case "LDATE" -> LocalDate.parse(value);
+                    case "LDT" -> LocalDateTime.parse(value);
+                    case "LTIME" -> LocalTime.parse(value);
+                    case "ODT" -> OffsetDateTime.parse(value);
+                    case "ZDT" -> ZonedDateTime.parse(value);
                     case "BOOL" -> Boolean.valueOf(value);
                     case "INT" -> Integer.valueOf(value);
                     case "LONG" -> Long.valueOf(value);

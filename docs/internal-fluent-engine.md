@@ -183,6 +183,10 @@ Windows and qualify:
 - Aggregate windows use
   `addWindow(alias, function, valueField, countAll, partitions, orderFields)`.
 - Frame-aware aggregate windows add a `QueryWindowFrame`.
+- `addOffsetWindow(alias, LAG|LEAD, valueField, offset, defaultValue, partitions,
+  orderFields)` adds `LAG`/`LEAD`; the default is converted to the value field's type.
+- With metrics configured, windows run over grouped rows after `HAVING` and may read
+  group fields, time-bucket aliases, and metric aliases.
 - `addQualify(...)`, `addQualifyAllOf(...)`, and `addQualifyAnyOf(...)` filter
   after window computation.
 

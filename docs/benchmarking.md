@@ -222,6 +222,25 @@ Interpretation:
 - For first-page style consumers, streaming cuts allocation by roughly `60x` (fluent) to `71x` (SQL-like) and reduces latency by roughly `79x` to `95x` in this workload.
 - These gains come from avoiding full result list materialization when callers only need an initial window.
 
+`2026-09-30` run after WP-33 (`size=10000`, `-f 1 -wi 1 -i 3 -r 100ms -prof gc`, local
+Windows) with the typed and `OR`-predicate cases added:
+
+| Workload | us/op | B/op (`gc.alloc.rate.norm`) |
+|---|---:|---:|
+| `fluentFilterListMaterialized` | `372.591` | `1,514,314` |
+| `fluentFilterStreamLazy` | `7.885` | `18,384` |
+| `sqlLikeFilterListMaterialized` | `665.974` | `3,143,495` |
+| `sqlLikeFilterStreamLazy` | `5.607` | `21,616` |
+| `sqlLikeOrFilterListMaterialized` | `801.251` | `3,556,216` |
+| `sqlLikeOrFilterStreamLazy` | `6.242` | `21,280` |
+| `typedFilterListMaterialized` | `756.818` | `3,627,549` |
+| `typedFilterStreamLazy` | `9.160` | `105,705` |
+
+- Typed streams (lazy since WP-33) take ~`83x` less time and ~`34x` less allocation
+  than the materialized list for a first page. Their extra ~`84 KB/op` over SQL-like
+  is per-call builder setup, mostly the snapshot copy of the 10k-row source list.
+- `OR` predicates (rule groups) now stream lazily at the same cost as flat `AND` rules.
+
 ## SQL-like Window Overhead
 
 Window queries are now benchmarked against an equivalent non-window SQL-like baseline to keep window-stage overhead visible.
@@ -426,11 +445,51 @@ reusing cached direct-field plans and cached nested-path writes):
 
 As of the 2026-03-17 rebaseline, `computedFieldJoinSelectiveMaterialization` remains diagnostic-only. Repeated `-prof gc` reruns measured about `28.0 us/op` / `212,656 B/op` at `size=1000` and `256.0 us/op` / `2,012,761 B/op` at `size=10000` (down from `364,312 B/op` and `3,532,314 B/op` before the `RawQueryRow` allocation reduction), so the path is still too allocation-heavy to freeze into a strict merge gate.
 
+## Core Semantics Benchmarks
+
+Diagnostic suite (no threshold budget yet) for the date/time precision rules, keyset
+cursor placements, stream file sources, and record projection:
+
+```bash
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-semantics.args -f 1 -wi 3 -w 500ms -i 5 -r 500ms -rf json -rff target/benchmarks/semantics.json
+```
+
+| Benchmark | Measures |
+|---|---|
+| `TemporalFilterJmhBenchmark` | text literals at day, second, and millisecond precision; typed `Instant` value compared exactly |
+| `KeysetPagingJmhBenchmark` | next page with the cursor in `WHERE`, over a nullable sort key, and in `HAVING` (aggregate alias); the reversed `keysetBefore` window |
+| `StreamLoadJmhBenchmark` | CSV and JSONL from a `Path` next to the same data from a `Reader` / `InputStream` |
+| `RecordProjectionJmhBenchmark` | filter and select projection over records next to equivalent POJOs |
+
+Representative warmed results from `2026-09-27` (local Windows, `-f 1 -wi 3 -i 5`,
+500 ms iterations):
+
+| Workload | size=1k | size=10k |
+|---|---:|---:|
+| SQL-like day literal / millisecond literal filter | `60` / `57` us | `544` / `535` us |
+| typed `Instant` value filter | `72` us | `726` us |
+| keyset next page (`WHERE`) / nullable key / aggregate alias | `222` / `224` / `133` us | `2288` / `2560` / `1122` us |
+| CSV from `Path` / `Reader` | `0.28` / `0.23` ms | `2.45` / `2.44` ms |
+| JSONL from `Path` / `InputStream` | `0.61` / `0.62` ms | `7.09` / `6.56` ms |
+| filter over POJOs / records | `51` / `42` us | `502` / `411` us |
+
+Interpretation:
+- Record results are built through a per-result compiled plan (component to row position
+  resolved once), so they cost the same as or less than POJO projection.
+- The typed `Instant` filter measured `159` / `1990` us on commit `85b842e`, before
+  exact temporal comparison replaced formatter-based truncation.
+- Stream sources cost the same as paths; the difference is file I/O only.
+- `keysetBefore` is not directly comparable to the next-page numbers: those use
+  `filterPage(...)`, which also counts total rows.
+
 ## Semantic Guardrails
 
 Comparable baseline numbers are only useful if the outputs actually match.
 
 Current correctness guardrails:
+- `CoreSemanticsBenchmarkParityTest` checks the core semantics suite against manual
+  references (date literal filters, keyset page slices, path vs stream loads, records vs
+  POJOs)
 - `StreamsBenchmarkParityTest` locks the Streams baseline against equivalent fluent query outputs
 - `PojoLensJoinJmhBenchmarkParityTest` locks the computed-field join benchmark against its manual hash-join baseline
 - `BenchmarkMetricQueriesParityTest` keeps the normalized benchmark-query helpers aligned across fluent and SQL-like access

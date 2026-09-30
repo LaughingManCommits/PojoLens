@@ -5,6 +5,9 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.builder.FieldSelector;
 import laughing.man.commits.builder.FieldSelectors;
+import laughing.man.commits.internal.JoinFieldNames;
+import laughing.man.commits.internal.NumericStatistics;
+import laughing.man.commits.internal.WindowOffsetDefaults;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -22,6 +25,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -136,6 +140,12 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     @Override
+    public FilterQueryBuilder distinctRows() {
+        spec.setDistinctRows(true);
+        return this;
+    }
+
+    @Override
     public FilterQueryBuilder offset(int rowOffset) {
         if (rowOffset < 0) {
             throw new IllegalArgumentException("rowOffset must be >= 0");
@@ -163,7 +173,9 @@ public class FilterQueryBuilder implements QueryBuilder {
         explain.put("selectedFields", new ArrayList<>(spec.getReturnFields()));
         explain.put("groupBy", new TreeMap<>(spec.getGroupFields()));
         explain.put("orderBy", new TreeMap<>(spec.getOrderFields()));
+        explain.put("orderSorts", new TreeMap<>(spec.getOrderSorts()));
         explain.put("distinct", new TreeMap<>(spec.getDistinctFields()));
+        explain.put("distinctRows", spec.isDistinctRows());
         explain.put("indexes", new ArrayList<>(spec.getIndexedFields()));
         explain.put("whereRuleCount", spec.getFilterValues().size());
         explain.put("whereSubqueryCount", filterSubqueryCount());
@@ -290,9 +302,19 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     @Override
     public FilterQueryBuilder addOrder(String column, int index) {
+        return addOrder(column, index, null);
+    }
+
+    @Override
+    public FilterQueryBuilder addOrder(String column, int index, Sort sort) {
         Map<Integer, String> orderFields = spec.getOrderFields();
         if (!orderFields.containsValue(column) || !orderFields.containsKey(index)) {
             orderFields.put(index, column);
+            if (sort == null) {
+                spec.getOrderSorts().remove(index);
+            } else {
+                spec.getOrderSorts().put(index, sort);
+            }
             markExecutionPlanShapeChanged();
         } else {
             if (orderFields.containsKey(index)) {
@@ -424,6 +446,18 @@ public class FilterQueryBuilder implements QueryBuilder {
     @Override
     public FilterQueryBuilder addMetric(String field, Metric metric, String alias) {
         Metric normalizedMetric = requireMetric(metric);
+        if (normalizedMetric.requiresArgument()) {
+            throw new IllegalArgumentException("PERCENTILE needs a fraction; use addPercentile(field, percentile, alias)");
+        }
+        return addMetricWithArgument(field, normalizedMetric, null, alias);
+    }
+
+    @Override
+    public FilterQueryBuilder addPercentile(String field, double percentile, String alias) {
+        return addMetricWithArgument(field, Metric.PERCENTILE, NumericStatistics.requirePercentile(percentile), alias);
+    }
+
+    private FilterQueryBuilder addMetricWithArgument(String field, Metric normalizedMetric, Double argument, String alias) {
         String normalizedAlias = requireIdentifier(alias, "alias");
         ensureOutputAliasAvailable(normalizedAlias);
         String normalizedField = requireIdentifier(field, "field");
@@ -431,7 +465,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (normalizedMetric.requiresNumericField()) {
             ensureNumericField(normalizedField, normalizedMetric);
         }
-        spec.getMetrics().add(QueryMetric.of(normalizedField, normalizedMetric, normalizedAlias));
+        spec.getMetrics().add(QueryMetric.of(normalizedField, normalizedMetric, argument, normalizedAlias));
         markExecutionPlanShapeChanged();
         return this;
     }
@@ -482,7 +516,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         String normalizedValueField = valueField;
         if (normalizedFunction.isAggregateFunction() && !countAll) {
             normalizedValueField = requireIdentifier(valueField, "valueField");
-            ensureFieldExists(normalizedValueField);
+            ensureWindowFieldExists(normalizedValueField);
             if (normalizedFunction.requiresNumericField()) {
                 ensureNumericWindowField(normalizedValueField, normalizedFunction);
             }
@@ -495,6 +529,35 @@ public class FilterQueryBuilder implements QueryBuilder {
                 partitionFields,
                 orderFields,
                 frame
+        );
+        spec.getWindows().add(window);
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
+    public FilterQueryBuilder addOffsetWindow(String alias,
+                                              WindowFunction function,
+                                              String valueField,
+                                              int offset,
+                                              Object defaultValue,
+                                              List<String> partitionFields,
+                                              List<QueryWindowOrder> orderFields) {
+        WindowFunction normalizedFunction = requireWindowFunction(function);
+        String normalizedAlias = requireIdentifier(alias, "alias");
+        ensureOutputAliasAvailable(normalizedAlias);
+        String normalizedValueField = requireIdentifier(valueField, "valueField");
+        ensureWindowFieldExists(normalizedValueField);
+        Object normalizedDefault = WindowOffsetDefaults.coerce(
+                normalizedFunction, normalizedValueField, windowFieldType(normalizedValueField), defaultValue);
+        QueryWindow window = QueryWindow.offset(
+                normalizedAlias,
+                normalizedFunction,
+                normalizedValueField,
+                offset,
+                normalizedDefault,
+                partitionFields,
+                orderFields
         );
         spec.getWindows().add(window);
         markExecutionPlanShapeChanged();
@@ -894,6 +957,10 @@ public class FilterQueryBuilder implements QueryBuilder {
         return spec.getOrderFields();
     }
 
+    public Map<Integer, Sort> getOrderSorts() {
+        return spec.getOrderSorts();
+    }
+
     public Map<Integer, String> getDistinctFields() {
         return spec.getDistinctFields();
     }
@@ -904,6 +971,10 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public boolean isFilterAlwaysFalse() {
         return spec.isFilterAlwaysFalse();
+    }
+
+    public boolean isDistinctRows() {
+        return spec.isDistinctRows();
     }
 
     /**
@@ -1498,8 +1569,39 @@ public class FilterQueryBuilder implements QueryBuilder {
         }
     }
 
+    /**
+     * Windows over grouped rows may also read metric and time-bucket aliases.
+     */
+    private void ensureWindowFieldExists(String fieldName) {
+        if (metricAliasType(fieldName) != null || spec.getTimeBuckets().containsKey(fieldName)) {
+            return;
+        }
+        ensureFieldExists(fieldName);
+    }
+
+    private Class<?> windowFieldType(String fieldName) {
+        Class<?> metricType = metricAliasType(fieldName);
+        if (metricType != null) {
+            return metricType;
+        }
+        if (spec.getTimeBuckets().containsKey(fieldName)) {
+            return String.class;
+        }
+        return configuredFieldType(fieldName);
+    }
+
+    private Class<?> metricAliasType(String alias) {
+        for (QueryMetric metric : spec.getMetrics()) {
+            if (metric.getAlias().equals(alias)) {
+                Class<?> fieldType = metric.getField() == null ? null : configuredFieldType(metric.getField());
+                return QueryMetric.outputType(metric.getMetric(), fieldType);
+            }
+        }
+        return null;
+    }
+
     private void ensureNumericWindowField(String fieldName, WindowFunction function) {
-        Class<?> fieldType = configuredFieldType(fieldName);
+        Class<?> fieldType = windowFieldType(fieldName);
         if (fieldType == null) {
             return;
         }
@@ -1523,9 +1625,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (metric == null) {
             throw new IllegalArgumentException("metric is required");
         }
-        if (Metric.COUNT.equals(metric)) {
-            throw new IllegalArgumentException("Use addCount(alias) for row count");
-        }
+        // COUNT with a field counts that field's non-null values; addCount(alias) counts rows.
         return metric;
     }
 
@@ -1593,7 +1693,9 @@ public class FilterQueryBuilder implements QueryBuilder {
                     : window.valueField() == null ? "" : ":value=" + window.valueField())
                     + ":partition=" + window.partitionFields()
                     + ":order=[" + orderFields + "]"
-                    + ":frame=" + window.frame().explainToken());
+                    + (window.function().isOffsetFunction()
+                    ? ":offset=" + window.offset() + ":default=" + window.defaultValue()
+                    : ":frame=" + window.frame().explainToken()));
         }
         return entries;
     }
@@ -1839,7 +1941,7 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private void addMetricSourceFields(LinkedHashSet<String> selected) {
         for (QueryMetric metric : spec.getMetrics()) {
-            if (!Metric.COUNT.equals(metric.getMetric())) {
+            if (metric.getField() != null) {
                 addSelectedField(selected, spec.getSourceFieldTypes(), metric.getField());
             }
         }
@@ -1941,7 +2043,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         addSelectedFields(selected, childFieldTypes, spec.getGroupFields().values());
         addWindowSourceFields(selected, childFieldTypes);
         for (QueryMetric metric : spec.getMetrics()) {
-            if (!Metric.COUNT.equals(metric.getMetric())) {
+            if (metric.getField() != null) {
                 addSelectedField(selected, childFieldTypes, metric.getField());
             }
         }
@@ -2045,38 +2147,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (joinFieldTypes == null || joinFieldTypes.isEmpty() || joinMethod == null) {
             return currentFieldTypes;
         }
-        Map<String, Class<?>> primary = currentFieldTypes;
-        Map<String, Class<?>> secondary = joinFieldTypes;
-        if (Join.RIGHT_JOIN.equals(joinMethod)) {
-            primary = joinFieldTypes;
-            secondary = currentFieldTypes;
-        }
-
-        LinkedHashMap<String, Class<?>> merged = new LinkedHashMap<>(primary.size() + secondary.size());
-        LinkedHashSet<String> names = new LinkedHashSet<>();
-        for (Map.Entry<String, Class<?>> entry : primary.entrySet()) {
-            merged.put(entry.getKey(), entry.getValue());
-            names.add(entry.getKey());
-        }
-        for (Map.Entry<String, Class<?>> entry : secondary.entrySet()) {
-            String fieldName = entry.getKey();
-            if (names.contains(fieldName)) {
-                fieldName = uniqueJoinedFieldName(fieldName, names);
-            }
-            merged.put(fieldName, entry.getValue());
-            names.add(fieldName);
-        }
-        return merged;
-    }
-
-    private String uniqueJoinedFieldName(String baseName, Set<String> existing) {
-        String candidate = "child_" + baseName;
-        int index = 1;
-        while (existing.contains(candidate)) {
-            candidate = "child_" + baseName + "_" + index;
-            index++;
-        }
-        return candidate;
+        return JoinFieldNames.merge(currentFieldTypes, joinFieldTypes, joinMethod);
     }
 
     private List<QueryRow> queryRows(List<?> pojos) {

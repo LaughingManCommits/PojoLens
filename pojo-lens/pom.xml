@@ -239,6 +239,35 @@
                                     <include>laughing.man.commits.chart.ChartData</include>
                                     <include>laughing.man.commits.chart.ChartDataset</include>
                                     <include>laughing.man.commits.chart.ChartType</include>
+                                    <include>laughing.man.commits.sqllike.QueryExposurePolicy</include>
+                                    <include>laughing.man.commits.sqllike.QueryCancellationToken</include>
+                                    <include>laughing.man.commits.sqllike.QueryExecutionGuard</include>
+                                    <include>laughing.man.commits.sqllike.QueryExecutionGuard.Builder</include>
+                                    <include>laughing.man.commits.sqllike.QueryGuardOutcome</include>
+                                    <include>laughing.man.commits.sqllike.QueryDiagnostics</include>
+                                    <include>laughing.man.commits.sqllike.QueryDiagnosticsError</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikePlanPreview</include>
+                                    <include>laughing.man.commits.sqllike.PlanPreviewField</include>
+                                    <include>laughing.man.commits.sqllike.PlanPreviewFilter</include>
+                                    <include>laughing.man.commits.sqllike.PlanPreviewPredicate</include>
+                                    <include>laughing.man.commits.sqllike.PlanPreviewJoin</include>
+                                    <include>laughing.man.commits.sqllike.PlanPreviewOrder</include>
+                                    <include>laughing.man.commits.sqllike.PlanPreviewPaging</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikePushdownPreview</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikePushdownMode</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikePushdownAdapter</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikePushdownRequest</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikePushdownResult</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikePushdownException</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikeResultSetAdapter</include>
+                                    <include>laughing.man.commits.sqllike.PageResult</include>
+                                    <include>laughing.man.commits.dsl.TypedWindowOrder</include>
+                                    <include>laughing.man.commits.dsl.TypedPlanPreview</include>
+                                    <include>laughing.man.commits.dsl.TypedPlanPredicate</include>
+                                    <include>laughing.man.commits.dsl.TypedPlanMetric</include>
+                                    <include>laughing.man.commits.dsl.TypedPlanWindow</include>
+                                    <include>laughing.man.commits.dsl.TypedPlanTimeBucket</include>
+                                    <include>laughing.man.commits.internal.builder.QueryWindowFrame</include>
                                 </includes>
                             </parameter>
                         </configuration>

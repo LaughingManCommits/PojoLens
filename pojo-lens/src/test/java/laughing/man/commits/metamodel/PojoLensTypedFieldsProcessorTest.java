@@ -135,7 +135,8 @@ public class PojoLensTypedFieldsProcessorTest {
         assertGeneratedTypedField(processorSource, "BOXED_UTILIZATION", "boxedUtilization", "Float");
         assertGeneratedTypedField(processorSource, "ZONED_DATE_TIME", "zonedDateTime", "ZonedDateTime");
         assertGeneratedTypedField(processorSource, "NESTED_CITY", "nested.city", "String");
-        assertFalse(processorSource.contains("TAGS"), "arrays should match reflection-generator exclusion");
+        // Arrays are opaque leaf values in both generators (carried through projection, equality-queryable).
+        assertGeneratedTypedField(processorSource, "TAGS", "tags", "String[]");
         assertFalse(processorSource.contains("INTERNAL"));
         assertFalse(processorSource.contains("IGNORED_STATIC"));
         assertFalse(processorSource.contains("IGNORED_FINAL"));

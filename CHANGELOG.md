@@ -9,7 +9,366 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ## [Unreleased]
 
+### Added
+
+- **Lazy typed `stream()`/`iterator()` (WP-33)** - `TypedQuery.stream(...)` and
+  `iterator(...)` evaluate simple shapes row by row (filters of any predicate shape,
+  projection, offset, limit over unjoined rows), so early-exit consumers such as
+  `limit(n)` or `findFirst()` no longer pay for full materialisation. Ordered, grouped,
+  windowed, distinct, joined, computed-field, and execution-guarded queries still
+  materialise first. The shared lazy path (`FastPojoStreamSupport`) now evaluates WHERE
+  rule groups through `FilterCore.matchesWhereGroups`, so SQL-like and natural `OR`/`NOT`
+  predicates stream lazily too. `StreamingExecutionJmhBenchmark` gains typed and
+  `OR`-predicate cases.
+
+- **Typed field validation for joined queries (WP-32)** - `TypedQuery` validates field
+  names of joined queries against the joined rows: the entity's fields merged with each
+  joined source's under the engine's naming rule (`child_<name>` on collisions, `RIGHT
+  JOIN` renames the existing columns). Join parent/child keys are checked as well (an
+  unknown key used to skip the join silently). The joined class comes from the bound
+  rows at execution; the new `join(sourceName, sourceClass, parentField, childField,
+  joinType)` overload declares it so `diagnostics()` and `planPreview()` report the same
+  errors without data, and a declared class must match the bound rows. One owner
+  (`internal/JoinFieldNames`) replaces four copies of the `child_` naming rule.
+
+- **`LAG`/`LEAD` window functions (WP-31)** - SQL-like
+  `lag(field[, offset[, default]]) over (...)` and `lead(...)`, typed
+  `lag(...)`/`lead(...)` (plus `window(WindowFunction.LAG|LEAD, ...)`), natural
+  `previous|next <field> ... [for <n> rows] [defaulting to <value>]`, and the internal
+  `QueryBuilder.addOffsetWindow(...)`. PostgreSQL semantics: the default applies only
+  outside the partition (a `null` value at the offset row stays `null`), the offset is
+  a non-negative integer literal (default `1`), no `ROWS` frame is accepted, and the
+  output has the field's type. The default must fit the field: numbers convert exactly
+  to its numeric type, text needs a text field, and other types accept only `null`.
+  `LAG`/`LEAD` are not reserved words. `WindowFunction` gains `LAG`, `LEAD`,
+  `isOffsetFunction()`, and `fromName(...)`; `SelectFieldAst` gains `windowOffset()`,
+  `windowDefault()`, and `withWindowOffset(...)`; `TypedPlanWindow` gains `offset()` and
+  `defaultValue()`.
+
+- **Windows over grouped rows (WP-31)** - rank, aggregate, and offset windows and
+  `QUALIFY` now run on grouped queries, after `GROUP BY` and `HAVING` and before
+  `ORDER BY`, `DISTINCT`, and paging, on every surface (SQL-like, typed, natural,
+  internal fluent). Window arguments, `PARTITION BY`, and window `ORDER BY` reference
+  grouped outputs: group fields (or their `SELECT` aliases), time-bucket aliases, and
+  aggregate aliases (`rank() over (order by total desc)`, running totals of monthly
+  sums, `lag(total)` deltas). Aggregate calls inside `OVER (...)` are rejected with a
+  hint to use the alias. Grouped `ORDER BY` accepts window aliases, keyset cursors on a
+  window alias apply at `QUALIFY`, and explain stage counts report `HAVING` and
+  `QUALIFY` separately. Design note: `docs/design/wp-31-window-gaps.md`.
+
+- **Expressions in `GROUP BY` and `ORDER BY` (WP-29, slice 4)** - SQL-like
+  `group by year(hireDate)`, `order by lower(name)`, and grouped computed outputs
+  (`select lower(department) as dept, count(*) as total group by dept`). Each such
+  expression becomes a query-scoped computed column filled before `WHERE`. A computed
+  `SELECT` output with the same expression (canonical text: spacing and function-name
+  case ignored) or named by its alias provides the column; otherwise the column is
+  hidden and never reaches results, including `SELECT *` into `QueryRow`. `HAVING`
+  may repeat a grouped expression. `SELECT DISTINCT` requires `ORDER BY` expressions to
+  be selected. Subqueries reject expression `GROUP BY`/`ORDER BY` items
+  (`EQ-SQL-VAL-010`). A grouped computed alias that is also a field name is rejected
+  (`EQ-SQL-VAL-007`). WP-29 is complete.
+
+- **Text, date/time, and enum computed fields (WP-29, slice 3)** -
+  `ComputedFieldDefinition` / `ComputedFieldRegistry.Builder.add(...)` accept any output
+  type that can hold the expression result: `String` (`lower(department)`,
+  `concat(first, ' ', last)`), date/time (`coalesce(endDate, startDate)` as
+  `LocalDate`), enum, and numeric types as before. Numeric outputs keep the `double`
+  lane; other outputs store the typed value, including on the fast join path. Such
+  fields filter, sort, group, and project in SQL-like, natural, and typed queries.
+  Diagnostic JMH `TextFunctionJmhBenchmark` (semantics suite) compares `lower(...) =`,
+  `ILIKE`, and a `String` computed field.
+
+- **Date-part expression functions (WP-29, slice 2)** - SQL-like `year`, `quarter`,
+  `month`, `day`, `hour`, `minute`, and `day_of_week` (ISO, 1 = Monday), each
+  `(date[, 'Zone/Id'])`, return `Integer` in `WHERE`, `HAVING`, computed `SELECT`
+  outputs, and numeric computed fields (`add("hireYear", "year(hireDate)", Integer.class)`
+  groups by year). They share the time-bucket normalization (`UTC` default, same zone
+  parsing), so `year(x, zone)` always equals the year of `bucket(x, 'year', zone)`.
+  `TimeBucketUtil.localDate(...)` / `localDateTime(...)` expose that normalization.
+
+- **Text and null expression functions (WP-29, slice 1)** - SQL-like expressions accept
+  `'text'` and `null` literals and the functions `lower`, `upper`, `trim`, `length`,
+  `substring`, `concat`, `coalesce`, and `nullif` in `WHERE`, `HAVING`, and computed
+  `SELECT ... AS alias` outputs (`where lower(email) = :email`,
+  `select concat(first, ' ', last) as fullName`). Semantics follow PostgreSQL: null in
+  gives null out, except `coalesce`, `nullif`, and `concat` (which skips nulls);
+  `length`/`substring` count code points; `trim` strips Unicode whitespace. `CONTAINS`,
+  `MATCHES`, and `LIKE` now work on text expressions. Function names are contextual,
+  not reserved. Numeric computed fields may use the functions internally
+  (`length(name)`). Design: `docs/design/wp-29-expression-functions.md`.
+
+- **Statistical aggregates (WP-30)** - new `Metric` constants `MEDIAN`, `PERCENTILE`,
+  `STDDEV`, `STDDEV_POP`, `VARIANCE`, and `VAR_POP` in grouped, global, and fast-stats
+  aggregation. SQL-like `MEDIAN(x)`, `PERCENTILE(x, 0.9)`, `STDDEV(x)`/`STDDEV_SAMP(x)`,
+  `STDDEV_POP(x)`, `VARIANCE(x)`/`VAR_SAMP(x)`, `VAR_POP(x)` in SELECT/HAVING/ORDER BY
+  (contextual names, not reserved); typed `metric(field, Metric.MEDIAN, ...)` and
+  `percentile(field, fraction, alias)`; natural `median of`, `90th percentile of`,
+  `standard deviation of`, `variance of`, and `population ...` phrases;
+  `ReportComparisons` for the non-percentile statistics. Results are `Double`;
+  percentiles interpolate linearly (`percentile_cont`); `STDDEV`/`VARIANCE` are sample
+  statistics (`null` for one value) and the `_POP` forms divide by `n`. Not available
+  as window functions.
+
+- **`SELECT DISTINCT` and `COUNT(DISTINCT field)` (WP-28)** - SQL-like
+  `SELECT DISTINCT` (also `select distinct *`), natural `show distinct ...`, and typed
+  `distinct()` return one row per set of selected values (compared like `GROUP BY`
+  keys) after filtering, grouping, windows, and ordering, and before offset/limit, so
+  `filterPage` totals and keyset cursors work on distinct rows. `ORDER BY` must use
+  selected outputs, and with `GROUP BY` every group field must be selected (new
+  `EQ-SQL-VAL-012`). New `Metric.COUNT_DISTINCT`: SQL-like `COUNT(DISTINCT field)` in
+  `SELECT`/`HAVING`/`ORDER BY`, natural `count of distinct <field>`, typed
+  `countDistinct(...)`, and `ReportComparisons`; it counts distinct non-null values and
+  is rejected as a window function. `SqlLikePlanPreview.isDistinct()` and pushdown
+  fallback `DISTINCT_UNSUPPORTED`. `DISTINCT` is contextual, not reserved.
+
+- **`LIKE` / `ILIKE` and natural `ignoring case` (WP-27)** - SQL-like accepts
+  `field [NOT] LIKE 'pattern'` and `[NOT] ILIKE` (case-insensitive, Unicode case
+  folding) with `%` / `_` wildcards, a backslash escape by default, and an optional
+  `ESCAPE 'c'` (`ESCAPE ''` disables escaping). Patterns cover the whole value, regex
+  characters match themselves, and a `:pattern` parameter is bound as a `LIKE`
+  pattern. `LIKE`, `ILIKE`, and `ESCAPE` are contextual, not reserved words. Natural
+  `contains`, `starts with`, `ends with`, and their `does not` forms accept a trailing
+  `ignoring case`. `docs/sql-like.md` replaces the `MATCHES` prefix/suffix recipe
+  with `LIKE`.
+
+- **Negated text matching (WP-26)** - the engine gains `Clauses.NOT_CONTAINS` and
+  `Clauses.NOT_MATCHES` (a null field never matches either, like every value
+  comparison; against a list the text must match none of the values). SQL-like adds
+  `NOT CONTAINS` / `NOT MATCHES` and `NOT (...)` over text matches; natural adds
+  `does not contain`, `does not start with`, and `does not end with` (literal text,
+  including parameters). Typed `not()` over `contains`, `containsIgnoreCase`,
+  `matches`, `startsWith`, and `endsWith` now lowers instead of throwing
+  `UnsupportedOperationException`. Plan preview reports `NOT CONTAINS` /
+  `NOT MATCHES` (pushdown fallback).
+
+- **`IS [NOT] NULL`, `BETWEEN`, and `NOT` (WP-25)** - SQL-like accepts
+  `field IS [NOT] NULL`, `field [NOT] BETWEEN low AND high` (inclusive, literals or
+  parameters), and `NOT <predicate>` / `NOT (<group>)` in `WHERE`, `HAVING`, and
+  `QUALIFY`. Natural adds `is between <low> and <high>` / `is not between`,
+  parenthesized condition groups, and `not (...)`; `is null` / `is not null` are now
+  documented. `NOT` is rewritten with the typed `not()` rules (a negated comparison
+  still excludes null fields, as in SQL); negating an `IN (select ...)` subquery
+  fails at parse time with a pointer to `NOT EXISTS`.
+
+- **Literal `IN` / `NOT IN` lists (WP-24)** - SQL-like accepts `IN ('a', 'b')`,
+  `NOT IN (...)`, and `IN :values` / `NOT IN :values` list parameters alongside
+  `IN (select ...)`; natural adds `is one of` / `is not one of` with comma-separated
+  values or one list parameter. Lists render in `equivalentSqlLike`, plan preview
+  reports `IN` / `NOT IN` (never a pushable `!=`), and `NOT IN (select ...)` fails
+  with a pointer to `NOT EXISTS`.
+
+- **Core semantics benchmarks** - diagnostic JMH suite
+  `scripts/benchmarks/benchmark-suite-semantics.args` covers date/time literal
+  precision, keyset cursor placements (WHERE, null-aware, HAVING, previous page),
+  `Reader`/`InputStream` loaders next to `Path`, and record projection next to POJOs,
+  with `CoreSemanticsBenchmarkParityTest` proving the results. Record results are
+  built through a per-result compiled plan (about 15x faster than the first record
+  implementation and on par with POJO projection).
+
+- **Records, `COUNT(field)`, and richer keyset paging (WP-23)** - records work as
+  source rows and as result classes (canonical constructor; nested records by dotted
+  path), including the CSV loader and typed metamodels. SQL `COUNT(field)` counts
+  non-null values. Keyset paging now supports `ORDER BY` select aliases, aggregate
+  aliases, and window aliases, reaches rows with null sort values, accepts `null`
+  cursor values, and tokenizes `java.time`, `UUID`, `Character`, and enum values.
+  Typed queries validate field names (with suggestions) before execution.
+
+- **`TypedQuery.iterator(...)` (WP-21)** - four overloads mirroring
+  `stream(...)` (`List`, `DatasetBundle`, `JoinBindings`, and projection),
+  closing the last typed execution-parity gap from the feature audit. Same
+  materialisation caveat as `stream(...)`; `remove()` is unsupported.
+
+- **Typed prefix/suffix matching (WP-19)** - `TypedField.startsWith(String)` /
+  `endsWith(String)` and the `TypedPredicate.startsWith` / `endsWith` static
+  factories add case-sensitive literal prefix/suffix predicates with
+  `String.startsWith` / `String.endsWith` semantics (regex metacharacters match
+  literally; multi-line values supported). `TypedPredicate.Operator` gains
+  `STARTS_WITH` and `ENDS_WITH`; both lower to the same `MATCHES` pattern as
+  natural `starts with` / `ends with`, through one shared pattern owner.
+  `NOT(STARTS_WITH)` / `NOT(ENDS_WITH)` throw like the other string operators.
+  SQL-like keeps `MATCHES`; `docs/sql-like.md` documents the prefix/suffix
+  recipe.
+
+- **Stream sources for file loaders (WP-18)** - every `PojoLensFiles` and
+  `runtime.files()` CSV/TSV/JSON/JSONL method (including `*WithReport`) now
+  accepts a `Reader` or `InputStream` alongside `Path`, for classpath
+  resources, uploads, and object-store streams. Stream sources are read to the
+  end but never closed; `InputStream` decodes as strict UTF-8 like `Path`.
+  `CsvLoadReport` and `JsonLoadReport` gain `sourceName()` (file path, or
+  `<reader>` / `<input-stream>` for stream loads); `path()` is `null` for
+  stream loads.
+
+- **Typed diagnostics and plan preview (WP-17)** - `TypedQuery` now exposes
+  `diagnostics()` for no-data structural validation and `planPreview()` for a
+  typed execution-shape review covering joins, group keys, metrics, windows,
+  sort orders, paging, time buckets, computed fields, subqueries, and attached
+  execution-guard policy.
+
+- **Typed report definitions (WP-15)** - `ReportDefinition.typed(...)` now
+  promotes `TypedQuery` contracts into the same reusable rows/chart/schema
+  wrapper used by SQL-like and natural queries. Typed queries also expose
+  `schema(Projection.class)` so reusable report metadata can be derived without
+  live source rows, including typed join shapes via placeholder join bindings.
+
+- **Engine-level mixed-direction sort (WP-14)** - ORDER BY execution now
+  preserves per-field direction through the fluent engine, typed lowering, and
+  SQL-like binding. Queries such as `department ASC, salary DESC` now execute in
+  one pass instead of failing at bind/execution time.
+
+- **Typed and natural pagination parity (WP-12/WP-16)** - `TypedQuery` now exposes
+  `filterPage(...)` overloads for lists, dataset bundles, join bindings, and
+  projection output. Typed pages run an unpaged count pass, execute the configured
+  `limit/offset` page, and return `PageResult<T>` with `rows()`, `totalRows()`,
+  `hasMore()`, and an empty `nextCursor()`. `NaturalQuery.filterPage(...)`
+  delegates to the resolved SQL-like page helper. `PageResult` now exposes
+  `totalRows()` and a public `of(...)` factory for non-cursor pages.
+
+- **Hourly time buckets (WP-13)** - `TimeBucket.HOUR` and `TimeBucketPreset.hour()`
+  are supported across fluent, SQL-like, natural, and typed query paths. Hour
+  buckets format as `YYYY-MM-DDTHH` and honor the same timezone interpretation
+  rules as other bucket granularities.
+
+- **Typed-surface hardening (WP-11)** — follow-up pass closing the remaining gaps from WP-7–10:
+  - `applyToBuilder` now applies `computedFields` immediately after `applyJoins`, before `applyWhere`,
+    `applyTimeBuckets`, `applyGroupBy`, `applyMetrics`, and `applyHaving`; previously it was applied
+    last, which prevented computed fields from being visible to WHERE and aggregation stages.
+  - `TypedPredicate.allOf()` and `anyOf()` now apply the same identity/absorption sentinel laws
+    that instance `and()` / `or()` already had: `allOf(pred, any()) → pred`,
+    `allOf(pred, none()) → none()`, `anyOf(pred, none()) → pred`, `anyOf(pred, any()) → any()`.
+  - Contract tests added for computed-field groupBy+metric and computed-field groupBy+HAVING.
+  - `StablePublicApiContractTest` now locks `containsIgnoreCase`, `any`, `none`, all four
+    `stream()` overloads, `computedFields`, `hasComputedFields`, and `computedFieldRegistry`.
+  - 1223 tests pass.
+
+- **`TypedQuery.computedFields(ComputedFieldRegistry)` (WP-10)** — typed queries can now attach
+  a computed-field registry, matching the capability on SQL-like and natural surfaces. The registry
+  is retained across fluent calls and applied to the engine via `builder.computedFields(registry)`
+  in `applyToBuilder`. Accessors: `hasComputedFields()`, `computedFieldRegistry()`.
+
+- **`TypedPredicate.any()` / `none()` sentinels (WP-9)** — always-true and always-false sentinel
+  predicates for null-free conditional predicate chain building. Identity and absorption laws are
+  applied eagerly at composition time: `pred.and(any())` → `pred`, `pred.or(none())` → `pred`,
+  `pred.and(none())` → `none()`, `pred.or(any())` → `any()`. `any().not()` → `none()` and vice
+  versa. `any()` as a WHERE predicate returns all rows; `none()` returns zero rows.
+
+- **`TypedQuery.stream()` overloads (WP-8)** — `stream(List<T>)`, `stream(DatasetBundle)`,
+  `stream(List<T>, JoinBindings)`, and `stream(List<T>, JoinBindings, Class<P>)` expose query
+  results as `Stream<T>` / `Stream<P>`. Current implementation wraps `filter(...).stream()`;
+  rows are fully materialised before the stream is returned. Call sites are forward-compatible
+  if a lazy engine path is added later.
+
+- **Case-insensitive string matching (WP-7)** — `TypedField.containsIgnoreCase(String)`
+  and `TypedPredicate.containsIgnoreCase(field, String)` match substrings without regard
+  to case. Lowers to a `MATCHES` rule with `(?i).*Pattern.quote(value).*` — no engine
+  changes required, and regex special characters in the value are always treated as literals.
+  `NOT(CONTAINS_IGNORE_CASE)` lowers to a negated match (WP-26).
+
+- **Feature audit** - added `feature-audit.md`, a source-backed audit of the
+  current product surface, missing parity work, documentation drift, and
+  recommended follow-up roadmap.
+
+- **TypedQuery execution convenience methods (WP-6)** — `count(rows)` → `long`,
+  `exists(rows)` → `boolean`, `findFirst(rows)` → `Optional<T>`, and
+  `findOne(rows)` → `Optional<T>` (throws if >1 result). All have `DatasetBundle`
+  overloads. `exists` and `findFirst` apply `limit(1)` internally to short-circuit;
+  `findOne` uses `limit(2)` to detect ambiguity cheaply.
+
+- **TypedField / TypedPredicate `between()` (WP-5)** — `TypedField.between(lo, hi)`
+  and `TypedPredicate.between(field, lo, hi)` are convenience shorthands for
+  `gte(lo).and(lte(hi))`. Both bounds are inclusive; null bounds throw
+  `NullPointerException`.
+
+- **TypedQuery time bucket (WP-4)** — `TypedQuery.timeBucket(dateField, TimeBucket, alias)`
+  and `timeBucket(dateField, TimeBucketPreset, alias)` bring date-truncation
+  aggregation to the typed surface, matching `bucket(field, 'unit')` in SQL-like.
+  Both overloads accept a `TypedField` as the alias argument. Defaults to UTC
+  zone and Monday week-start; use `TimeBucketPreset` for custom zone/week-start.
+
+- **TypedQuery per-field sort direction (WP-3)** — `TypedSortOrder` (field +
+  direction) pairs replace the global-direction model. `TypedQuery.orderBy(TypedSortOrder...)`
+  accepts one or more `TypedSortOrder.asc(field)` / `TypedSortOrder.desc(field)`
+  descriptors. The existing `orderBy(field)` and `orderByDesc(field)` overloads
+  are preserved for single-field backward compatibility. Engine-level mixed
+  direction execution is completed by WP-14.
+
+- **TypedQuery CONTAINS / MATCHES (WP-2)** — `TypedField.contains(String)` and
+  `TypedField.matches(String)` plus the corresponding `TypedPredicate.contains`
+  and `TypedPredicate.matches` static factories bring string-containment and
+  regex-match predicates to the typed surface, matching the engine's existing
+  `Clauses.CONTAINS` and `Clauses.MATCHES` support already available in
+  SQL-like and natural queries. `NOT(CONTAINS)` and `NOT(MATCHES)` lower to the
+  negated engine clauses (WP-26).
+
 ### Changed
+
+- **Grouped window/QUALIFY validation (WP-31)** - grouped queries with windows or
+  `QUALIFY` no longer fail with "Window SELECT expressions are only supported for
+  non-aggregate queries", "QUALIFY is only supported for non-aggregate SQL-like
+  queries", "Window functions are only supported for non-aggregate fluent queries", or
+  "TypedQuery windows are only supported for non-aggregate query shapes"; a window that
+  references a field outside the grouped rows fails with an unknown-field error
+  instead. A fluent or typed query with group fields but no metric still rejects
+  windows.
+
+- **`AGGREGATE` telemetry (WP-31)** - the `AGGREGATE` event is emitted once `HAVING`
+  has run and adds `rowsAfterHaving` metadata; its duration now includes `HAVING`.
+  `rowCountBefore`/`rowCountAfter` are unchanged.
+
+- **Metric output typing (WP-31)** - strict parameter typing and window typing report
+  `SUM` over whole-number fields as `Long` (`Double` over floating fields,
+  `BigDecimal` over `BigDecimal`/`BigInteger`), matching the values the engine
+  returns; previously the field type. One owner (`QueryMetric.outputType`) replaces
+  the duplicate in the parameter validator.
+
+- **Computed-field type checks (WP-29)** - `ComputedFieldDefinition.of(...)` rejects
+  an output type that cannot hold the result (`lower(name)` as `Integer`), and a query
+  checks every applicable registry definition against the source field types
+  (`upper(salary)` over a number fails with `EQ-SQL-VAL-009` in SQL-like queries)
+  instead of failing or storing a wrong value at runtime. The "outputType must be
+  numeric" rule is gone.
+
+- **Expression typing (WP-29)** - expression kinds are checked during validation
+  (`EQ-SQL-VAL-009`): `lower(salary)`, `name * 2`, or `coalesce(salary, name)` fail
+  before the query runs instead of at runtime. A computed `SELECT` output gets one
+  static Java type: the tabular schema reports it (`Double` for arithmetic, `String`
+  for text functions, `Integer` for `length`; previously always `Number`), strict
+  parameter typing checks against it (previously always numeric), and projection
+  converts values to it, so `coalesce(bonus, 0)` over an `Integer` field returns
+  `Integer`. Computed fields declared as `BigDecimal` or `BigInteger` now hold that
+  type (previously `Double`). Inside an expression, `null` is the null literal, not a
+  field named `null`.
+
+- **Plan preview null tests (WP-25)** - `= null` / `IS NULL` and `!= null` /
+  `IS NOT NULL` filters now preview as `IS NULL` / `IS NOT NULL` instead of `=` /
+  `!=`, so pushdown preview treats them as unsupported (fallback) rather than as a
+  pushable `=` that SQL would never match.
+
+- **Release gates** - the `binary-compat` japicmp profile now covers every type
+  listed as stable in `docs/public-api-stability.md` (29 more, including
+  `PageResult`, `QueryDiagnostics`, guard, pushdown, and plan-preview contracts);
+  the lint baseline and SpotBugs report are clean.
+
+- **Date/time comparison precision (WP-23)** - two date/time values now compare
+  exactly (previously both were cut to whole seconds). A text literal compares at
+  the precision it is written: `'2024-01-02'` covers the whole day,
+  `'2024-01-02 10:00:00'` that second, `...T10:00:00.500Z` that millisecond. An
+  explicit fluent date format keeps its old normalization.
+
+- **Null keyset boundaries (WP-23)** - `filterPage(...)` no longer throws
+  `EQ-SQL-PAG-003` when the last row has a null sort value; the cursor carries the
+  null and the next page continues after it.
+
+- **Null comparison semantics are uniform (WP-22)** - a `null` field no longer
+  matches `!=`/`ne` (or a negated `eq`) with a value on any execution path.
+  Previously grouped/compound and typed queries included null rows while simple
+  SQL-like predicates excluded them. Use `= null` / `!= null` or typed
+  `isNull()` / `isNotNull()` to select null rows explicitly.
+
+- **Generated typed-field metamodels include inherited fields and value-type
+  fields (WP-22)** - both the annotation processor and the reflection generator
+  now emit constants for inherited fields and for `BigDecimal`, `BigInteger`,
+  `UUID`, `LocalTime`, array, and collection fields, matching the runtime query
+  schema.
 
 - Reset `TODO.md` and hot AI memory around the `neon` extraction cleanup so
   PojoLens stays focused on the Java library and the surviving repo-memory
@@ -19,12 +378,6 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   (`2026.05.18.1353`) while in-repo example builds continue to track the
   checked-in root POM version.
 
-### Fixed
-
-- Wired Central publish wait mode through Maven properties and the release
-  workflow input so PojoLens only waits for the final `published` state when
-  that mode is explicitly selected.
-
 ### Removed
 
 - Removed the extracted local AI tooling surface after that runtime moved to
@@ -32,6 +385,84 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 - Removed the leftover extracted runtime artifacts and obsolete Python-only
   validation coverage from PojoLens.
+
+### Fixed
+
+- **Keyset paging gaps (WP-23)** - rows whose sort value is null were skipped
+  after the first page; ordering by an aggregate or select alias failed on page 2
+  (`EQ-SQL-VAL-001`); paging on a sub-second timestamp column skipped rows; a
+  natural field named `a`/`an`/`the` was stripped as a filler word; the internal
+  fluent `filterGroups` key merged groups whose values contained `,`.
+
+- **Core engine correctness pass (WP-22)** - reproduced defects fixed across
+  comparison, ordering, aggregation, grouping, paging, joins, and projection:
+  - enum and `char`/`Character` fields never matched any predicate; they now
+    compare by constant name / character (enum ordering by declaration order);
+  - numbers above 2^53 (for example snowflake IDs) compared, sorted, and summed
+    through `double`; whole numbers now compare and sort as `long`, decimals as
+    `BigDecimal`, and `SUM`/`MIN`/`MAX` are exact (window sums too). A `SUM`
+    past the `long` range throws `ArithmeticException` instead of saturating;
+  - `>`, `>=`, `<`, `<=`, and `between` on text fields always returned nothing;
+  - ISO date literals (`'2024-01-02'`, `...T10:15:30Z`), including the natural
+    `is after 2024-01-02` phrase, silently matched nothing;
+  - instants in a daylight-saving overlap compared as equal;
+  - a `null` inside an `IN` list matched the text `'null'`;
+  - numeric text parsing depended on the default locale;
+  - `GROUP BY` merged distinct keys (`null`/`''`/`'<NULL>'`, every `LocalDate`
+    into one group, sub-second timestamps); `DISTINCT` dropped nulls and shifted
+    key positions;
+  - `OFFSET` was ignored on grouped/aggregate queries without `LIMIT`;
+  - an aggregate without `GROUP BY` returned no row over empty input;
+  - `keysetBefore(...)` returned the first page instead of the page before the
+    cursor;
+  - `LocalDate` join keys produced a Cartesian product; the fast and legacy join
+    paths disagreed across numeric key types; null join keys matched each other;
+    an inner join against an empty side returned the unjoined rows;
+  - a qualified reference to a root field that collides with a joined field
+    (`parents.name`) was rejected as ambiguous, and `RIGHT JOIN` resolved
+    colliding names against the wrong side;
+  - computed fields threw when a dependency was null (for example an unmatched
+    `LEFT JOIN` row); the computed value is now `null`;
+  - projection into `short`/`byte`/`char` fields crashed;
+  - inherited fields, and `BigDecimal`/`BigInteger`/`UUID`/`LocalTime`/collection
+    fields, were silently dropped from query schemas and results;
+  - the internal equality-index hint could drop rows for `OR` rules or
+    mismatched value types.
+
+- **Natural `starts with :param` / `ends with :param` (WP-20)** - a named
+  parameter after a prefix/suffix phrase (including `starting with` /
+  `ending with`) was bound as a raw full-match regex, so it behaved like
+  equality: `name starts with :p` with `p = "Al"` matched `Al` but not
+  `Alice`. The bound value is now treated as literal text, like an inline
+  value. Strict parameter typing still sees the raw value, and a parameter
+  reused elsewhere in the same query keeps its own meaning there.
+
+- **Typed `containsIgnoreCase` on multi-line and non-ASCII values (WP-20)** -
+  the lowered pattern now uses `(?siu)`, so matches span line breaks and
+  case folding covers non-ASCII letters (`"ZOË"` matches `"Zoë"`). All
+  literal-to-regex lowering now lives in one internal owner
+  (`LiteralMatchPattern`).
+
+- **Natural `starts with` / `ends with` on multi-line values (WP-19)** - the
+  generated `MATCHES` pattern now carries `(?s)`, so values containing line
+  terminators match like `String.startsWith` / `String.endsWith` instead of
+  silently failing. Natural `explain(...)` `equivalentSqlLike` text now shows
+  the `(?s)` prefix.
+
+- Corrected README Java requirement text to JDK 25 and replaced the typed
+  mixed-sort error hint that incorrectly suggested SQL-like as an escape hatch.
+
+- **TypedQuery NOT lowering (WP-1)** — `TypedPredicate.not()` now lowers
+  correctly via DeMorgan's laws instead of throwing
+  `UnsupportedOperationException` at execution time. Leaf operators flip
+  (EQ↔NE, GT↔LTE, GTE↔LT, IS_NULL↔IS_NOT_NULL, EXISTS↔NOT_EXISTS), compound
+  AND/OR are distributed recursively, double negation is eliminated, and
+  `NOT(IN)` expands to an AND of NE rules. `NOT(IN_SUBQUERY)` throws with an
+  actionable message directing callers to `NOT EXISTS`.
+
+- Wired Central publish wait mode through Maven properties and the release
+  workflow input so PojoLens only waits for the final `published` state when
+  that mode is explicitly selected.
 
 ## [2026.04.29.1809] - 2026-04-29
 

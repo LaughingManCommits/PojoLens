@@ -44,6 +44,7 @@ public final class SqlLikePlanPreview {
     private final PlanPreviewPaging paging;
     private final List<String> requiredParams;
     private final boolean hasSubqueries;
+    private final boolean distinct;
 
     public SqlLikePlanPreview(String source,
                               boolean wildcard,
@@ -76,6 +77,27 @@ public final class SqlLikePlanPreview {
                               PlanPreviewPaging paging,
                               List<String> requiredParams,
                               boolean hasSubqueries) {
+        this(source, wildcard, selectFields, filters, filterExpression, groupByFields, havingFilters,
+                havingExpression, qualifyFilters, qualifyExpression, orderFields, joins, paging, requiredParams,
+                hasSubqueries, false);
+    }
+
+    public SqlLikePlanPreview(String source,
+                              boolean wildcard,
+                              List<PlanPreviewField> selectFields,
+                              List<PlanPreviewFilter> filters,
+                              PlanPreviewPredicate filterExpression,
+                              List<String> groupByFields,
+                              List<PlanPreviewFilter> havingFilters,
+                              PlanPreviewPredicate havingExpression,
+                              List<PlanPreviewFilter> qualifyFilters,
+                              PlanPreviewPredicate qualifyExpression,
+                              List<PlanPreviewOrder> orderFields,
+                              List<PlanPreviewJoin> joins,
+                              PlanPreviewPaging paging,
+                              List<String> requiredParams,
+                              boolean hasSubqueries,
+                              boolean distinct) {
         this.source = Objects.requireNonNull(source, "source must not be null");
         this.wildcard = wildcard;
         this.selectFields = List.copyOf(Objects.requireNonNull(selectFields, "selectFields must not be null"));
@@ -91,6 +113,16 @@ public final class SqlLikePlanPreview {
         this.paging = paging;
         this.requiredParams = List.copyOf(Objects.requireNonNull(requiredParams, "requiredParams must not be null"));
         this.hasSubqueries = hasSubqueries;
+        this.distinct = distinct;
+    }
+
+    /**
+     * Returns whether the query uses {@code SELECT DISTINCT}.
+     *
+     * @return true for {@code SELECT DISTINCT}
+     */
+    public boolean isDistinct() {
+        return distinct;
     }
 
     /**

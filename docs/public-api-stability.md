@@ -71,6 +71,8 @@ The default first-read story is SQL-like first:
   - `jsonl(Path, Class<T>, JsonOptions)`
   - `jsonlWithReport(Path, Class<T>)`
   - `jsonlWithReport(Path, Class<T>, JsonOptions)`
+  - every method above also accepts a `Reader` or `InputStream` in place of
+    `Path` (same overload shapes; stream sources are read but never closed)
 - `PojoLensCsv`
   - `read(Path, Class<T>)`
   - `read(Path, Class<T>, CsvOptions)`
@@ -143,7 +145,7 @@ The default first-read story is SQL-like first:
 - `SqlLikePlanPreview`:
   - `source`, `isWildcard`, `selectFields`, `filters`, `filterExpression`, `groupByFields`,
     `havingFilters`, `havingExpression`, `qualifyFilters`, `qualifyExpression`, `orderFields`,
-    `joins`, `paging`, `requiredParams`, `hasSubqueries`
+    `joins`, `paging`, `requiredParams`, `hasSubqueries`, `isDistinct`
   - `hasGrouping`, `hasJoins`, `hasWindows`, `hasPaging`, `hasAggregation`
 - `PlanPreviewField`:
   - `field`, `outputName`, `alias`, `metric`, `timeBucket`, `windowFunction`,
@@ -172,8 +174,10 @@ The default first-read story is SQL-like first:
   - `builder`, `empty`, `asMap`
 - `SqlLikeCursor`:
   - `builder`, `fromToken`, `toToken`
+  - cursor values may be `null`; tokens carry text, numbers, booleans, `Character`,
+    `UUID`, `Date`, `java.time` values, and enum names
 - `PageResult<T>`:
-  - `rows`, `hasMore`, `nextCursor`
+  - `of`, `rows`, `totalRows`, `hasMore`, `nextCursor`
 - `JoinBindings`:
   - `empty`, `of`, `from`, `builder`, `asMap`
 
@@ -181,17 +185,28 @@ The default first-read story is SQL-like first:
 
 - `TypedField<T,V>`:
   - `of`, `fieldName`, `valueType`
-  - predicate factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `inSubquery`, `isNull`, `isNotNull`
+  - predicate factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `inSubquery`, `isNull`, `isNotNull`
+  - string predicates: `contains`, `containsIgnoreCase`, `matches`, `startsWith`, `endsWith`
 - `TypedPredicate<T>`:
   - `operator`, `field`, `value`, `values`, `children`, `isLeaf`
   - combinators/factories: `and`, `or`, `not`, `allOf`, `anyOf`, `inSubquery`, `exists`, `notExists`
+  - static leaf factories mirroring `TypedField`: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `in`,
+    `isNull`, `isNotNull`, `contains`, `containsIgnoreCase`, `matches`, `startsWith`, `endsWith`
+  - sentinels: `any`, `none`
+  - `TypedPredicate.Operator` constants may grow in minor releases; switch over it with a `default` branch
 - `TypedQuery<T>`:
-  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `having`, `window`, `windowCountAll`, `qualify`, `orderBy`, `orderByDesc`, `limit`, `offset`
-  - `executionGuard`, `filter`, `explain`, `schema`
+  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `countDistinct`, `percentile`, `metric`, `having`, `window`, `windowCountAll`, `lag`, `lead`, `qualify`, `orderBy`, `orderByDesc`, `distinct`, `limit`, `offset`
+  - `timeBucket`, `computedFields`, `hasComputedFields`, `computedFieldRegistry`
+  - `executionGuard`, `filter`, `filterPage`, `stream`, `iterator`, `count`, `exists`, `findFirst`, `findOne`
+  - `explain`, `schema`, `diagnostics`, `planPreview`
+  - field names are validated against the entity before execution; joined queries validate
+    against the joined rows once each joined source class is known (bound rows or the
+    `join(sourceName, sourceClass, ...)` overload)
   - current stable foundation covers projection, filters, join declarations,
     `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
     `HAVING` over grouped fields and metric aliases, rank windows, aggregate
-    window outputs, `QUALIFY` over selected window aliases, totals-style
+    window outputs, `lag`/`lead` offset windows, windows over grouped rows,
+    `QUALIFY` over selected window aliases, totals-style
     metrics, explicit aggregate window frames via `QueryWindowFrame`,
     bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries over the same source or
     an explicit source list, ordering, offset, limit, explain/schema, and
@@ -200,6 +215,9 @@ The default first-read story is SQL-like first:
     the text surfaces
 - `TypedWindowOrder`:
   - `asc`, `desc`, `fieldName`, `sort`
+- typed plan-preview contracts returned by `TypedQuery.planPreview()`:
+  - `TypedPlanPreview`, `TypedPlanPredicate`, `TypedPlanMetric`, `TypedPlanWindow`, `TypedPlanTimeBucket`
+  - `TypedPlanWindow.offset()` / `defaultValue()` describe `lag`/`lead` windows (WP-31)
 - `FieldMetamodelGenerator.generateTyped(...)`
 - `GeneratePojoLensTypedFields`:
   - `packageName`, `simpleName`
@@ -212,7 +230,7 @@ The default first-read story is SQL-like first:
   - `parse`, `template`
 - `NaturalQuery`:
   - `of`, `source`, `equivalentSqlLike`, `params`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`
+  - `bindTyped`, `filter`, `filterPage`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`
   - chart execution supports either explicit `ChartSpec` or parsed natural chart phrases
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `NaturalTemplate`:
@@ -228,8 +246,14 @@ The default first-read story is SQL-like first:
   - `CsvOptions`, `CsvCoercionPolicy`, `CsvLoadResult`, `CsvLoadReport`,
     `CsvLoadException`, `JsonOptions`, `JsonLoadResult`, `JsonLoadReport`,
     `JsonLoadException`, `CsvRuntime`, `FileLoadRuntime`
+  - `CsvLoadReport.sourceName()` / `JsonLoadReport.sourceName()`: file path, or
+    `<reader>` / `<input-stream>` for stream loads (`path()` is `null` then)
 - query enums:
   - `Clauses`, `Join`, `Metric`, `Separator`, `Sort`, `TimeBucket`
+  - enum constants may be added in minor releases (`Clauses.NOT_CONTAINS`,
+    `Clauses.NOT_MATCHES`, `Metric.COUNT_DISTINCT`, and the statistical `Metric`
+    constants were); existing constants keep
+    their names and order, so keep a `default` branch when switching over these enums
 - shared window-frame descriptor:
   - `QueryWindowFrame` (`internal.builder` package retained for compatibility)
 - chart contracts:
@@ -250,6 +274,13 @@ The following remain public, but are treated as advanced:
 - metamodel annotation processing, batch generation, saved-report catalog
   validation, and related build-tooling result types
 - benchmark tooling and threshold helpers
+- the parsed SQL-like AST in `laughing.man.commits.sqllike.ast`. Since WP-29,
+  `QueryAst.groupByFields()` and `OrderAst.field()` may hold expression text such as
+  `year(hireDate)`, grouped queries may carry computed `SelectFieldAst` outputs, and
+  expression text may contain `'text'` and `null` literals. The class shapes are
+  unchanged. Since WP-31, `SelectFieldAst` adds `windowOffset()`, `windowDefault()`, and
+  `withWindowOffset(offset, default)` for `LAG`/`LEAD`, and grouped queries may carry
+  window `SelectFieldAst` outputs; existing constructors and accessors are unchanged.
 
 ## Internal Engine DSL
 

@@ -9,11 +9,24 @@ public final class SelectAst {
     private final boolean wildcard;
     private final List<SelectFieldAst> fields;
     private final String sourceName;
+    private final boolean distinct;
 
     public SelectAst(boolean wildcard, List<SelectFieldAst> fields, String sourceName) {
+        this(wildcard, fields, sourceName, false);
+    }
+
+    public SelectAst(boolean wildcard, List<SelectFieldAst> fields, String sourceName, boolean distinct) {
         this.wildcard = wildcard;
         this.fields = Collections.unmodifiableList(new ArrayList<>(fields));
         this.sourceName = sourceName;
+        this.distinct = distinct;
+    }
+
+    /**
+     * {@code SELECT DISTINCT}: duplicate output rows collapse to one.
+     */
+    public boolean distinct() {
+        return distinct;
     }
 
     public boolean wildcard() {

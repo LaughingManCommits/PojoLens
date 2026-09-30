@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-18T17:22:06.888520+02:00",
-  "generation": "20260518T152206-35676-1779117726892098800",
+  "generatedAt": "2026-09-30T19:11:05.383395+02:00",
+  "generation": "20260930T171105-62600-1790788265388282800",
   "git": {
-    "headCommit": "aec4543a5e8b24e131e8237d1e2cba0bbda2b861",
-    "branch": "main",
+    "headCommit": "e6937e9d2af658aa5d6999aa35766688fd4c28fe",
+    "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "c48168e71c6aece2c377d940117d49144da7a065403ba839f06a962c801cda82",
+  "inputsHash": "7c5589a1ac4a719e48b89c827f23162e4a69dc5b31dc6a7161e2a603eebf6ca1",
   "hotContext": {
     "files": [
       {
@@ -18,12 +18,12 @@
       {
         "path": "ai/core/repo-purpose.md",
         "lines": 24,
-        "bytes": 1902
+        "bytes": 1925
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 28,
-        "bytes": 2348,
+        "lines": 32,
+        "bytes": 2266,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -65,8 +65,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 32,
-        "bytes": 2675,
+        "lines": 33,
+        "bytes": 2621,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -103,8 +103,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 91,
-    "totalBytes": 7788,
+    "totalLines": 96,
+    "totalBytes": 7675,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -114,8 +114,8 @@
   "eventLog": {
     "activeLog": {
       "path": "ai/log/events.jsonl",
-      "entries": 5,
-      "bytes": 1300
+      "entries": 13,
+      "bytes": 4924
     },
     "archiveFiles": [
       {
@@ -134,7 +134,7 @@
       "ai/log/archive/2026-04-summary.md"
     ],
     "retention": 12,
-    "totalEntries": 132
+    "totalEntries": 140
   },
   "derivedArtifacts": {
     "refreshCache": "ai/indexes/refresh-state.json",
@@ -142,41 +142,41 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "de67007f1a8b3fe38a4943e96ca9ecf7396641003fa6518adf883cf9a594914a",
-        "inputFiles": 58
+        "inputHash": "b7127ccd70faf8a16c324fb739e654efa23abb5903edd39a56f74bc9be2b93dc",
+        "inputFiles": 60
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "636920566c10616b2d777b3519513b239687327bbd321f921d2d144d0eec325b",
-        "inputFiles": 529
+        "inputHash": "75437531df006409a82d55a4a3b7aba767fd006327efc1dfe67e76688f1df0dd",
+        "inputFiles": 587
       },
       {
         "path": "ai/indexes/symbols-index.json",
-        "status": "reused",
-        "inputHash": "36d4e36ff548b3f449e1679a0b32e3ca170285f8dfd39736db00f588ccf67729",
-        "inputFiles": 285
+        "status": "rebuilt",
+        "inputHash": "812c490d17de0dfd2f2c465291f7b972577fd893c862062323f0d65a888e5519",
+        "inputFiles": 318
       },
       {
         "path": "ai/indexes/test-index.json",
-        "status": "reused",
-        "inputHash": "92d5bdb6dae745c0e457e2ea2c9372f3d4f46a823d81d72eefb1e161454c2632",
-        "inputFiles": 162
+        "status": "rebuilt",
+        "inputHash": "4b1654ab02f045434bf266f0cfe235060dddf86ed21794075022e8c497385dc4",
+        "inputFiles": 184
       },
       {
         "path": "ai/indexes/config-index.json",
-        "status": "rebuilt",
-        "inputHash": "877427a735ee3f62694829409c832e450193e893c729cf74b689906972a1f0af",
-        "inputFiles": 30
+        "status": "reused",
+        "inputHash": "6c54d1bbf94ade7f54778e566994edad97cabaae041ed55be14a56402b9ca742",
+        "inputFiles": 31
       }
     ],
     "sqlite": {
       "status": "built",
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
-      "documents": 60,
-      "sections": 605,
-      "updatedFiles": 60,
+      "documents": 62,
+      "sections": 692,
+      "updatedFiles": 62,
       "reusedFiles": 0,
       "removedFiles": 0,
       "mode": "incremental"

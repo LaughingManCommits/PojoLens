@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike.internal.validation;
 
-import laughing.man.commits.internal.builder.QueryWindowFrame;
+import laughing.man.commits.enums.Join;
+import laughing.man.commits.internal.JoinFieldNames;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -16,6 +17,7 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
+import laughing.man.commits.sqllike.internal.window.WindowExpressionText;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -74,7 +76,11 @@ public final class SqlLikeJoinResolution {
             }
 
             resolvedJoins.add(new ResolvedJoin(join, parentField, childField));
-            state.addChild(join.childSource(), childFields, childTypes);
+            if (join.joinType() == Join.RIGHT_JOIN) {
+                state.addRightChild(join.childSource(), childFields, childTypes);
+            } else {
+                state.addChild(join.childSource(), childFields, childTypes);
+            }
         }
 
         return new Plan(resolvedJoins, state.directReferences(), state.fieldTypes(), state.ambiguousReferences());
@@ -132,10 +138,12 @@ public final class SqlLikeJoinResolution {
                 }
                 resolvedWindowPartitions = List.copyOf(partitions);
                 resolvedWindowOrders = List.copyOf(orders);
-                resolvedField = windowExpression(
+                resolvedField = WindowExpressionText.render(
                         resolvedWindowFunction,
                         resolvedWindowValueField,
                         resolvedWindowCountAll,
+                        field.windowOffset(),
+                        field.windowDefault(),
                         resolvedWindowPartitions,
                         resolvedWindowOrders,
                         field.windowFrame()
@@ -157,62 +165,11 @@ public final class SqlLikeJoinResolution {
                     resolvedWindowOrders,
                     resolvedWindowValueField,
                     resolvedWindowCountAll,
-                    field.windowFrame()
-            ));
+                    field.windowFrame(),
+                    field.metricArgument()
+            ).withWindowOffset(field.windowOffset(), field.windowDefault()));
         }
-        return new SelectAst(select.wildcard(), fields, select.sourceName());
-    }
-
-    private static String windowExpression(String function,
-                                           String valueField,
-                                           boolean countAll,
-                                           List<String> partitionFields,
-                                           List<OrderAst> orders,
-                                           QueryWindowFrame frame) {
-        StringBuilder expression = new StringBuilder(function).append('(');
-        if (isAggregateWindowFunction(function)) {
-            expression.append(countAll ? "*" : valueField);
-        }
-        expression.append(") OVER (");
-        boolean wroteSegment = false;
-        if (!partitionFields.isEmpty()) {
-            expression.append("PARTITION BY ").append(String.join(", ", partitionFields));
-            wroteSegment = true;
-        }
-        if (!orders.isEmpty()) {
-            if (wroteSegment) {
-                expression.append(' ');
-            }
-            expression.append("ORDER BY ");
-            for (int i = 0; i < orders.size(); i++) {
-                if (i > 0) {
-                    expression.append(", ");
-                }
-                OrderAst order = orders.get(i);
-                expression.append(order.field());
-                if (order.sort() != null) {
-                    expression.append(' ').append(order.sort().name());
-                }
-            }
-            wroteSegment = true;
-        }
-        if (isAggregateWindowFunction(function)) {
-            if (wroteSegment) {
-                expression.append(' ');
-            }
-            expression.append((frame == null ? QueryWindowFrame.running() : frame).sqlExpression());
-        }
-        expression.append(')');
-        return expression.toString();
-    }
-
-    private static boolean isAggregateWindowFunction(String function) {
-        if (function == null) {
-            return false;
-        }
-        return !"ROW_NUMBER".equalsIgnoreCase(function)
-                && !"RANK".equalsIgnoreCase(function)
-                && !"DENSE_RANK".equalsIgnoreCase(function);
+        return new SelectAst(select.wildcard(), fields, select.sourceName(), select.distinct());
     }
 
     private static List<FilterAst> canonicalizeFilters(List<FilterAst> filters, Plan plan, String clauseName) {
@@ -271,7 +228,7 @@ public final class SqlLikeJoinResolution {
     private static List<String> canonicalizeGroupBy(List<String> groupByFields, Plan plan) {
         ArrayList<String> groups = new ArrayList<>(groupByFields.size());
         for (String groupByField : groupByFields) {
-            groups.add(plan.resolveOrSame(groupByField, "GROUP BY"));
+            groups.add(canonicalizeReference(groupByField, plan, "GROUP BY"));
         }
         return groups;
     }
@@ -279,9 +236,19 @@ public final class SqlLikeJoinResolution {
     private static List<OrderAst> canonicalizeOrders(List<OrderAst> orders, Plan plan) {
         ArrayList<OrderAst> normalized = new ArrayList<>(orders.size());
         for (OrderAst order : orders) {
-            normalized.add(new OrderAst(plan.resolveOrSame(order.field(), "ORDER BY"), order.sort()));
+            normalized.add(new OrderAst(canonicalizeReference(order.field(), plan, "ORDER BY"), order.sort()));
         }
         return normalized;
+    }
+
+    /**
+     * A GROUP BY / ORDER BY item: an expression gets its identifiers resolved (WP-29), and a
+     * field or aggregate reference resolves as a whole.
+     */
+    private static String canonicalizeReference(String reference, Plan plan, String clauseName) {
+        return SqlExpressionEvaluator.isScalarExpression(reference)
+                ? rewriteExpression(reference, plan, clauseName)
+                : plan.resolveOrSame(reference, clauseName);
     }
 
     private static String rewriteExpression(String expression, Plan plan, String clauseName) {
@@ -448,17 +415,66 @@ public final class SqlLikeJoinResolution {
             }
         }
 
+        /**
+         * Mirrors the engine's RIGHT JOIN column order: the joined source's columns come first
+         * under their own names, and existing columns that collide take the child_ prefix.
+         */
+        private void addRightChild(String childSource, Set<String> fields, Map<String, Class<?>> types) {
+            LinkedHashSet<String> used = new LinkedHashSet<>(fields);
+            LinkedHashMap<String, String> renamed = new LinkedHashMap<>();
+            for (String existing : mergedFieldNames) {
+                String name = existing;
+                if (used.contains(name)) {
+                    name = JoinFieldNames.uniqueChildName(existing, used);
+                }
+                used.add(name);
+                renamed.put(existing, name);
+            }
+
+            LinkedHashMap<String, Class<?>> previousTypes = new LinkedHashMap<>(fieldTypes);
+            fieldTypes.clear();
+            for (String field : fields) {
+                fieldTypes.put(field, types.get(field));
+            }
+            for (Map.Entry<String, String> entry : renamed.entrySet()) {
+                fieldTypes.put(entry.getValue(), previousTypes.get(entry.getKey()));
+            }
+            mergedFieldNames.clear();
+            mergedFieldNames.addAll(used);
+
+            LinkedHashMap<String, String> previousReferences = new LinkedHashMap<>(directReferences);
+            directReferences.clear();
+            for (Map.Entry<String, String> entry : previousReferences.entrySet()) {
+                if (renamed.containsKey(entry.getKey()) && entry.getKey().equals(entry.getValue())) {
+                    continue; // a bare merged-name self reference; re-added below under its new name
+                }
+                directReferences.put(entry.getKey(), renamed.getOrDefault(entry.getValue(), entry.getValue()));
+            }
+            for (String merged : renamed.values()) {
+                directReferences.put(merged, merged);
+            }
+            uniqueRawReferences.replaceAll((raw, merged) -> renamed.getOrDefault(merged, merged));
+
+            for (String field : fields) {
+                directReferences.put(field, field);
+                directReferences.put(childSource + "." + field, field);
+                if (ambiguousReferences.contains(field)) {
+                    continue;
+                }
+                if (uniqueRawReferences.containsKey(field)) {
+                    uniqueRawReferences.remove(field);
+                    ambiguousReferences.add(field);
+                } else {
+                    uniqueRawReferences.put(field, field);
+                }
+            }
+        }
+
         private String nextMergedName(String baseName) {
             if (!mergedFieldNames.contains(baseName)) {
                 return baseName;
             }
-            String candidate = "child_" + baseName;
-            int index = 1;
-            while (mergedFieldNames.contains(candidate)) {
-                candidate = "child_" + baseName + "_" + index;
-                index++;
-            }
-            return candidate;
+            return JoinFieldNames.uniqueChildName(baseName, mergedFieldNames);
         }
 
         private Map<String, String> directReferences() {

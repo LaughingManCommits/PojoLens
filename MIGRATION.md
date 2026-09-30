@@ -1,5 +1,120 @@
 # Migration Notes
 
+## Upgrading From 2026.05.18.1353
+
+The next release fixes a set of silent wrong-result defects in the core engine.
+Most upgrades need no code changes, but some queries now return different, correct
+results. Review these before upgrading:
+
+Results that change:
+- **`!=` / `ne` exclude null fields.** A null field never matches a comparison with
+  a value on any query shape. Compound SQL-like queries and typed `ne(...)` or
+  `eq(...).not()` previously included null rows. To keep them, add
+  `or field = null` (SQL-like) or `.or(FIELD.isNull())` (typed).
+- **Date/time precision.** Two date/time values (typed arguments, bound parameters,
+  keyset cursors) now compare exactly; previously both were cut to whole seconds.
+  Text literals compare at the precision they are written: `'2024-01-02'` covers the
+  whole day, `'2024-01-02 10:00:00'` that second. ISO-8601 literals are accepted.
+- **Grouping keys.** `GROUP BY` and `DISTINCT` keep `null`, `''`, and `'<NULL>'`
+  apart, group `LocalDate` values per day (all values previously fell into one
+  group), and keep sub-second timestamps distinct. Group counts can change.
+- **Empty aggregates.** An aggregate without `GROUP BY` returns one row over empty
+  input (`count(*) = 0`, other aggregates `null`) instead of no rows.
+- **Large numbers.** Values above 2^53 now compare, sort, and sum exactly.
+  `SUM` over whole numbers that exceeds the `long` range throws
+  `ArithmeticException` instead of returning a saturated total. Window `SUM` over
+  whole-number fields returns `Long` (previously `Double`).
+- **Joins.** `LocalDate` join keys match by day (previously every pair joined),
+  numeric keys match across types (`int` vs `long`), and null keys never match.
+- **Keyset paging.** `keysetBefore(...)` returns the page immediately before the
+  cursor (previously the first page). Rows with null sort values are now reached,
+  and `filterPage(...)` no longer throws `EQ-SQL-PAG-003` when the last row has a
+  null sort value: the cursor carries the null.
+- **Plan preview null tests.** `= null` / `!= null` filters preview as `IS NULL` /
+  `IS NOT NULL` and fall back in pushdown preview (previously a pushable `=` / `!=`).
+- **Natural prefix/suffix parameters.** `name starts with :p` treats the bound value
+  as literal text (previously as a full-match regex, which behaved like equality).
+
+Stricter validation:
+- **Typed field names.** `TypedQuery` rejects a field name the entity does not have
+  (`IllegalArgumentException` with suggestions) instead of silently matching
+  nothing. Joined queries are checked against the joined rows (joined sources
+  bound to `QueryRow`/map rows or to empty lists without a declared class are
+  skipped), including their join keys; an unknown join key used to skip the join.
+- **Expression types.** SQL-like expressions are type-checked during validation
+  (`EQ-SQL-VAL-009`), so arithmetic on a text field fails before the query runs
+  instead of at runtime. A computed `SELECT` output is reported in the tabular schema
+  with its inferred type (`Double`, `String`, `Integer`, ...) instead of `Number`, and
+  strict parameter typing checks parameters against that type. Computed fields
+  declared as `BigDecimal`/`BigInteger` now hold that type instead of `Double`.
+- **Computed-field types.** A query checks every applicable registry definition
+  against the source field types, so a definition that does not fit its sources (for
+  example `upper(salary)` over a number) fails every query that uses the registry,
+  even when that field is not referenced.
+
+Wider schemas:
+- Inherited fields of user-defined superclasses, `BigDecimal`, `BigInteger`,
+  `UUID`, `LocalTime`, collection, and array fields are now part of the query
+  schema. `select *` results and projections carry them, and generated typed-field
+  classes gain matching constants.
+- Records work as source rows and as result classes.
+
+New, additive:
+- `PojoLensFiles` / `runtime.files()` accept `Reader` and `InputStream` sources;
+  load reports gain `sourceName()`.
+- Typed `startsWith`, `endsWith`, `iterator(...)`; SQL `COUNT(field)`; keyset
+  paging over select, aggregate, and window aliases.
+- SQL-like literal `IN ('a', 'b')` / `NOT IN (...)` lists and `IN :values` list
+  parameters; natural `is one of` / `is not one of`.
+- SQL-like `IS [NOT] NULL`, `[NOT] BETWEEN`, and `NOT`; natural `is [not] between`,
+  parenthesized groups, and `not (...)` (natural parentheses were previously rejected).
+- Negated text matching: `Clauses.NOT_CONTAINS` / `Clauses.NOT_MATCHES`, SQL-like
+  `NOT CONTAINS` / `NOT MATCHES`, natural `does not contain / start with / end with`.
+  Typed `not()` over string predicates now runs instead of throwing
+  `UnsupportedOperationException`. `Clauses` gained two constants: a `switch` over
+  `Clauses` without a `default` branch needs the new cases.
+- Statistical aggregates: `Metric.MEDIAN`, `PERCENTILE`, `STDDEV`, `STDDEV_POP`,
+  `VARIANCE`, `VAR_POP` (SQL-like functions, typed `percentile(...)`, natural phrases).
+  `Metric.requiresNumericField()` is now true for every metric except `COUNT` and
+  `COUNT_DISTINCT`.
+- `SELECT DISTINCT` / typed `distinct()` / natural `show distinct`, and
+  `COUNT(DISTINCT field)` via the new `Metric.COUNT_DISTINCT` (a `switch` over `Metric`
+  without a `default` branch needs the new case).
+- SQL-like `[NOT] LIKE` / `[NOT] ILIKE` with `ESCAPE`; natural `... ignoring case` on
+  contains / starts with / ends with. `LIKE`, `ILIKE`, and `ESCAPE` are not reserved,
+  so fields with those names keep working.
+- SQL-like expression functions `lower`, `upper`, `trim`, `length`, `substring`,
+  `concat`, `coalesce`, and `nullif`, with `'text'` and `null` literals, in `WHERE`,
+  `HAVING`, and computed `SELECT` outputs. Expressions over text fields used to fail at
+  runtime ("must be numeric") and now evaluate. Function names are not reserved.
+- SQL-like date-part functions `year`, `quarter`, `month`, `day`, `hour`, `minute`,
+  and `day_of_week`, with an optional zone, using the time-bucket zone rules.
+- Computed fields may declare `String`, date/time, or enum output types
+  (`add("deptKey", "lower(department)", String.class)`); the numeric-only restriction
+  is removed.
+- SQL-like `GROUP BY` and `ORDER BY` accept expressions (`group by year(hireDate)`,
+  `order by lower(name)`), and grouped queries accept computed `SELECT` outputs over
+  source fields. Code that reads the parsed AST should expect expression text in
+  `QueryAst.groupByFields()` and `OrderAst.field()`.
+- `LAG`/`LEAD` offset windows on every surface (SQL-like `lag(...) over (...)`, typed
+  `lag(...)`/`lead(...)`, natural `previous`/`next`). `WindowFunction` gained `LAG` and
+  `LEAD` (a `switch` over `WindowFunction` without a `default` branch needs the new
+  cases), and `isAggregateFunction()` stays false for them.
+- Windows and `QUALIFY` run on grouped queries, after `HAVING`. Queries that used to
+  fail with "only supported for non-aggregate" errors now run; a window that reads a
+  field outside the grouped rows (a source field that is not grouped) fails with an
+  unknown-field error. Code that reads the parsed AST should expect window
+  `SelectFieldAst` outputs in grouped queries.
+- The `AGGREGATE` telemetry event is emitted after `HAVING` (its duration includes
+  `HAVING`) and carries `rowsAfterHaving`.
+- Typed `stream(...)`/`iterator(...)` are lazy for simple unordered, unjoined shapes,
+  and SQL-like/natural streams with `OR`/`NOT` predicates are lazy too. Validation
+  still fails at the `stream(...)` call, but row-level errors (for example a bad
+  regex) now surface while the stream is consumed, and projection instances are
+  created on demand.
+
+See `CHANGELOG.md` for the complete list.
+
 ## Maven Coordinates
 
 Published coordinates now use GitHub namespace style:

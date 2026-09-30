@@ -6,6 +6,7 @@ import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chartjs.ChartJsAdapter;
 import laughing.man.commits.chartjs.ChartJsPayload;
+import laughing.man.commits.dsl.TypedQuery;
 import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -81,6 +82,23 @@ public final class ReportDefinition<T> {
 
     public static <T> ReportDefinition<T> natural(NaturalQuery query, Class<T> projectionClass, ChartSpec chartSpec) {
         return natural(query, projectionClass).withChartSpec(chartSpec);
+    }
+
+    public static <S, T> ReportDefinition<T> typed(TypedQuery<S> query, Class<T> projectionClass) {
+        Objects.requireNonNull(query, "query must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        return new ReportDefinition<>(
+                "typed:" + query.entityClass().getSimpleName(),
+                projectionClass,
+                null,
+                query.schema(projectionClass),
+                (sourceRows, joinBindings) -> executeTyped(query, sourceRows, joinBindings, projectionClass),
+                true
+        );
+    }
+
+    public static <S, T> ReportDefinition<T> typed(TypedQuery<S> query, Class<T> projectionClass, ChartSpec chartSpec) {
+        return typed(query, projectionClass).withChartSpec(chartSpec);
     }
 
     public String source() {
@@ -180,6 +198,14 @@ public final class ReportDefinition<T> {
             throw new IllegalStateException("Report definition has no chartSpec configured");
         }
         return chartSpec;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <S, T> List<T> executeTyped(TypedQuery<S> query,
+                                               List<?> sourceRows,
+                                               JoinBindings joinBindings,
+                                               Class<T> projectionClass) {
+        return query.filter((List<S>) sourceRows, joinBindings, projectionClass);
     }
 
     @FunctionalInterface

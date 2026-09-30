@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.table.TabularSchema;
@@ -71,6 +72,17 @@ public interface QueryBuilder {
     QueryBuilder offset(int rowOffset);
 
     /**
+     * Returns distinct result rows (SQL {@code SELECT DISTINCT}): after filtering, grouping,
+     * windows, and ordering, rows whose output values are equal collapse to the first one,
+     * then offset and limit apply. Values compare like {@code GROUP BY} keys. Unlike
+     * {@link #addDistinct(String)}, which de-duplicates source rows by key fields before
+     * filtering, this works on the output.
+     *
+     * @return builder
+     */
+    QueryBuilder distinctRows();
+
+    /**
      * Builds an executable filter pipeline from the currently configured query.
      *
      * @return filter executor
@@ -121,6 +133,8 @@ public interface QueryBuilder {
     QueryBuilder addOrder(String column, int index);
 
     <T, R> QueryBuilder addOrder(FieldSelector<T, R> selector, int index);
+
+    QueryBuilder addOrder(String column, int index, Sort sort);
 
     /**
      * Adds an ORDER BY field with an explicit date format.
@@ -180,6 +194,15 @@ public interface QueryBuilder {
     QueryBuilder addCount(String alias);
 
     /**
+     * Adds a {@code PERCENTILE} metric: linear interpolation between the closest ranks,
+     * like SQL {@code percentile_cont}.
+     *
+     * @param percentile fraction from 0 to 1 ({@code 0.9} is the 90th percentile)
+     * @return builder
+     */
+    QueryBuilder addPercentile(String field, double percentile, String alias);
+
+    /**
      * Adds a rank-style window output projected under the provided alias.
      */
     QueryBuilder addWindow(String alias,
@@ -220,6 +243,21 @@ public interface QueryBuilder {
             throw new UnsupportedOperationException("Window frames are not supported by this builder");
         }
         return addWindow(alias, function, partitionFields, orderFields);
+    }
+
+    /**
+     * Adds a {@code LAG}/{@code LEAD} window output: {@code valueField} read {@code offset}
+     * rows before ({@code LAG}) or after ({@code LEAD}) the current row within its
+     * partition, or {@code defaultValue} when that row is outside the partition.
+     */
+    default QueryBuilder addOffsetWindow(String alias,
+                                         WindowFunction function,
+                                         String valueField,
+                                         int offset,
+                                         Object defaultValue,
+                                         List<String> partitionFields,
+                                         List<QueryWindowOrder> orderFields) {
+        throw new UnsupportedOperationException("Offset windows are not supported by this builder");
     }
 
     /**

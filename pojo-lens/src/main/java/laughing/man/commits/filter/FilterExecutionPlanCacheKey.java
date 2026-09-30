@@ -108,7 +108,7 @@ public final class FilterExecutionPlanCacheKey {
                 namedValues(builder.getFilterDateFormats()),
                 namedValues(builder.getHavingDateFormats()),
                 indexedFieldShapes(builder.getGroupFields()),
-                indexedFieldShapes(builder.getOrderFields()),
+                orderFieldShapes(builder.getOrderFields(), builder.getOrderSorts()),
                 indexedFieldShapes(builder.getDistinctFields()),
                 builder.getReturnFields(),
                 timeBucketShapes(builder.getTimeBuckets()),
@@ -219,6 +219,17 @@ public final class FilterExecutionPlanCacheKey {
         return entries;
     }
 
+    private static List<NamedValue> orderFieldShapes(Map<Integer, String> fields, Map<Integer, ?> sorts) {
+        ArrayList<NamedValue> entries = new ArrayList<>(fields.size());
+        List<Map.Entry<Integer, String>> sorted = CollectionUtil.sortedEntriesByKey(fields);
+        for (Map.Entry<Integer, String> entry : sorted) {
+            Object sort = sorts.get(entry.getKey());
+            String value = sort == null ? entry.getValue() : entry.getValue() + ":" + sort;
+            entries.add(new NamedValue(String.valueOf(entry.getKey()), value));
+        }
+        return entries;
+    }
+
     private static List<NamedValue> namedValues(Map<String, String> values) {
         ArrayList<NamedValue> entries = new ArrayList<>(values.size());
         List<Map.Entry<String, String>> sorted = CollectionUtil.sortedEntriesByKey(values);
@@ -242,7 +253,9 @@ public final class FilterExecutionPlanCacheKey {
         ArrayList<MetricShape> shapes = new ArrayList<>(metrics.size());
         for (QueryMetric metric : metrics) {
             shapes.add(new MetricShape(
-                    String.valueOf(metric.getMetric()),
+                    metric.getArgument() == null
+                            ? String.valueOf(metric.getMetric())
+                            : metric.getMetric() + "(" + metric.getArgument() + ")",
                     metric.getField(),
                     metric.getAlias()
             ));

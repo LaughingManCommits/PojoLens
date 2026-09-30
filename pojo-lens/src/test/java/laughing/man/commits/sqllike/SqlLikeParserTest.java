@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
@@ -18,6 +19,8 @@ import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.parser.SqlLikeParseException;
 import laughing.man.commits.sqllike.parser.SqlLikeParser;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -432,13 +435,11 @@ public class SqlLikeParserTest {
     }
 
     @Test
-    public void shouldRejectUnsupportedBucketGranularity() {
-        try {
-            SqlLikeParser.parse("select bucket(hireDate,'hour') as period, count(*) as total group by period");
-            fail("Expected parse error");
-        } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Unsupported time bucket"));
-        }
+    public void shouldParseHourBucketGranularity() {
+        QueryAst ast = SqlLikeParser.parse("select bucket(hireDate,'hour') as period, count(*) as total group by period");
+
+        assertEquals("period", ast.select().fields().get(0).outputName());
+        assertEquals(TimeBucket.HOUR, ast.select().fields().get(0).timeBucket());
     }
 
     @Test
@@ -490,13 +491,66 @@ public class SqlLikeParserTest {
     }
 
     @Test
-    public void shouldRejectInWithoutSelectSubquery() {
-        try {
-            PojoLensSql.parse("where department in ('Engineering')");
-            fail("Expected parse error");
-        } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("IN currently requires a subquery starting with SELECT"));
-        }
+    public void shouldParseInWithLiteralList() {
+        QueryAst ast = SqlLikeParser.parse("where department in ('Engineering', 'Finance')");
+
+        assertEquals(Clauses.IN, ast.filters().get(0).clause());
+        assertEquals(List.of("Engineering", "Finance"), ast.filters().get(0).value());
+    }
+
+    @Test
+    public void shouldLowerNullTestsBetweenAndNot() {
+        QueryAst ast = SqlLikeParser.parse(
+                "where department is null and name is not null and not (salary between 1 and 5)");
+
+        List<FilterAst> filters = ast.filters();
+        assertEquals(Clauses.EQUAL, filters.get(0).clause());
+        assertNull(filters.get(0).value());
+        assertEquals(Clauses.NOT_EQUAL, filters.get(1).clause());
+        assertNull(filters.get(1).value());
+        // NOT (salary >= 1 AND salary <= 5) == salary < 1 OR salary > 5
+        assertEquals(Clauses.SMALLER, filters.get(2).clause());
+        assertEquals(Clauses.BIGGER, filters.get(3).clause());
+        assertEquals(Separator.OR, filters.get(3).separator());
+    }
+
+    @Test
+    public void shouldLowerLikeToMatchesAndKeepLikeWordsAsFieldNames() {
+        QueryAst ast = SqlLikeParser.parse("where like = 1 and escape like 'x!%%' escape '!' and ilike not ilike :p");
+
+        List<FilterAst> filters = ast.filters();
+        assertEquals("like", filters.get(0).field());
+        assertEquals(Clauses.EQUAL, filters.get(0).clause());
+        assertEquals("escape", filters.get(1).field());
+        assertEquals(Clauses.MATCHES, filters.get(1).clause());
+        assertEquals("(?s)\\Qx%\\E.*", filters.get(1).value());
+        assertEquals("ilike", filters.get(2).field());
+        assertEquals(Clauses.NOT_MATCHES, filters.get(2).clause());
+    }
+
+    @Test
+    public void shouldParseDistinctModifiersAndKeepDistinctAsFieldName() {
+        QueryAst distinct = SqlLikeParser.parse("select distinct department, count(distinct name) as n group by department");
+        QueryAst fieldNamedDistinct = SqlLikeParser.parse("select distinct, name");
+        QueryAst countOfDistinctField = SqlLikeParser.parse("select count(distinct) as n");
+
+        assertTrue(distinct.select().distinct());
+        assertEquals(Metric.COUNT_DISTINCT, distinct.select().fields().get(1).metric());
+        assertEquals("name", distinct.select().fields().get(1).field());
+        assertFalse(fieldNamedDistinct.select().distinct());
+        assertEquals("distinct", fieldNamedDistinct.select().fields().get(0).field());
+        assertEquals(Metric.COUNT, countOfDistinctField.select().fields().get(0).metric());
+        assertEquals("distinct", countOfDistinctField.select().fields().get(0).field());
+    }
+
+    @Test
+    public void shouldKeepFieldNamedIs() {
+        QueryAst ast = SqlLikeParser.parse("where is = 1 and is is not null");
+
+        assertEquals("is", ast.filters().get(0).field());
+        assertEquals(Clauses.EQUAL, ast.filters().get(0).clause());
+        assertEquals("is", ast.filters().get(1).field());
+        assertEquals(Clauses.NOT_EQUAL, ast.filters().get(1).clause());
     }
 
     @Test

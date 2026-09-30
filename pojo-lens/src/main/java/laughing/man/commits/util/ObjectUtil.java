@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -16,12 +18,15 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -81,15 +86,7 @@ public final class ObjectUtil {
         if (compareObject.getClass().isArray()) {
             return evaluateArrayComparison(fieldValue, compareObject, clause, dateFormat, negatedSetClause);
         }
-        if (isScalarComparable(compareObject)) {
-            return compare(fieldValue, compareObject, clause, dateFormat);
-        }
-
-        if (LOG.isInfoEnabled()) {
-            LOG.info("Could not cast/compare field as requested for filter rule [{}]",
-                    compareObject.getClass().getSimpleName());
-        }
-        return false;
+        return compare(fieldValue, compareObject, clause, dateFormat);
     }
 
     public static String castToString(Object fieldValue) {
@@ -167,6 +164,45 @@ public final class ObjectUtil {
                 return s == null ? null : cls.cast(Float.valueOf(s));
             }
 
+            if (cls == Short.class) {
+                if (fieldValue instanceof Number n) {
+                    return cls.cast(Short.valueOf(n.shortValue()));
+                }
+                String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+                return s == null ? null : cls.cast(Short.valueOf(parseIntegerCompatible(s).shortValue()));
+            }
+
+            if (cls == Byte.class) {
+                if (fieldValue instanceof Number n) {
+                    return cls.cast(Byte.valueOf(n.byteValue()));
+                }
+                String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+                return s == null ? null : cls.cast(Byte.valueOf(parseIntegerCompatible(s).byteValue()));
+            }
+
+            if (cls == Character.class) {
+                String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+                return s == null || s.length() != 1 ? null : cls.cast(s.charAt(0));
+            }
+
+            if (cls == BigDecimal.class) {
+                if (fieldValue instanceof Number n) {
+                    return cls.cast(toBigDecimal(n));
+                }
+                return cls.cast(StringUtil.parseNumber(castToString(fieldValue, DEFAULT_DATE_FORMAT)));
+            }
+
+            if (cls == BigInteger.class) {
+                if (fieldValue instanceof BigDecimal d) {
+                    return cls.cast(d.toBigInteger());
+                }
+                if (fieldValue instanceof Number n && isIntegral(n)) {
+                    return cls.cast(BigInteger.valueOf(n.longValue()));
+                }
+                BigDecimal parsed = StringUtil.parseNumber(castToString(fieldValue, DEFAULT_DATE_FORMAT));
+                return parsed == null ? null : cls.cast(parsed.toBigInteger());
+            }
+
             if (cls == Boolean.class) {
                 if (fieldValue instanceof Boolean b) {
                     return cls.cast(b);
@@ -201,6 +237,13 @@ public final class ObjectUtil {
         if (fieldValue == null || clause == null) {
             return false;
         }
+        if (compareValue == null) {
+            // A null element of an IN list or subquery result never matches, so only the
+            // negated equality and text clauses hold for a non-null field.
+            return clause == Clauses.NOT_EQUAL
+                    || clause == Clauses.NOT_CONTAINS
+                    || clause == Clauses.NOT_MATCHES;
+        }
 
         try {
             if (fieldValue instanceof Number n) {
@@ -212,9 +255,16 @@ public final class ObjectUtil {
             if (fieldValue instanceof String s) {
                 return compareStringValues(s, compareValue, clause, dateFormat);
             }
+            if (fieldValue instanceof Character c) {
+                return compareStringValues(String.valueOf(c), compareValue, clause, dateFormat);
+            }
+            if (fieldValue instanceof Enum<?> e) {
+                return compareEnumValues(e, compareValue, clause, dateFormat);
+            }
             if (isDateLike(fieldValue)) {
                 return compareDateValues(fieldValue, compareValue, clause, dateFormat);
             }
+            return compareOtherValues(fieldValue, compareValue, clause, dateFormat);
         } catch (Exception e) {
             LOG.error("Failed to compare field [{}] with field [{}] with clause [{}]",
                     fieldValue, compareValue, clause, e);
@@ -254,25 +304,82 @@ public final class ObjectUtil {
     private static boolean compareNumberValues(Number fieldValue,
                                                Object compareValue,
                                                Clauses clause) {
-        final double left = fieldValue.doubleValue();
-
         if (compareValue instanceof Number n) {
-            return compareNumbers(left, n.doubleValue(), clause);
+            return compareNumbers(fieldValue, n, clause);
         }
 
         final String s = (compareValue instanceof String str) ? str : castToString(compareValue);
-        if (s != null && StringUtil.isNumber(s)) {
-            return compareNumbers(left, Double.parseDouble(s), clause);
+        final BigDecimal parsed = StringUtil.parseNumber(s);
+        if (parsed != null) {
+            return compareNumbers(fieldValue, parsed, clause);
         }
 
-        if (LOG.isWarnEnabled() && compareValue != null) {
+        if (LOG.isWarnEnabled()) {
             LOG.warn("compareValue [{}] type [{}] is not a convertible numeric type",
                     compareValue, compareValue.getClass().getSimpleName());
         }
         return false;
     }
 
-    private static boolean compareNumbers(double left, double right, Clauses clause) {
+    /**
+     * Evaluates a numeric predicate without losing precision: integral pairs compare as
+     * {@code long}, pairs involving {@code BigDecimal}/{@code BigInteger} compare as
+     * {@code BigDecimal}, and only pairs with a {@code float}/{@code double} side use IEEE
+     * {@code double} semantics (so {@code NaN} never equals anything).
+     */
+    public static boolean compareNumbers(Number left, Number right, Clauses clause) {
+        if (isIntegral(left) && isIntegral(right)) {
+            return matchesOrdering(Long.compare(left.longValue(), right.longValue()), clause);
+        }
+        if (isFloating(left) || isFloating(right)) {
+            return compareDoubles(left.doubleValue(), right.doubleValue(), clause);
+        }
+        return matchesOrdering(toBigDecimal(left).compareTo(toBigDecimal(right)), clause);
+    }
+
+    /**
+     * Total ordering over numbers with the same precision rules as
+     * {@link #compareNumbers(Number, Number, Clauses)}; {@code double} pairs use
+     * {@link Double#compare(double, double)}.
+     */
+    public static int compareNumeric(Number left, Number right) {
+        if (isIntegral(left) && isIntegral(right)) {
+            return Long.compare(left.longValue(), right.longValue());
+        }
+        if (isFloating(left) || isFloating(right)) {
+            return Double.compare(left.doubleValue(), right.doubleValue());
+        }
+        return toBigDecimal(left).compareTo(toBigDecimal(right));
+    }
+
+    private static boolean isIntegral(Number value) {
+        return value instanceof Integer
+                || value instanceof Long
+                || value instanceof Short
+                || value instanceof Byte
+                || value instanceof AtomicInteger
+                || value instanceof AtomicLong;
+    }
+
+    private static boolean isFloating(Number value) {
+        return value instanceof Double || value instanceof Float;
+    }
+
+    private static BigDecimal toBigDecimal(Number value) {
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (value instanceof BigInteger integer) {
+            return new BigDecimal(integer);
+        }
+        if (isIntegral(value)) {
+            return BigDecimal.valueOf(value.longValue());
+        }
+        BigDecimal parsed = StringUtil.parseNumber(value.toString());
+        return parsed != null ? parsed : BigDecimal.valueOf(value.doubleValue());
+    }
+
+    private static boolean compareDoubles(double left, double right, Clauses clause) {
         return switch (clause) {
             case BIGGER -> left > right;
             case BIGGER_EQUAL, NOT_SMALLER -> left >= right;
@@ -282,6 +389,27 @@ public final class ObjectUtil {
             case SMALLER -> left < right;
             default -> false;
         };
+    }
+
+    private static boolean matchesOrdering(int comparison, Clauses clause) {
+        return switch (clause) {
+            case BIGGER -> comparison > 0;
+            case BIGGER_EQUAL, NOT_SMALLER -> comparison >= 0;
+            case EQUAL, IN -> comparison == 0;
+            case NOT_BIGGER, SMALLER_EQUAL -> comparison <= 0;
+            case NOT_EQUAL -> comparison != 0;
+            case SMALLER -> comparison < 0;
+            default -> false;
+        };
+    }
+
+    private static boolean isOrderingClause(Clauses clause) {
+        return clause == Clauses.BIGGER
+                || clause == Clauses.BIGGER_EQUAL
+                || clause == Clauses.NOT_SMALLER
+                || clause == Clauses.SMALLER
+                || clause == Clauses.SMALLER_EQUAL
+                || clause == Clauses.NOT_BIGGER;
     }
 
     private static Integer parseIntegerCompatible(String value) {
@@ -309,7 +437,16 @@ public final class ObjectUtil {
     private static boolean isNegatedSetClause(Clauses clause) {
         return clause == Clauses.NOT_BIGGER
                 || clause == Clauses.NOT_EQUAL
-                || clause == Clauses.NOT_SMALLER;
+                || clause == Clauses.NOT_SMALLER
+                || clause == Clauses.NOT_CONTAINS
+                || clause == Clauses.NOT_MATCHES;
+    }
+
+    private static boolean isTextMatchClause(Clauses clause) {
+        return clause == Clauses.CONTAINS
+                || clause == Clauses.MATCHES
+                || clause == Clauses.NOT_CONTAINS
+                || clause == Clauses.NOT_MATCHES;
     }
 
     private static boolean evaluateIterableComparison(Object fieldValue,
@@ -406,23 +543,112 @@ public final class ObjectUtil {
                                                Object compareValue,
                                                Clauses clause,
                                                String dateFormat) {
-        final String right = (compareValue instanceof String s)
-                ? s
-                : castToString(compareValue, dateFormat);
+        if (compareValue instanceof Number number && isOrderingClause(clause)) {
+            // A numeric bound against a text field means numeric intent ("10" > 9).
+            BigDecimal parsed = StringUtil.parseNumber(fieldValue);
+            return parsed != null && compareNumbers(parsed, number, clause);
+        }
+        final String right = comparableText(compareValue, dateFormat);
 
         return switch (clause) {
             case EQUAL, IN -> Objects.equals(fieldValue, right);
             case NOT_EQUAL -> !Objects.equals(fieldValue, right);
             case CONTAINS -> right != null && fieldValue.contains(right);
             case MATCHES -> right != null && regexPattern(right).matcher(fieldValue).matches();
-            default -> false;
+            case NOT_CONTAINS -> right != null && !fieldValue.contains(right);
+            case NOT_MATCHES -> right != null && !regexPattern(right).matcher(fieldValue).matches();
+            case BIGGER, BIGGER_EQUAL, NOT_SMALLER, SMALLER, SMALLER_EQUAL, NOT_BIGGER ->
+                    right != null && matchesOrdering(fieldValue.compareTo(right), clause);
         };
     }
 
+    private static String comparableText(Object value, String dateFormat) {
+        return switch (value) {
+            case String s -> s;
+            case Enum<?> e -> e.name();
+            case Character c -> String.valueOf(c);
+            default -> castToString(value, dateFormat);
+        };
+    }
+
+    /**
+     * Other value types (UUID, LocalTime, ...): a same-type {@code Comparable} compares
+     * natively; anything else compares by its text form.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static boolean compareOtherValues(Object fieldValue,
+                                              Object compareValue,
+                                              Clauses clause,
+                                              String dateFormat) {
+        if (fieldValue.getClass().isInstance(compareValue) && !isTextMatchClause(clause)) {
+            if (fieldValue instanceof Comparable comparable) {
+                return matchesOrdering(comparable.compareTo(compareValue), clause);
+            }
+            return switch (clause) {
+                case EQUAL, IN -> fieldValue.equals(compareValue);
+                case NOT_EQUAL -> !fieldValue.equals(compareValue);
+                default -> false;
+            };
+        }
+        return compareStringValues(String.valueOf(fieldValue), compareValue, clause, dateFormat);
+    }
+
+    private static boolean compareEnumValues(Enum<?> fieldValue,
+                                             Object compareValue,
+                                             Clauses clause,
+                                             String dateFormat) {
+        if (!isOrderingClause(clause)) {
+            return compareStringValues(fieldValue.name(), compareValue, clause, dateFormat);
+        }
+        // Ordering follows declaration order, the same order enums sort in.
+        Enum<?> bound = resolveEnumConstant(fieldValue.getDeclaringClass(), compareValue);
+        return bound != null && matchesOrdering(Integer.compare(fieldValue.ordinal(), bound.ordinal()), clause);
+    }
+
+    private static Enum<?> resolveEnumConstant(Class<?> enumType, Object value) {
+        if (enumType.isInstance(value)) {
+            return (Enum<?>) value;
+        }
+        if (value instanceof String name) {
+            for (Object constant : enumType.getEnumConstants()) {
+                if (((Enum<?>) constant).name().equals(name)) {
+                    return (Enum<?>) constant;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Date/time comparison. With an explicit {@code dateFormat}, both sides are normalized
+     * to that format's precision (legacy fluent semantics). Without one:
+     * <ul>
+     *   <li>a temporal compare value compares exactly (local vs local on the local
+     *   timeline, otherwise as instants in the system zone);</li>
+     *   <li>a text literal compares at the precision it is written: {@code '2024-01-02'}
+     *   covers that day, {@code '2024-01-02 10:00:00'} that second,
+     *   {@code '2024-01-02T10:00:00.500Z'} that millisecond.</li>
+     * </ul>
+     */
     private static boolean compareDateValues(Object fieldValue,
                                              Object compareValue,
                                              Clauses clause,
                                              String dateFormat) {
+        if (dateFormat == null || dateFormat.isEmpty()) {
+            if (isDateLike(compareValue)) {
+                return matchesOrdering(TemporalComparison.compareExact(fieldValue, compareValue), clause);
+            }
+            if (compareValue instanceof String literal) {
+                TemporalComparison.Literal parsed = TemporalComparison.parseLiteral(literal);
+                if (parsed != null) {
+                    return matchesOrdering(parsed.compareField(fieldValue), clause);
+                }
+                if (LOG.isWarnEnabled()) {
+                    LOG.warn("compareValue [{}] is not a date literal", compareValue);
+                }
+                return false;
+            }
+        }
         final Long left = normalizeToEpochMillis(fieldValue, dateFormat);
         final Long right = normalizeToEpochMillis(compareValue, dateFormat);
 
@@ -462,14 +688,7 @@ public final class ObjectUtil {
         return datePlan(dateFormat).normalize(value);
     }
 
-    private static boolean isScalarComparable(Object value) {
-        return value instanceof Number
-                || value instanceof Boolean
-                || value instanceof String
-                || isDateLike(value);
-    }
-
-    private static boolean isDateLike(Object value) {
+    public static boolean isDateLike(Object value) {
         return value instanceof Date
                 || value instanceof Instant
                 || value instanceof LocalDate
@@ -489,9 +708,12 @@ public final class ObjectUtil {
     }
 
     private static final class DateFormatPlan {
+        private static final int PARSED_STRING_CACHE_MAX_ENTRIES = 256;
+
         private final String pattern;
         private final DateTimeFormatter formatter;
         private final DatePlanType type;
+        private final BoundedCache<String, Long> parsedStrings = new BoundedCache<>(PARSED_STRING_CACHE_MAX_ENTRIES);
 
         private DateFormatPlan(String pattern, DateTimeFormatter formatter, DatePlanType type) {
             this.pattern = pattern;
@@ -550,39 +772,11 @@ public final class ObjectUtil {
                         .atStartOfDay(systemZone)
                         .toInstant()
                         .toEpochMilli();
-                case DATE_HOUR -> LocalDateTime.of(
-                                zdt.getYear(),
-                                zdt.getMonthValue(),
-                                zdt.getDayOfMonth(),
-                                zdt.getHour(),
-                                0,
-                                0,
-                                0)
-                        .atZone(systemZone)
-                        .toInstant()
-                        .toEpochMilli();
-                case DATE_MINUTE -> LocalDateTime.of(
-                                zdt.getYear(),
-                                zdt.getMonthValue(),
-                                zdt.getDayOfMonth(),
-                                zdt.getHour(),
-                                zdt.getMinute(),
-                                0,
-                                0)
-                        .atZone(systemZone)
-                        .toInstant()
-                        .toEpochMilli();
-                case DATE_SECOND -> LocalDateTime.of(
-                                zdt.getYear(),
-                                zdt.getMonthValue(),
-                                zdt.getDayOfMonth(),
-                                zdt.getHour(),
-                                zdt.getMinute(),
-                                zdt.getSecond(),
-                                0)
-                        .atZone(systemZone)
-                        .toInstant()
-                        .toEpochMilli();
+                // Truncate the zoned value itself so its offset survives: rebuilding a
+                // LocalDateTime would fold the two instants of a DST overlap together.
+                case DATE_HOUR -> zdt.truncatedTo(ChronoUnit.HOURS).toInstant().toEpochMilli();
+                case DATE_MINUTE -> zdt.truncatedTo(ChronoUnit.MINUTES).toInstant().toEpochMilli();
+                case DATE_SECOND -> zdt.truncatedTo(ChronoUnit.SECONDS).toInstant().toEpochMilli();
                 case GENERIC -> normalizeGeneric(zdt, systemZone);
             };
         }
@@ -661,6 +855,49 @@ public final class ObjectUtil {
         }
 
         private Long normalizeString(String value, ZoneId systemZone) {
+            // Literal compare values are re-normalized for every row; memoize per zone.
+            return parsedStrings.getOrCompute(systemZone.getId() + '|' + value,
+                    ignored -> parseString(value, systemZone));
+        }
+
+        private Long parseString(String value, ZoneId systemZone) {
+            try {
+                return normalizeFormattedString(value, systemZone);
+            } catch (DateTimeException formatFailure) {
+                Long iso = normalizeIsoString(value.trim(), systemZone);
+                if (iso == null) {
+                    throw formatFailure;
+                }
+                return iso;
+            }
+        }
+
+        /**
+         * Accepts ISO-8601 literals ({@code 2024-01-02}, {@code 2024-01-02T10:15:30},
+         * {@code 2024-01-02T10:15:30Z}, offsets, zone ids) when the configured format
+         * does not match, then normalizes them to the configured precision.
+         */
+        private Long normalizeIsoString(String value, ZoneId systemZone) {
+            try {
+                if (value.indexOf('T') < 0) {
+                    return normalizeLocalDate(LocalDate.parse(value), systemZone);
+                }
+                TemporalAccessor parsed = DateTimeFormatter.ISO_DATE_TIME.parseBest(
+                        value,
+                        ZonedDateTime::from,
+                        LocalDateTime::from
+                );
+                return switch (parsed) {
+                    case ZonedDateTime zdt -> normalizeZoned(zdt.withZoneSameInstant(systemZone), systemZone);
+                    case LocalDateTime ldt -> normalizeLocalDateTime(ldt, systemZone);
+                    default -> null;
+                };
+            } catch (DateTimeException ignored) {
+                return null;
+            }
+        }
+
+        private Long normalizeFormattedString(String value, ZoneId systemZone) {
             return switch (type) {
                 case YEAR -> Year.parse(value, formatter)
                         .atDay(1)

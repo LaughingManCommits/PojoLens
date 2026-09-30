@@ -5,6 +5,7 @@ import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ final class QuerySpec {
     private Map<String, String> filterDateFormats = new HashMap<>();
     private Map<Integer, String> groupFields = new HashMap<>();
     private Map<Integer, String> orderFields = new HashMap<>();
+    private Map<Integer, Sort> orderSorts = new HashMap<>();
     private Map<Integer, String> distinctFields = new HashMap<>();
     private Map<String, List<String>> filterIDs = new HashMap<>();
     private Map<Integer, List<QueryRow>> joinClasses = new HashMap<>();
@@ -61,6 +63,7 @@ final class QuerySpec {
     private List<List<QueryRule>> qualifyAnyOfGroups = new ArrayList<>();
     private List<FluentSubqueryPredicate> filterSubqueries = new ArrayList<>();
     private boolean filterAlwaysFalse;
+    private boolean distinctRows;
     private Integer limit;
     private Integer offset;
 
@@ -176,6 +179,10 @@ final class QuerySpec {
         return orderFields;
     }
 
+    Map<Integer, Sort> getOrderSorts() {
+        return orderSorts;
+    }
+
     Map<Integer, String> getDistinctFields() {
         return distinctFields;
     }
@@ -260,6 +267,14 @@ final class QuerySpec {
         this.filterAlwaysFalse = filterAlwaysFalse;
     }
 
+    boolean isDistinctRows() {
+        return distinctRows;
+    }
+
+    void setDistinctRows(boolean distinctRows) {
+        this.distinctRows = distinctRows;
+    }
+
     Integer getLimit() {
         return limit;
     }
@@ -339,6 +354,7 @@ final class QuerySpec {
         copy.filterDateFormats = filterDateFormats;
         copy.groupFields = groupFields;
         copy.orderFields = orderFields;
+        copy.orderSorts = orderSorts;
         copy.distinctFields = distinctFields;
         copy.filterIDs = filterIDs;
         copy.joinClasses = copyJoinClassReferences(joinClasses);
@@ -359,6 +375,7 @@ final class QuerySpec {
         copy.qualifyAnyOfGroups = qualifyAnyOfGroups;
         copy.filterSubqueries = filterSubqueries;
         copy.filterAlwaysFalse = filterAlwaysFalse;
+        copy.distinctRows = distinctRows;
         copy.limit = limit;
         copy.offset = offset;
         return copy;
@@ -398,6 +415,7 @@ final class QuerySpec {
         replaceMap(target.filterDateFormats, filterDateFormats);
         replaceMap(target.groupFields, groupFields);
         replaceMap(target.orderFields, orderFields);
+        replaceMap(target.orderSorts, orderSorts);
         replaceMap(target.distinctFields, distinctFields);
         replaceMap(target.filterIDs, copyFilterIds(filterIDs));
         replaceMap(target.joinClasses, copyRows ? copyJoinClasses(joinClasses) : copyJoinClassReferences(joinClasses));
@@ -430,6 +448,7 @@ final class QuerySpec {
         target.filterSubqueries.clear();
         target.filterSubqueries.addAll(filterSubqueries);
         target.filterAlwaysFalse = filterAlwaysFalse;
+        target.distinctRows = distinctRows;
         target.limit = limit;
         target.offset = offset;
     }

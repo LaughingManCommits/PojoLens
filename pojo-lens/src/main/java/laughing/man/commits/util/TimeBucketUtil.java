@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.WeekFields;
@@ -33,6 +34,11 @@ public final class TimeBucketUtil {
     private static final int DATE_BUF_MONTH_OFFSET = 5;
     private static final int DATE_BUF_SEP2_INDEX = 7;
     private static final int DATE_BUF_DAY_OFFSET = 8;
+
+    // formatYearMonthDayHour buffer layout: YYYY-MM-DDTHH (13 chars)
+    private static final int HOUR_BUF_LENGTH = 13;
+    private static final int HOUR_BUF_T_INDEX = 10;
+    private static final int HOUR_BUF_HOUR_OFFSET = 11;
 
     // formatYearWeek buffer layout: YYYY-Www (8 chars)
     private static final int WEEK_BUF_LENGTH = 8;
@@ -87,31 +93,66 @@ public final class TimeBucketUtil {
         if (preset == null) {
             throw new IllegalArgumentException("preset must not be null");
         }
-        return formatBucketDate(normalizeBucketDate(rawValue, preset), preset);
+        if (preset.bucket() == TimeBucket.HOUR) {
+            return formatBucketHour(localDateTime(rawValue, preset.zoneId()));
+        }
+        return formatBucketDate(localDate(rawValue, preset.zoneId()), preset);
     }
 
-    private static LocalDate normalizeBucketDate(Object rawValue, TimeBucketPreset preset) {
+    /**
+     * Wall-clock date of a supported date/time value in a zone. Instants ({@code Date},
+     * {@code Instant}, {@code OffsetDateTime}, {@code ZonedDateTime}) convert into the zone;
+     * local values are read in it. Time buckets and the date-part expression functions share
+     * this normalization, so {@code year(x, zone)} is the year of {@code bucket(x, 'year', zone)}.
+     *
+     * @throws IllegalArgumentException for an unsupported value type
+     */
+    public static LocalDate localDate(Object rawValue, ZoneId zone) {
         return switch (rawValue) {
-            case Date date -> normalizeInstantBucketDate(Instant.ofEpochMilli(date.getTime()), preset);
-            case Instant instant -> normalizeInstantBucketDate(instant, preset);
+            case Date date -> instantDate(Instant.ofEpochMilli(date.getTime()), zone);
+            case Instant instant -> instantDate(instant, zone);
             case LocalDate localDate -> localDate;
-            case LocalDateTime localDateTime -> localDateTime.atZone(preset.zoneId()).toLocalDate();
-            case OffsetDateTime offsetDateTime -> normalizeInstantBucketDate(offsetDateTime.toInstant(), preset);
-            case ZonedDateTime zonedDateTime -> normalizeInstantBucketDate(zonedDateTime.toInstant(), preset);
+            case LocalDateTime localDateTime -> localDateTime.atZone(zone).toLocalDate();
+            case OffsetDateTime offsetDateTime -> instantDate(offsetDateTime.toInstant(), zone);
+            case ZonedDateTime zonedDateTime -> instantDate(zonedDateTime.toInstant(), zone);
             default -> throw new IllegalArgumentException(
                     "Time bucket requires " + SUPPORTED_TIME_BUCKET_TYPES + " values");
         };
     }
 
-    private static LocalDate normalizeInstantBucketDate(Instant instant, TimeBucketPreset preset) {
-        if (ZoneOffset.UTC.equals(preset.zoneId())) {
+    private static LocalDate instantDate(Instant instant, ZoneId zone) {
+        if (ZoneOffset.UTC.equals(zone)) {
             return LocalDate.ofEpochDay(Math.floorDiv(instant.toEpochMilli(), MILLIS_PER_DAY));
         }
-        return instant.atZone(preset.zoneId()).toLocalDate();
+        return instant.atZone(zone).toLocalDate();
+    }
+
+    /**
+     * Wall-clock date-time of a supported date/time value in a zone; a {@code LocalDate} is the
+     * start of its day. See {@link #localDate(Object, ZoneId)}.
+     *
+     * @throws IllegalArgumentException for an unsupported value type
+     */
+    public static LocalDateTime localDateTime(Object rawValue, ZoneId zone) {
+        return switch (rawValue) {
+            case Date date -> instantDateTime(Instant.ofEpochMilli(date.getTime()), zone);
+            case Instant instant -> instantDateTime(instant, zone);
+            case LocalDate localDate -> localDate.atStartOfDay();
+            case LocalDateTime localDateTime -> localDateTime;
+            case OffsetDateTime offsetDateTime -> instantDateTime(offsetDateTime.toInstant(), zone);
+            case ZonedDateTime zonedDateTime -> instantDateTime(zonedDateTime.toInstant(), zone);
+            default -> throw new IllegalArgumentException(
+                    "Time bucket requires " + SUPPORTED_TIME_BUCKET_TYPES + " values");
+        };
+    }
+
+    private static LocalDateTime instantDateTime(Instant instant, ZoneId zone) {
+        return instant.atZone(zone).toLocalDateTime();
     }
 
     private static String formatBucketDate(LocalDate date, TimeBucketPreset preset) {
         return switch (preset.bucket()) {
+            case HOUR -> formatBucketHour(date.atStartOfDay());
             case DAY -> formatYearMonthDay(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
             case WEEK -> {
                 WeekFields weekFields = WeekFields.of(preset.weekStart(), MIN_DAYS_IN_FIRST_WEEK);
@@ -127,6 +168,38 @@ public final class TimeBucketUtil {
             case YEAR -> formatYear(date.getYear());
             default -> throw new IllegalArgumentException("Unsupported time bucket: " + preset.bucket());
         };
+    }
+
+    private static String formatBucketHour(LocalDateTime dateTime) {
+        return formatYearMonthDayHour(
+                dateTime.getYear(),
+                dateTime.getMonthValue(),
+                dateTime.getDayOfMonth(),
+                dateTime.getHour()
+        );
+    }
+
+    private static String formatYearMonthDayHour(int year, int month, int day, int hour) {
+        if (year >= MIN_FOUR_DIGIT_YEAR && year <= MAX_FOUR_DIGIT_YEAR) {
+            byte[] buf = new byte[HOUR_BUF_LENGTH];
+            writeYear(buf, 0, year);
+            buf[DATE_BUF_SEP1_INDEX] = '-';
+            writeTwoDigits(buf, DATE_BUF_MONTH_OFFSET, month);
+            buf[DATE_BUF_SEP2_INDEX] = '-';
+            writeTwoDigits(buf, DATE_BUF_DAY_OFFSET, day);
+            buf[HOUR_BUF_T_INDEX] = 'T';
+            writeTwoDigits(buf, HOUR_BUF_HOUR_OFFSET, hour);
+            return new String(buf, 0, HOUR_BUF_LENGTH, StandardCharsets.ISO_8859_1);
+        }
+        StringBuilder sb = new StringBuilder(HOUR_BUF_LENGTH);
+        appendPaddedInt(sb, year, YEAR_BUF_LENGTH);
+        sb.append('-');
+        appendTwoDigits(sb, month);
+        sb.append('-');
+        appendTwoDigits(sb, day);
+        sb.append('T');
+        appendTwoDigits(sb, hour);
+        return sb.toString();
     }
 
     private static String formatYearMonthDay(int year, int month, int day) {

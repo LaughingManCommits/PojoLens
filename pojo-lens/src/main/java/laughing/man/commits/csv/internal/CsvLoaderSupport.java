@@ -6,14 +6,13 @@ import laughing.man.commits.csv.CsvLoadReport;
 import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.files.internal.FileLoadSupport;
+import laughing.man.commits.files.internal.LoadSource;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -38,18 +37,26 @@ public final class CsvLoaderSupport {
     }
 
     public static <T> List<T> read(Path path, Class<T> rowType, CsvOptions options) {
-        return readWithReport(path, rowType, options).rows();
+        return read(LoadSource.of(path), rowType, options);
     }
 
     public static <T> CsvLoadResult<T> readWithReport(Path path, Class<T> rowType, CsvOptions options) {
-        long started = System.nanoTime();
-        CsvLoadReportState reportState = new CsvLoadReportState(path, rowType, options);
-        validatePreconditions(path, rowType, options, reportState, started);
-
-        return readWithReportValidated(path, rowType, options, reportState, started);
+        return readWithReport(LoadSource.of(path), rowType, options);
     }
 
-    private static <T> CsvLoadResult<T> readWithReportValidated(Path path,
+    public static <T> List<T> read(LoadSource source, Class<T> rowType, CsvOptions options) {
+        return readWithReport(source, rowType, options).rows();
+    }
+
+    public static <T> CsvLoadResult<T> readWithReport(LoadSource source, Class<T> rowType, CsvOptions options) {
+        long started = System.nanoTime();
+        CsvLoadReportState reportState = new CsvLoadReportState(source, rowType, options);
+        validatePreconditions(source, rowType, options, reportState, started);
+
+        return readWithReportValidated(source, rowType, options, reportState, started);
+    }
+
+    private static <T> CsvLoadResult<T> readWithReportValidated(LoadSource source,
                                                                 Class<T> rowType,
                                                                 CsvOptions options,
                                                                 CsvLoadReportState reportState,
@@ -67,7 +74,7 @@ public final class CsvLoaderSupport {
                 );
             }
 
-            List<CsvRecord> records = parseRecords(path, options, reportState);
+            List<CsvRecord> records = parseRecords(source, options, reportState);
             if (records.isEmpty()) {
                 return new CsvLoadResult<>(List.of(), reportState.success(System.nanoTime() - started));
             }
@@ -125,13 +132,13 @@ public final class CsvLoaderSupport {
         }
     }
 
-    private static void validatePreconditions(Path path,
+    private static void validatePreconditions(LoadSource source,
                                               Class<?> rowType,
                                               CsvOptions options,
                                               CsvLoadReportState reportState,
                                               long started) {
-        if (path == null) {
-            throw preflightFailure(reportState, started, "path must not be null");
+        if (source.isMissing()) {
+            throw preflightFailure(reportState, started, source.missingMessage());
         }
         if (rowType == null) {
             throw preflightFailure(reportState, started, "rowType must not be null");
@@ -139,7 +146,7 @@ public final class CsvLoaderSupport {
         if (options == null) {
             throw preflightFailure(reportState, started, "options must not be null");
         }
-        if (!Files.isRegularFile(path)) {
+        if (!source.isReadable()) {
             throw preflightFailure(reportState, started, "path must point to an existing file");
         }
     }
@@ -154,9 +161,9 @@ public final class CsvLoaderSupport {
         return new CsvLoadException(message, report);
     }
 
-    private static List<CsvRecord> parseRecords(Path path, CsvOptions options, CsvLoadReportState reportState) {
+    private static List<CsvRecord> parseRecords(LoadSource source, CsvOptions options, CsvLoadReportState reportState) {
         ArrayList<CsvRecord> records = new ArrayList<>();
-        try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+        try (BufferedReader reader = source.openReader()) {
             String line;
             boolean firstRecord = true;
             int lineNumber = 0;
@@ -261,7 +268,7 @@ public final class CsvLoaderSupport {
                 );
             }
         } catch (IOException ex) {
-            throw new UncheckedIOException("Failed to read CSV file '" + path + "'", ex);
+            throw new UncheckedIOException("Failed to read " + source.describe("CSV"), ex);
         }
         return List.copyOf(records);
     }
@@ -649,6 +656,7 @@ public final class CsvLoaderSupport {
 
     private static final class CsvLoadReportState {
         private final Path path;
+        private final String sourceName;
         private final Class<?> rowType;
         private final CsvOptions options;
         private List<String> resolvedSchema = List.of();
@@ -658,8 +666,9 @@ public final class CsvLoaderSupport {
         private int dataRecordCount;
         private int loadedRowCount;
 
-        private CsvLoadReportState(Path path, Class<?> rowType, CsvOptions options) {
-            this.path = path;
+        private CsvLoadReportState(LoadSource source, Class<?> rowType, CsvOptions options) {
+            this.path = source.path();
+            this.sourceName = source.name();
             this.rowType = rowType;
             this.options = options;
         }
@@ -698,6 +707,7 @@ public final class CsvLoaderSupport {
         private CsvLoadReport success(long durationNanos) {
             return new CsvLoadReport(
                     path,
+                    sourceName,
                     rowType,
                     options,
                     resolvedSchema,
@@ -720,6 +730,7 @@ public final class CsvLoaderSupport {
             missingColumns(failure.missingColumns());
             return new CsvLoadReport(
                     path,
+                    sourceName,
                     rowType,
                     options,
                     resolvedSchema,

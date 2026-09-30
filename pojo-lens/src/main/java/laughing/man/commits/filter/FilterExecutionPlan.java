@@ -6,6 +6,7 @@ import laughing.man.commits.internal.builder.QueryTimeBucket;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.SchemaIndexUtil;
@@ -164,7 +165,8 @@ public final class FilterExecutionPlan {
                 if (!fieldName.equals(configuredField)) {
                     continue;
                 }
-                String dateFormat = dateFormats.getOrDefault(fieldID, SDF);
+                // null = no explicit format: default temporal precision rules apply.
+                String dateFormat = dateFormats.get(fieldID);
                 CompiledRule rule = new CompiledRule(
                         values.get(fieldID),
                         clauses.get(fieldID),
@@ -198,7 +200,7 @@ public final class FilterExecutionPlan {
                 continue;
             }
             String dateFormat = builder.getFilterDateFormats().getOrDefault(Integer.toString(entry.getKey()), SDF);
-            columns.add(new OrderColumn(fieldIndex, dateFormat));
+            columns.add(new OrderColumn(fieldIndex, dateFormat, builder.getOrderSorts().get(entry.getKey())));
         }
         return columns;
     }
@@ -208,7 +210,8 @@ public final class FilterExecutionPlan {
         List<GroupColumn> columns = new ArrayList<>(entries.size());
         for (Map.Entry<Integer, String> entry : entries) {
             String fieldName = entry.getValue();
-            String dateFormat = builder.getFilterDateFormats().getOrDefault(Integer.toString(entry.getKey()), SDF);
+            // Explicit format only: grouping by formatted text is opt-in (see GroupKeyUtil).
+            String dateFormat = builder.getFilterDateFormats().get(Integer.toString(entry.getKey()));
             QueryTimeBucket bucket = builder.getTimeBuckets().get(fieldName);
             if (bucket != null) {
                 int dateFieldIndex = findFieldIndex(bucket.getDateField());
@@ -230,8 +233,10 @@ public final class FilterExecutionPlan {
         List<QueryMetric> configuredMetrics = builder.getMetrics();
         List<MetricPlan> plans = new ArrayList<>(configuredMetrics.size());
         for (QueryMetric metric : configuredMetrics) {
-            int fieldIndex = Metric.COUNT.equals(metric.getMetric()) ? -1 : findFieldIndex(metric.getField());
-            plans.add(new MetricPlan(metric.getField(), metric.getMetric(), metric.getAlias(), fieldIndex));
+            // Row COUNT has no field (-1); COUNT(field) resolves its field to count non-null values.
+            int fieldIndex = metric.getField() == null ? -1 : findFieldIndex(metric.getField());
+            plans.add(new MetricPlan(metric.getField(), metric.getMetric(), metric.getAlias(), fieldIndex,
+                    metric.getArgument()));
         }
         return plans;
     }
@@ -247,13 +252,13 @@ public final class FilterExecutionPlan {
         return Collections.unmodifiableMap(frozen);
     }
 
-    static record OrderColumn(int fieldIndex, String dateFormat) {
+    static record OrderColumn(int fieldIndex, String dateFormat, Sort sort) {
     }
 
     static record GroupColumn(String fieldName, int fieldIndex, String dateFormat, TimeBucketPreset timeBucket) {
     }
 
-    static record MetricPlan(String fieldName, Metric metric, String alias, int fieldIndex) {
+    static record MetricPlan(String fieldName, Metric metric, String alias, int fieldIndex, Double argument) {
     }
 }
 

@@ -50,9 +50,65 @@ code. Hand-written `TypedField.of(...)` calls are still useful for quick
 one-offs and for joined-field references that do not belong to the base row
 type.
 
+## String Predicates
+
+`contains(value)` matches rows where the field includes the substring (case-sensitive).
+`containsIgnoreCase(value)` is the case-insensitive equivalent. It folds
+non-ASCII letters too (`"ZOË"` matches `"Zoë"`), matches across line breaks,
+and treats regex special characters in the value as literals. It lowers to a
+`MATCHES` pattern with `(?siu)` flags and `Pattern.quote`.
+`matches(pattern)` matches rows where the field satisfies the regex pattern.
+`contains` and `matches` mirror the SQL-like `CONTAINS` and `MATCHES` operators.
+`startsWith(prefix)` and `endsWith(suffix)` are case-sensitive literal
+prefix/suffix matches with `String.startsWith` / `String.endsWith` semantics:
+regex metacharacters in the value match literally and multi-line values are
+supported. They lower to the same `MATCHES` pattern that natural
+`starts with` / `ends with` phrases produce.
+
+```java
+// case-sensitive: "Ali" matches "Alice", not "alice"
+List<Employee> result = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.NAME.contains("Ali")
+        .and(EmployeeTypedFields.DEPARTMENT.matches("Eng.*")))
+    .filter(employees);
+
+// case-insensitive: "ALI", "ali", and "Ali" all match "Alice"
+List<Employee> result2 = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.NAME.containsIgnoreCase("ALI"))
+    .filter(employees);
+
+// static factory equivalent
+TypedPredicate<Employee> pred = TypedPredicate.containsIgnoreCase(
+    EmployeeTypedFields.NAME, "ali");
+
+// literal prefix / suffix: "Eng" matches "Engineering"; "A." matches only a literal dot
+List<Employee> result3 = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.DEPARTMENT.startsWith("Eng")
+        .and(EmployeeTypedFields.NAME.endsWith("e")))
+    .filter(employees);
+
+TypedPredicate<Employee> prefix = TypedPredicate.startsWith(EmployeeTypedFields.NAME, "Al");
+```
+
+All five string predicates can be negated with `.not()`:
+`NAME.startsWith("Al").not()` keeps names that do not start with `Al`. As with every
+value comparison, a negated string predicate never matches a null field.
+
 ## Basic Filtering, Ordering, And Limits
 
 `TypedQuery` is immutable. Each fluent call returns a new query definition.
+
+Comparisons follow the shared rules in
+[sql-like.md](sql-like.md#comparison-semantics). In particular, a `null` field
+never matches `eq`, `ne`, or range predicates: `NAME.ne("x")` and
+`NAME.eq("x").not()` exclude rows whose `name` is null. Use `isNull()` /
+`isNotNull()` to select them explicitly.
+
+Field names are validated against the entity (plus computed fields, and output
+aliases where aliases are allowed) before execution: a typo such as
+`TypedField.of("naem", String.class)` throws `IllegalArgumentException` with
+suggestions, and `diagnostics()` reports it. Joined queries check against the joined
+rows (see Joins And Reused Sources).
 
 ```java
 List<Employee> rows = TypedQuery.from(Employee.class)
@@ -64,8 +120,238 @@ List<Employee> rows = TypedQuery.from(Employee.class)
     .filter(employees);
 ```
 
-Use negated operators such as `ne(...)`, `lte(...)`, or `isNotNull()` instead
-of relying on `NOT` as a first-class typed query shape.
+`.not()` composes a NOT predicate and is lowered via DeMorgan's laws at
+execution time. Negated convenience operators (`ne(...)`, `lte(...)`,
+`isNotNull()`) are equivalent and preferred for simple cases, but `.not()` is
+useful when negating a compound or externally-built predicate:
+
+```java
+TypedPredicate<Employee> baseFilter =
+    EmployeeTypedFields.DEPARTMENT.eq("Engineering")
+        .and(EmployeeTypedFields.ACTIVE.eq(true));
+
+List<Employee> excluded = TypedQuery.from(Employee.class)
+    .where(baseFilter.not())
+    .filter(employees);
+```
+
+`NOT(IN_SUBQUERY)` is not supported — use `NOT EXISTS` instead.
+
+## Sentinel Predicates
+
+`TypedPredicate.any()` and `TypedPredicate.none()` are always-true and always-false
+sentinels useful for building predicate chains conditionally without null guards:
+
+```java
+// build a predicate chain; any() is the identity for and()
+TypedPredicate<Employee> filter = TypedPredicate.any();
+if (onlyActive) {
+    filter = filter.and(EmployeeTypedFields.ACTIVE.eq(true));
+}
+if (department != null) {
+    filter = filter.and(EmployeeTypedFields.DEPARTMENT.eq(department));
+}
+List<Employee> result = TypedQuery.from(Employee.class)
+    .where(filter)
+    .filter(employees);
+```
+
+Identity and absorption laws hold at composition time:
+
+| Expression | Simplifies to |
+|---|---|
+| `pred.and(any())` | `pred` |
+| `pred.or(none())` | `pred` |
+| `pred.and(none())` | `none()` |
+| `pred.or(any())` | `any()` |
+| `any().not()` | `none()` |
+| `none().not()` | `any()` |
+
+`any()` applied as the sole WHERE predicate returns all rows.
+`none()` applied as the sole WHERE predicate returns no rows.
+
+## Execution Convenience
+
+Beyond `filter(rows)` that returns a `List<T>`, `TypedQuery` provides short-circuit
+execution methods that avoid full materialisation where possible:
+
+```java
+// count matching rows without building a list
+long n = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .count(employees);
+
+// check for at least one match — applies limit(1) internally
+boolean hasEngineer = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.DEPARTMENT.eq("Engineering"))
+    .exists(employees);
+
+// first result in defined order, or empty
+Optional<Employee> top = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .findFirst(employees);
+
+// exactly one match or empty; throws IllegalStateException if more than one
+Optional<Employee> alice = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.NAME.eq("Alice"))
+    .findOne(employees);
+```
+
+All methods have `DatasetBundle` overloads. `exists` and `findFirst` apply
+`limit(1)` internally; `findOne` applies `limit(2)` to detect ambiguity cheaply.
+
+## Pagination
+
+`filterPage(...)` executes a count pass without `limit/offset`, then executes the
+configured paged query. Use a positive `limit(...)`; `offset(...)` is optional
+and defaults to the first page.
+
+```java
+PageResult<Employee> page = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .limit(20)
+    .offset(40)
+    .filterPage(employees);
+
+List<Employee> rows = page.rows();
+long totalRows = page.totalRows();
+boolean more = page.hasMore();
+```
+
+Typed pages are offset-based. `nextCursor()` is empty; advance by creating the
+next query with a larger `offset(...)`. Projection and multi-source overloads
+mirror `filter(...)`, including `filterPage(rows, Projection.class)`,
+`filterPage(rows, joins, Projection.class)`, and `filterPage(datasetBundle,
+Projection.class)`.
+
+## Stream Execution
+
+`stream(rows)` executes the query and exposes results through a `Stream<T>`,
+enabling downstream `map`, `flatMap`, `collect`, or early-exit patterns without
+a named `List` variable:
+
+```java
+// stream with predicate and order
+Stream<Employee> s = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .stream(employees);
+
+// collect into a custom container
+Map<String, Long> byDept = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .stream(employees)
+    .collect(Collectors.groupingBy(e -> e.department, Collectors.counting()));
+```
+
+Overloads follow the same pattern as `filter`:
+
+```java
+stream(List<T> rows)
+stream(DatasetBundle bundle)
+stream(List<T> rows, JoinBindings joins)
+stream(List<T> rows, JoinBindings joins, Class<P> projectionClass)
+```
+
+**Laziness:** simple shapes stream lazily: `where(...)` with any predicate
+shape (`and`/`or`/`not`, `in`, `between`, null checks, text predicates),
+`select(...)`, `offset(...)`, and `limit(...)` over unjoined rows. Rows are read,
+filtered, and projected one at a time as the stream is consumed, so
+`stream(rows).limit(20)` or `findFirst()` stop early instead of materialising
+every match. Validation still happens when `stream(...)` is called; the source
+list is snapshotted then, so later changes to it are not seen.
+
+These shapes materialise before the first row, because they need every row
+first or apply checks to the whole result: `orderBy`, grouping and metrics,
+time buckets, windows and `qualify`, `distinct()`, joins, computed fields,
+and `executionGuard(...)`. Their streams behave exactly like
+`filter(...).stream()`. `inSubquery`/`exists` predicates run their subquery when
+`stream(...)` is called; the outer rows still stream lazily.
+
+`iterator(...)` offers the same four overloads for callers that need an
+`Iterator<T>` (for example, to feed an API that pulls rows one at a time). It
+wraps `stream(...)`, so it is lazy for the same shapes, and `remove()` is
+unsupported.
+
+```java
+Iterator<Employee> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .iterator(employees);
+```
+
+## Range Checks
+
+`between(lo, hi)` is a convenience for `gte(lo).and(lte(hi))` and is available
+on both `TypedField` and as a static factory on `TypedPredicate`:
+
+```java
+// instance method on TypedField
+List<Employee> midRange = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.SALARY.between(60_000, 120_000))
+    .filter(employees);
+
+// static factory — symmetric with other TypedPredicate factories
+TypedPredicate<Employee> range = TypedPredicate.between(EmployeeTypedFields.SALARY, 60_000, 120_000);
+```
+
+Both bounds are inclusive.
+
+## Sort Order
+
+`orderBy(field)` and `orderByDesc(field)` sort a single field ascending or
+descending. For explicit per-field direction use `TypedSortOrder`:
+
+```java
+// single field, explicit direction
+List<Employee> rows = TypedQuery.from(Employee.class)
+    .orderBy(TypedSortOrder.desc(EmployeeTypedFields.SALARY))
+    .filter(employees);
+
+// multiple fields, mixed directions
+List<Employee> rows2 = TypedQuery.from(Employee.class)
+    .orderBy(TypedSortOrder.asc(EmployeeTypedFields.DEPARTMENT),
+             TypedSortOrder.desc(EmployeeTypedFields.SALARY))
+    .filter(employees);
+```
+
+Each `TypedSortOrder` keeps its own direction, so common sort keys such as
+`department ASC, salary DESC` execute in one query.
+
+## Time Buckets
+
+`timeBucket(dateField, unit, alias)` truncates a date/timestamp field to a
+calendar period, creating a computed group-by column that can be aggregated over:
+
+```java
+List<PeriodCount> result = TypedQuery.from(Event.class)
+    .timeBucket(EventTypedFields.OCCURRED_AT, TimeBucket.MONTH, "period")
+    .count("total")
+    .filter(events, PeriodCount.class);
+```
+
+Accepts a `TimeBucketPreset` for explicit zone and week-start control:
+
+```java
+TimeBucketPreset preset = TimeBucketPreset.of(TimeBucket.WEEK)
+    .withZone("America/New_York")
+    .withWeekStart(DayOfWeek.SUNDAY);
+
+List<PeriodCount> result = TypedQuery.from(Event.class)
+    .timeBucket(EventTypedFields.OCCURRED_AT, preset, "period")
+    .count("total")
+    .filter(events, PeriodCount.class);
+```
+
+Both overloads accept a `TypedField` as the alias argument for type-safe output
+field naming. The bucket alias is automatically added to the GROUP BY — no
+explicit `.groupBy(alias)` is required.
+
+Defaults: UTC zone, Monday week-start.
+
+Supported granularities are `HOUR`, `DAY`, `WEEK`, `MONTH`, `QUARTER`, and
+`YEAR`. Hour buckets are formatted as `YYYY-MM-DDTHH`.
 
 ## Projection
 
@@ -111,6 +397,24 @@ List<Company> rows = TypedQuery.from(Company.class)
     .filter(bundle);
 ```
 
+Joined field names are validated against the joined rows: the entity's fields plus
+each joined source's, named like the engine names joined columns (a joined column
+whose name is taken becomes `child_<name>`; a `RIGHT JOIN` renames the existing
+columns instead). Join keys are checked too, since a missing key would otherwise
+skip the join. At execution the joined class comes from the bound rows; declare it
+with `join(sourceName, SourceClass.class, parentField, childField, joinType)` to get
+the same checks from `diagnostics()` and `planPreview()` without data:
+
+```java
+QueryDiagnostics diagnostics = TypedQuery.from(Company.class)
+    .join("employees", CompanyEmployee.class, COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+    .where(JOINED_TITLE.eq("Engineer"))
+    .diagnostics();
+```
+
+A declared class must match the bound rows. Joined sources bound to `QueryRow` or map
+rows, or to an empty list without a declared class, skip field validation.
+
 ## Grouped Aggregates And HAVING
 
 Grouped output aliases are usually modeled as typed fields on the projection
@@ -136,6 +440,28 @@ List<DepartmentPayroll> rows = TypedQuery.from(Employee.class)
 ```
 
 `having(...)` is limited to grouped fields and metric aliases.
+
+`countDistinct(field, alias)` (or `metric(field, Metric.COUNT_DISTINCT, alias)`)
+counts distinct non-null values per group, like SQL `COUNT(DISTINCT field)`.
+
+Statistical metrics use `metric(field, Metric.MEDIAN | STDDEV | STDDEV_POP | VARIANCE |
+VAR_POP, alias)`, and percentiles use `percentile(field, 0.9, alias)` (linear
+interpolation; `Metric.PERCENTILE` through `metric(...)` is rejected because it needs
+the fraction). Results are `Double`; see the SQL-like guide for the sample vs.
+population rules.
+
+`distinct()` returns distinct result rows, like SQL `SELECT DISTINCT`: rows whose
+selected values are equal collapse to the first one in `orderBy` order, and
+`offset`/`limit` apply afterwards. With `select(...)`, `orderBy` must use selected
+fields.
+
+```java
+List<Employee> departments = TypedQuery.from(Employee.class)
+    .select(EmployeeTypedFields.DEPARTMENT)
+    .distinct()
+    .orderBy(EmployeeTypedFields.DEPARTMENT)
+    .filter(employees);
+```
 
 ## Windows And QUALIFY
 
@@ -169,6 +495,37 @@ TypedQuery.from(WindowMetricInput.class)
 Use `windowCountAll(...)` when the value field is `COUNT(*)`.
 `qualify(...)` is limited to selected window aliases.
 
+`lag(...)` and `lead(...)` read a field from an earlier or later row of the
+partition. The default is typed by the value field and applies only when the offset
+row is outside the partition; `window(WindowFunction.LAG, field, alias, orders,
+partitions...)` is the offset-1, `null`-default short form:
+
+```java
+TypedQuery.from(Sale.class)
+    .lag(SaleTypedFields.AMOUNT, "prevAmount", 1, 0,
+        List.of(TypedWindowOrder.asc(SaleTypedFields.MONTH)),
+        SaleTypedFields.REGION)
+    .lead(SaleTypedFields.AMOUNT, "nextAmount", 1, null,
+        List.of(TypedWindowOrder.asc(SaleTypedFields.MONTH)),
+        SaleTypedFields.REGION);
+```
+
+Windows also run over grouped rows, after `having(...)`. They reference group
+fields and metric aliases; declare an alias field with `TypedField.of(alias, type)`:
+
+```java
+TypedField<RegionRank, Long> total = TypedField.of("total", Long.class);
+TypedField<RegionRank, Long> salesRank = TypedField.of("salesRank", Long.class);
+
+List<RegionRank> rows = TypedQuery.from(Sale.class)
+    .groupBy(SaleTypedFields.REGION)
+    .metric(SaleTypedFields.AMOUNT, Metric.SUM, total)
+    .window(WindowFunction.RANK, salesRank, List.of(TypedWindowOrder.desc(total)))
+    .qualify(salesRank.lte(3L))
+    .orderBy(salesRank)
+    .filter(sales, RegionRank.class);
+```
+
 ## Bounded Subqueries
 
 Same-source bounded subqueries compose directly from typed predicates:
@@ -201,7 +558,32 @@ List<Company> rows = TypedQuery.from(Company.class)
 same pattern. Bounded typed subqueries are supported only in `where(...)`, not
 in `having(...)` or `qualify(...)`.
 
-## Explain, Schema, And Guards
+## Computed Fields
+
+`computedFields(ComputedFieldRegistry)` attaches derived numeric fields so they
+can be referenced in `where(...)`, `having(...)`, and metrics — matching the same
+capability available on SQL-like and natural queries:
+
+```java
+ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+    .add("adjustedSalary", "salary * 1.1", Double.class)
+    .build();
+
+TypedField<Employee, Double> ADJUSTED_SALARY =
+    TypedField.of("adjustedSalary", Double.class);
+
+List<Employee> highEarners = TypedQuery.from(Employee.class)
+    .computedFields(registry)
+    .where(ADJUSTED_SALARY.gte(130_000.0))
+    .orderBy(EmployeeTypedFields.NAME)
+    .filter(employees);
+```
+
+The registry is retained across fluent calls and accessible via
+`computedFieldRegistry()`. `hasComputedFields()` returns false when no registry
+was set or the registry is empty.
+
+## Diagnostics, Preview, Schema, And Guards
 
 The typed surface keeps the same diagnostics and governance hooks as the text
 surfaces:
@@ -214,20 +596,86 @@ TypedQuery<Employee> query = TypedQuery.from(Employee.class)
         .maxRowsReturned(1_000)
         .build());
 
+QueryDiagnostics diagnostics = query.diagnostics();
+TypedPlanPreview preview = query.planPreview();
 Map<String, Object> explain = query.explain(employees);
 TabularSchema schema = query.schema(employees);
 List<Employee> rows = query.filter(employees);
 ```
 
+`diagnostics()` returns no-data validation plus summary metadata such as
+referenced fields, output fields, join sources, and subquery presence. Invalid
+typed query shapes such as `select(...)` combined with grouped metrics are
+reported as `QueryDiagnosticsError` entries instead of requiring execution.
+
+`planPreview()` returns the richer typed-only structural shape:
+
+```java
+TypedPlanPreview preview = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .window(
+        WindowFunction.ROW_NUMBER,
+        DepartmentRankTypedFields.RN,
+        List.of(TypedWindowOrder.desc(EmployeeTypedFields.SALARY)),
+        EmployeeTypedFields.DEPARTMENT)
+    .qualify(DepartmentRankTypedFields.RN.lte(1L))
+    .orderBy(EmployeeTypedFields.DEPARTMENT)
+    .planPreview();
+
+List<TypedPlanWindow> windows = preview.windows();
+List<PlanPreviewOrder> ordering = preview.orderFields();
+TypedPlanPredicate qualify = preview.qualifyExpression();
+```
+
+The preview is data-free and reports joins, group keys, metrics, windows, sort
+orders, paging, time buckets, computed fields, and any attached execution
+guard.
+
 Use `schema(..., Projection.class)` when the output is a projection rather than
 the source row type.
+
+`schema(Projection.class)` is also available without source rows when you need
+deterministic metadata for a reusable contract before execution:
+
+```java
+TabularSchema preview = TypedQuery.from(Employee.class)
+    .groupBy(EmployeeTypedFields.DEPARTMENT)
+    .count(DepartmentCountTypedFields.TOTAL)
+    .schema(DepartmentCount.class);
+```
+
+## Reusable Report Definitions
+
+Wrap a typed query in `ReportDefinition<T>` when the same in-process workflow
+needs reusable rows, schema, and optional chart mapping across refreshed
+snapshots:
+
+```java
+ReportDefinition<DepartmentCount> report = ReportDefinition.typed(
+    TypedQuery.from(Employee.class)
+        .where(EmployeeTypedFields.ACTIVE.eq(true))
+        .groupBy(EmployeeTypedFields.DEPARTMENT)
+        .count(DepartmentCountTypedFields.TOTAL)
+        .orderBy(EmployeeTypedFields.DEPARTMENT),
+    DepartmentCount.class);
+
+List<DepartmentCount> rows = report.rows(employees);
+TabularSchema schema = report.schema();
+```
+
+Add chart mapping with `ReportDefinition.typed(query, Projection.class,
+ChartSpec)` or later with `withChartSpec(...)`. The reusable report source label
+is synthetic, for example `typed:Employee`.
 
 ## Current Boundaries
 
 - `TypedQuery` is the right path for Java-owned query logic, not user-authored text.
-- Sort direction is global; the last `orderBy(...)` or `orderByDesc(...)` call wins.
+- `orderBy(TypedSortOrder...)` supports per-field direction.
 - `having(...)` only accepts grouped fields and metric aliases.
 - `qualify(...)` only accepts selected window aliases.
+- windows over grouped queries only reference group fields, time-bucket aliases,
+  and metric aliases, and need a count/metric output.
+- `NOT(IN_SUBQUERY)` is not supported; use `NOT EXISTS` instead.
 - Correlated/scalar subqueries and broader named-source planning remain on
   [sql-like.md](sql-like.md) or [natural.md](natural.md).
 - Field generation lives in [metamodel.md](metamodel.md); build-time catalog

@@ -2,7 +2,7 @@
 
 Owned capabilities:
 
-- in-memory fluent and SQL-like querying over Java object lists
+- in-memory SQL-like, natural, and typed querying over Java object lists
 - filtering, ordering, grouping, HAVING, metrics, time buckets, joins, projection, explain, and schema metadata
 - chart payload mapping, reusable reports, dataset bundles, snapshot comparison, telemetry, metamodel generation, and benchmark tooling
 - advisory SQL-like pushdown-readiness metadata, host-adapter bridge contracts,
@@ -26,5 +26,5 @@ Behavioral constraints:
 
 - SQL-like subqueries are limited to `WHERE field IN (select oneField ...)`
 - grouped, aggregate, and joined subquery plans are not supported
-- time bucket fields must be `java.util.Date`
-- builders are mutable; reusable snapshots depend on `copyOnBuild(true)`
+- time bucket fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`
+- internal builders are mutable; public typed and report definitions remain immutable wrappers

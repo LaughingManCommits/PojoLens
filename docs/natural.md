@@ -16,6 +16,7 @@ other user-authored query.
 - optional leading source clause: `from <source> [as <label>]`
 - explicit joins: `join|left join|right join|inner join <source> [as <label>] on <lhs> equals <rhs>`
 - `show` with explicit fields, aliases via `as`, aggregate phrases, time-bucket phrases, and deterministic window phrases
+- `show distinct <fields>` (or `show distinct all`): one row per set of shown values, like SQL-like `SELECT DISTINCT` (`sort by` must use shown fields)
 - `where`
 - `group by`
 - `having`
@@ -37,13 +38,50 @@ Canonical operator phrases in `where`, `having`, and `qualify`:
 - `is below` / `below`
 - `is before` / `before`
 - `is after` / `after`
-- `contains`
-- `starts with`
-- `ends with`
+- `contains` / `does not contain`
+- `starts with` / `does not start with`
+- `ends with` / `does not end with`
+- `is one of` / `is not one of`
+- `is between <low> and <high>` / `is not between <low> and <high>`
+- `is null` / `is not null` (the field is empty or not)
+
+`is one of` / `is not one of` take comma-separated values
+(`department is one of Engineering, 'Human Resources', Finance`) or one list parameter
+(`department is one of :departments`). Quote a value that contains a comma, `and`, or
+`or`, since those end the list. Parameters inside a value list are rejected; bind one
+list parameter instead. `is not one of` excludes rows whose field is empty (null).
+
+`starts with` / `ends with` (and `starting with` / `ending with`, `does not start
+with` / `does not end with`) always treat the value as literal text, case-sensitive,
+including a named parameter such as `name starts with :prefix`. Regex characters in
+the value or bound parameter match themselves, and multi-line values are supported.
+`equivalentSqlLike` shows the literal-text form as a `matches` regex, or as
+`matches :prefix` for a parameter. That parameter is still bound as literal text,
+not as a regex. The `does not ...` forms never match a field that is empty (null),
+and render as `not contains` / `not matches` in `equivalentSqlLike`.
+
+End a `contains`, `starts with`, or `ends with` phrase (or a `does not` form) with
+`ignoring case` to match without regard to case, including non-ASCII letters:
+`name contains smith ignoring case`, `email ends with :domain ignoring case`. On any
+other phrase `ignoring case` is rejected; quote a value that really ends with those
+words.
+
+`is between` is inclusive on both ends, like SQL-like `BETWEEN` and typed
+`between(...)`; its `and` belongs to the range (`salary is between 50000 and 90000
+and active is true`). `is not between` and a negated comparison such as
+`is not 'Finance'` exclude rows whose field is null.
 
 Canonical boolean connectors in `where`, `having`, and `qualify`:
 - `and`
 - `or`
+- `not (...)`: negates a parenthesized group
+
+Parentheses group conditions: `where (department is Finance or salary is above 90000)
+and active is true`. `not (...)` follows the SQL-like `NOT` rules (see
+[SQL-like guide](sql-like.md)): `not (department is Finance and active is true)` means
+`department is not Finance or active is not true`, and `not (name contains a)` means
+`name does not contain a`. It cannot negate an `is in query` subquery; that fails at
+parse time (use `not exists query ... end query`).
 
 Canonical bounded subquery phrases in `where`:
 - `<field> is in query <natural query> end query`
@@ -52,13 +90,21 @@ Canonical bounded subquery phrases in `where`:
 
 Canonical aggregate phrases:
 - `count of`
+- `count of distinct <field>`: distinct non-null values (SQL-like `COUNT(DISTINCT field)`)
+- `median of <field>`, `<n>th percentile of <field>` (for example `90th percentile of salary`)
+- `standard deviation of <field>` / `stddev of <field>`, `variance of <field>` (sample statistics)
+- `population standard deviation of <field>`, `population variance of <field>`
+
+The statistical phrases need `of` (so a field phrase such as `median income` still
+names a field) and follow the SQL-like rules for `MEDIAN`, `PERCENTILE`, `STDDEV`, and
+`VARIANCE`.
 - `sum of`
 - `average of` / `avg`
 - `minimum of` / `min`
 - `maximum of` / `max`
 
 Canonical time-bucket phrase:
-- `bucket <date field> by day|week|month|quarter|year as <alias>`
+- `bucket <date field> by hour|day|week|month|quarter|year as <alias>`
 - optional timezone: `bucket <date field> by month in Europe/Amsterdam as <alias>`
 - optional week start for week buckets: `bucket <date field> by week in Europe/Amsterdam starting sunday as <alias>`
 
@@ -67,6 +113,7 @@ Canonical window phrases:
 - `rank [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
 - `dense rank [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
 - `running count|sum|average|minimum|maximum of <field|employees> [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] [for running rows|for last <n> rows|for all rows] as <alias>`
+- `previous|next <field> [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] [for <n> rows] [defaulting to <value>] as <alias>`
 
 Join notes:
 - source labels are explicit: `from companies as company join employees as employee ...`
@@ -203,6 +250,23 @@ If runtime vocabulary or computed fields should apply, parse through
 `ReportDefinition.natural(...)`.
 
 Natural queries lower into the same shared execution engine used by SQL-like execution.
+
+## Pagination
+
+`filterPage(...)` delegates to the resolved SQL-like page helper. Use a natural
+query with deterministic `sort by` fields and a positive `limit`; the returned
+`PageResult<T>` contains the visible rows, `totalRows()`, `hasMore()`, and a
+SQL-like cursor for the next page when more rows exist.
+
+```java
+PageResult<Employee> page = PojoLensNatural
+    .parse("show employees where active is true sort by salary descending limit 20")
+    .filterPage(source, Employee.class);
+
+List<Employee> rows = page.rows();
+long totalRows = page.totalRows();
+boolean more = page.hasMore();
+```
 
 ## Joins and Multi-source Queries
 
@@ -401,7 +465,15 @@ Window notes:
   `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`
 - `for all rows` lowers to
   `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
-- grouped queries and `qualify` stay separate; use [docs/sql-like.md](sql-like.md) when you need more exact analytic control
+- `previous <field>` lowers to `LAG(field)` and `next <field>` to `LEAD(field)`;
+  `for <n> rows` sets the offset and `defaulting to <value>` the value used outside
+  the partition (`previous salary by department ordered by hire date for 2 rows
+  defaulting to 0 as salary two hires back`)
+- `previous`/`next` only start a window phrase when the item has an `ordered by`
+  clause, so fields named `previous` or `next` keep working
+- window phrases also run over grouped rows (after `group by` and `having`); they
+  reference group fields and aggregate aliases, and `qualify` then filters the grouped
+  window outputs
 
 Inline natural `qualify` example:
 
@@ -412,6 +484,17 @@ List<DepartmentTopRow> rows = PojoLensNatural
         + "where active is true "
         + "qualify row number by department ordered by salary descending is at most 1")
     .filter(source, DepartmentTopRow.class);
+```
+
+Grouped ranking with a neighbouring total:
+
+```java
+List<RegionRank> rows = PojoLensNatural
+    .parse("show region, sum of amount as total, "
+        + "rank ordered by total descending as sales rank, "
+        + "previous total ordered by total descending as next higher total "
+        + "group by region qualify sales rank is at most 2 sort by sales rank ascending")
+    .filter(sales, RegionRank.class);
 ```
 
 ## Chart Phrase Contract
@@ -493,8 +576,9 @@ Map<String, Object> explain = PojoLensNatural
 - bounded subqueries are limited to uncorrelated `where <field> is in query ... end query`
   and `where [not] exists query ... end query`
 - scalar subqueries and correlated subqueries are not supported
-- natural window phrases expose row-number/rank/dense-rank plus running
-  aggregate windows with running, trailing-row, and full-partition `ROWS` frames
+- natural window phrases expose row-number/rank/dense-rank, running aggregate
+  windows with running, trailing-row, and full-partition `ROWS` frames, and
+  `previous`/`next` offset windows
 - direct `PojoLensNatural.parse(...)` does not apply runtime vocabulary
 - direct `PojoLensNatural.template(...)` does not apply runtime vocabulary or runtime-scoped computed fields
 - `schema(Projection.class)` alone cannot infer joined source classes; use the

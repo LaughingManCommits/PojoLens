@@ -146,6 +146,7 @@ public final class SqlLikeParameterSupport {
             case null -> {
             }
             case ParameterValueAst parameterValueAst -> names.add(parameterValueAst.name());
+            case PatternParameterValue patternParameterValue -> names.add(patternParameterValue.name());
             case SubqueryValueAst subqueryValueAst -> names.addAll(collectParameterNamesInternal(subqueryValueAst.query()));
             case ExistsSubqueryValueAst existsSubqueryValueAst ->
                     names.addAll(collectParameterNamesInternal(existsSubqueryValueAst.query()));
@@ -178,14 +179,15 @@ public final class SqlLikeParameterSupport {
     private static FilterAst resolveFilter(FilterAst filter, Map<String, Object> parameters) {
         Object value = switch (filter.value()) {
             case null -> null;
-            case ParameterValueAst parameterValueAst -> {
-                String name = parameterValueAst.name();
-                if (!parameters.containsKey(name)) {
-                    throw parameter(SqlLikeErrorCodes.PARAM_MISSING,
-                            "Missing SQL-like parameter(s): [" + name + "]");
-                }
-                yield new BoundParameterValue(name, parameters.get(name));
-            }
+            case ParameterValueAst parameterValueAst -> new BoundParameterValue(
+                    parameterValueAst.name(),
+                    requireParameter(parameters, parameterValueAst.name())
+            );
+            case PatternParameterValue patternParameterValue -> new BoundParameterValue(
+                    patternParameterValue.name(),
+                    requireParameter(parameters, patternParameterValue.name()),
+                    patternParameterValue.pattern()
+            );
             case SubqueryValueAst subqueryValueAst -> new SubqueryValueAst(
                     subqueryValueAst.source(),
                     bind(subqueryValueAst.query(), parameters)
@@ -198,6 +200,14 @@ public final class SqlLikeParameterSupport {
             default -> filter.value();
         };
         return new FilterAst(filter.field(), filter.clause(), value, filter.separator());
+    }
+
+    private static Object requireParameter(Map<String, Object> parameters, String name) {
+        if (!parameters.containsKey(name)) {
+            throw parameter(SqlLikeErrorCodes.PARAM_MISSING,
+                    "Missing SQL-like parameter(s): [" + name + "]");
+        }
+        return parameters.get(name);
     }
 
     public static String formatUnknownParamMessage(String queryType, Set<String> unknown, Set<String> expected) {

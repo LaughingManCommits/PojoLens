@@ -8,6 +8,7 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PageResult;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
@@ -37,12 +38,42 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class NaturalQueryContractTest {
 
     @Test
+    public void sortShouldRejectMixedDirections() {
+        assertThrows(IllegalArgumentException.class, () -> PojoLensNatural
+                .parse("show employees sort by salary ascending, name descending")
+                .sort());
+    }
+
+    @Test
     public void shouldExecuteWildcardFilterSortAndLimit() {
         List<Employee> rows = PojoLensNatural
                 .parse("show employees where active is true sort by salary descending limit 2")
                 .filter(sampleEmployees(), Employee.class);
 
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void filterPageShouldDelegateToSqlLikePagination() {
+        PageResult<Employee> page = PojoLensNatural
+                .parse("show employees where active is true sort by salary descending limit 2")
+                .filterPage(sampleEmployees(), Employee.class);
+
+        assertEquals(3, page.totalRows());
+        assertEquals(List.of("Cara", "Alice"), page.rows().stream().map(row -> row.name).toList());
+        assertTrue(page.hasMore());
+        assertTrue(page.nextCursor().isPresent());
+    }
+
+    @Test
+    public void filterPageShouldSupportDatasetBundleExecution() {
+        PageResult<Employee> page = PojoLensNatural
+                .parse("show employees where active is true sort by salary descending limit 5")
+                .filterPage(DatasetBundle.of(sampleEmployees()), Employee.class);
+
+        assertEquals(3, page.totalRows());
+        assertEquals(List.of("Cara", "Alice", "Bob"), page.rows().stream().map(row -> row.name).toList());
+        assertFalse(page.hasMore());
     }
 
     @Test
@@ -87,6 +118,116 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void startsWithParameterShouldMatchAsLiteralPrefix() {
+        List<Employee> rows = List.of(employeeNamed("Alice"), employeeNamed("Al"), employeeNamed("Bob"));
+
+        List<String> prefixed = PojoLensNatural.parse("show employees where name starts with :p")
+                .params(Map.of("p", "Al"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+        List<String> startingWith = PojoLensNatural.parse("show employees where name starting with :p")
+                .params(Map.of("p", "Al"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+
+        assertEquals(List.of("Alice", "Al"), prefixed);
+        assertEquals(prefixed, startingWith);
+    }
+
+    @Test
+    public void endsWithParameterShouldMatchAsLiteralSuffix() {
+        List<Employee> rows = List.of(employeeNamed("cost$"), employeeNamed("costs"), employeeNamed("$"));
+
+        List<String> suffixed = PojoLensNatural.parse("show employees where name ends with :p")
+                .params(Map.of("p", "t$"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+        List<String> endingWith = PojoLensNatural.parse("show employees where name ending with :p")
+                .params(Map.of("p", "t$"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+
+        assertEquals(List.of("cost$"), suffixed);
+        assertEquals(suffixed, endingWith);
+    }
+
+    @Test
+    public void reusedParameterShouldKeepPerUseSemantics() {
+        List<Employee> rows = List.of(
+                employeeNamed("Alice", "Finance"),
+                employeeNamed("Bob", "Al"),
+                employeeNamed("Cara", "Engineering")
+        );
+
+        List<String> matched = PojoLensNatural
+                .parse("show employees where name starts with :p or department is :p")
+                .params(Map.of("p", "Al"))
+                .filter(rows, Employee.class)
+                .stream().map(row -> row.name).toList();
+
+        assertEquals(List.of("Alice", "Bob"), matched);
+    }
+
+    @Test
+    public void nullStartsWithParameterShouldMatchNoRows() {
+        java.util.HashMap<String, Object> params = new java.util.HashMap<>();
+        params.put("p", null);
+
+        List<Employee> rows = PojoLensNatural.parse("show employees where name starts with :p")
+                .params(params)
+                .filter(sampleEmployees(), Employee.class);
+
+        assertTrue(rows.isEmpty());
+    }
+
+    @Test
+    public void startsWithParameterShouldStayVisibleAsNamedParameter() {
+        var query = PojoLensNatural.parse("show employees where name starts with :p");
+
+        IllegalArgumentException missing = assertThrows(
+                IllegalArgumentException.class,
+                () -> query.params(Map.of()).filter(sampleEmployees(), Employee.class)
+        );
+        Map<String, Object> explain = query.params(Map.of("p", "Al")).explain(sampleEmployees(), Employee.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> snapshot = (Map<String, Object>) ((Map<String, Object>) explain.get("parameterSnapshot")).get("p");
+
+        assertTrue(missing.getMessage().contains("[p]"), missing::getMessage);
+        assertEquals("select * where name matches :p", query.equivalentSqlLike());
+        assertEquals("bound", snapshot.get("status"));
+    }
+
+    @Test
+    public void strictParameterTypesShouldRejectNonStringPrefixParameter() {
+        assertThrows(IllegalArgumentException.class, () -> PojoLensNatural
+                .parse("show employees where name starts with :p")
+                .strictParameterTypes()
+                .params(Map.of("p", 42))
+                .filter(sampleEmployees(), Employee.class));
+    }
+
+    @Test
+    public void startsWithAndEndsWithShouldMatchMultiLineValues() {
+        Employee multiLine = new Employee(9, "Al\nice", "Engineering", 1, null, true);
+
+        List<Employee> prefixed = PojoLensNatural.parse("show employees where name starts with Al")
+                .filter(List.of(multiLine), Employee.class);
+        List<Employee> suffixed = PojoLensNatural.parse("show employees where name ends with ice")
+                .filter(List.of(multiLine), Employee.class);
+
+        assertEquals(1, prefixed.size());
+        assertEquals(1, suffixed.size());
+    }
+
+    private static Employee employeeNamed(String name) {
+        return employeeNamed(name, "Engineering");
+    }
+
+    private static Employee employeeNamed(String name, String department) {
+        return new Employee(0, name, department, 1, null, true);
+    }
+
+    @Test
     public void inflectedOperatorAliasesShouldExecuteDeterministically() {
         List<Employee> rows = PojoLensNatural.parse(
                         "show employees where department containing ine "
@@ -102,7 +243,7 @@ public class NaturalQueryContractTest {
                 )
                 .explain(sampleEmployees(), Employee.class);
         assertEquals(
-                "select * where ((department contains 'ine' and name matches '^\\QA\\E.*') and name matches '.*\\Qe\\E$')",
+                "select * where ((department contains 'ine' and name matches '(?s)^\\QA\\E.*') and name matches '(?s).*\\Qe\\E$')",
                 explain.get("equivalentSqlLike")
         );
     }
@@ -172,6 +313,22 @@ public class NaturalQueryContractTest {
                         "Engineering|2025-01|2|300",
                         "Engineering|2025-02|1|150",
                         "Finance|2025-02|1|300"
+                ),
+                normalizeDepartmentPeriodAgg(rows));
+    }
+
+    @Test
+    public void shouldExecuteNaturalHourTimeBucketAggregation() {
+        List<DepartmentPeriodAgg> rows = PojoLensNatural
+                .parse("show department, bucket hire date by hour as period, count of employees as total, "
+                        + "sum of salary as payroll group by department, period sort by period ascending")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+
+        assertEquals(List.of(
+                        "Engineering|2025-01-15T10|1|100",
+                        "Engineering|2025-01-20T12|1|200",
+                        "Engineering|2025-02-01T00|1|150",
+                        "Finance|2025-02-05T08|1|300"
                 ),
                 normalizeDepartmentPeriodAgg(rows));
     }

@@ -10,6 +10,10 @@ import java.util.Collection;
 import java.util.List;
 
 import static laughing.man.commits.dsl.TypedPredicate.Operator.AND;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.ANY;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.CONTAINS_IGNORE_CASE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.ENDS_WITH;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.EQ;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.GT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.GTE;
@@ -18,9 +22,12 @@ import static laughing.man.commits.dsl.TypedPredicate.Operator.IS_NOT_NULL;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.IS_NULL;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.LT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.LTE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.MATCHES;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.NE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.NONE;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.NOT;
 import static laughing.man.commits.dsl.TypedPredicate.Operator.OR;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.STARTS_WITH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -69,8 +76,14 @@ public class TypedPredicateContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "notExists", List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "contains", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "containsIgnoreCase", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "matches", TypedField.class, String.class);
+        requirePublicStaticMethod(TypedPredicate.class, "between", TypedField.class, Object.class, Object.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
+        requirePublicStaticMethod(TypedPredicate.class, "any");
+        requirePublicStaticMethod(TypedPredicate.class, "none");
     }
 
     @Test
@@ -84,6 +97,10 @@ public class TypedPredicateContractTest {
         requirePublicMethod(TypedField.class, "in", Collection.class);
         requirePublicMethod(TypedField.class, "isNull");
         requirePublicMethod(TypedField.class, "isNotNull");
+        requirePublicMethod(TypedField.class, "contains", String.class);
+        requirePublicMethod(TypedField.class, "containsIgnoreCase", String.class);
+        requirePublicMethod(TypedField.class, "matches", String.class);
+        requirePublicMethod(TypedField.class, "between", Object.class, Object.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
         requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, List.class, TypedQuery.class);
     }
@@ -142,6 +159,110 @@ public class TypedPredicateContractTest {
         TypedPredicate<Employee> p = SALARY.in(List.of(90_000, 110_000, 130_000));
         assertEquals(IN, p.operator());
         assertEquals(List.of(90_000, 110_000, 130_000), p.values());
+    }
+
+    @Test
+    void containsPredicateCarriesFieldOperatorAndValue() {
+        TypedPredicate<Employee> p = NAME.contains("Ali");
+        assertTrue(p.isLeaf());
+        assertEquals(CONTAINS, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("Ali", p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void matchesPredicateCarriesFieldOperatorAndPattern() {
+        TypedPredicate<Employee> p = NAME.matches("^Al.*");
+        assertTrue(p.isLeaf());
+        assertEquals(MATCHES, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("^Al.*", p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void containsIgnoreCasePredicateCarriesFieldOperatorAndValue() {
+        TypedPredicate<Employee> p = NAME.containsIgnoreCase("ali");
+        assertTrue(p.isLeaf());
+        assertEquals(CONTAINS_IGNORE_CASE, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("ali", p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void containsIgnoreCaseFieldInstanceMethodMatchesStaticFactory() {
+        TypedPredicate<Employee> fromField = NAME.containsIgnoreCase("ali");
+        TypedPredicate<Employee> fromStatic = TypedPredicate.containsIgnoreCase(NAME, "ali");
+        assertEquals(fromStatic.operator(), fromField.operator());
+        assertEquals(fromStatic.value(), fromField.value());
+    }
+
+    @Test
+    void startsWithPredicateCarriesFieldOperatorAndPrefix() {
+        TypedPredicate<Employee> p = NAME.startsWith("Al");
+        assertTrue(p.isLeaf());
+        assertEquals(STARTS_WITH, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("Al", p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void endsWithPredicateCarriesFieldOperatorAndSuffix() {
+        TypedPredicate<Employee> p = NAME.endsWith("ce");
+        assertTrue(p.isLeaf());
+        assertEquals(ENDS_WITH, p.operator());
+        assertSame(NAME, p.field());
+        assertEquals("ce", p.value());
+    }
+
+    @Test
+    void startsWithAndEndsWithFieldInstanceMethodsMatchStaticFactories() {
+        assertEquals(TypedPredicate.startsWith(NAME, "Al").operator(), NAME.startsWith("Al").operator());
+        assertEquals(TypedPredicate.startsWith(NAME, "Al").value(), NAME.startsWith("Al").value());
+        assertEquals(TypedPredicate.endsWith(NAME, "ce").operator(), NAME.endsWith("ce").operator());
+        assertEquals(TypedPredicate.endsWith(NAME, "ce").value(), NAME.endsWith("ce").value());
+    }
+
+    @Test
+    void nullPrefixOrSuffixThrows() {
+        NullPointerException prefix = assertThrows(NullPointerException.class, () -> NAME.startsWith(null));
+        NullPointerException suffix = assertThrows(NullPointerException.class, () -> NAME.endsWith(null));
+
+        assertEquals("prefix must not be null for startsWith", prefix.getMessage());
+        assertEquals("suffix must not be null for endsWith", suffix.getMessage());
+    }
+
+    @Test
+    void nullValueForContainsMatchesThrows() {
+        assertThrows(NullPointerException.class, () -> TypedPredicate.contains(NAME, null));
+        assertThrows(NullPointerException.class, () -> TypedPredicate.containsIgnoreCase(NAME, null));
+        assertThrows(NullPointerException.class, () -> TypedPredicate.matches(NAME, null));
+    }
+
+    @Test
+    void betweenIsAndOfGteAndLte() {
+        TypedPredicate<Employee> p = TypedPredicate.between(SALARY, 50_000, 100_000);
+        assertEquals(TypedPredicate.Operator.AND, p.operator());
+        assertEquals(2, p.children().size());
+        assertEquals(TypedPredicate.Operator.GTE, p.children().get(0).operator());
+        assertEquals(TypedPredicate.Operator.LTE, p.children().get(1).operator());
+    }
+
+    @Test
+    void betweenFieldInstanceMethodMatchesStaticFactory() {
+        TypedPredicate<Employee> fromField = SALARY.between(50_000, 100_000);
+        TypedPredicate<Employee> fromStatic = TypedPredicate.between(SALARY, 50_000, 100_000);
+        assertEquals(fromStatic.operator(), fromField.operator());
+        assertEquals(fromStatic.children().size(), fromField.children().size());
+    }
+
+    @Test
+    void betweenNullBoundsThrow() {
+        assertThrows(NullPointerException.class, () -> TypedPredicate.between(SALARY, null, 100_000));
+        assertThrows(NullPointerException.class, () -> TypedPredicate.between(SALARY, 50_000, null));
     }
 
     @Test
@@ -284,6 +405,114 @@ public class TypedPredicateContractTest {
     void emptyAllOfAnyOfThrowsIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () -> TypedPredicate.allOf());
         assertThrows(IllegalArgumentException.class, () -> TypedPredicate.anyOf());
+    }
+
+    // --- any() / none() sentinels ---
+
+    @Test
+    void anyPredicateHasCorrectOperatorAndNoFieldOrValue() {
+        TypedPredicate<Employee> p = TypedPredicate.any();
+        assertEquals(ANY, p.operator());
+        assertTrue(p.isLeaf());
+        assertNull(p.field());
+        assertNull(p.value());
+        assertTrue(p.values().isEmpty());
+        assertTrue(p.children().isEmpty());
+    }
+
+    @Test
+    void nonePredicateHasCorrectOperatorAndNoFieldOrValue() {
+        TypedPredicate<Employee> p = TypedPredicate.none();
+        assertEquals(NONE, p.operator());
+        assertTrue(p.isLeaf());
+        assertNull(p.field());
+        assertNull(p.value());
+    }
+
+    @Test
+    void andWithAnyIsIdentity() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        assertSame(pred, pred.and(TypedPredicate.any()));
+        assertEquals(pred.operator(), TypedPredicate.<Employee>any().and(pred).operator());
+        assertEquals(pred.value(), TypedPredicate.<Employee>any().and(pred).value());
+    }
+
+    @Test
+    void orWithNoneIsIdentity() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        assertSame(pred, pred.or(TypedPredicate.none()));
+        assertEquals(pred.operator(), TypedPredicate.<Employee>none().or(pred).operator());
+        assertEquals(pred.value(), TypedPredicate.<Employee>none().or(pred).value());
+    }
+
+    @Test
+    void andWithNoneAbsorbs() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = pred.and(TypedPredicate.none());
+        assertEquals(NONE, result.operator());
+    }
+
+    @Test
+    void orWithAnyAbsorbs() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = pred.or(TypedPredicate.any());
+        assertEquals(ANY, result.operator());
+    }
+
+    @Test
+    void negateAnyIsNone() {
+        TypedPredicate<Employee> p = TypedPredicate.<Employee>any().not();
+        assertEquals(NONE, p.operator());
+    }
+
+    @Test
+    void negateNoneIsAny() {
+        TypedPredicate<Employee> p = TypedPredicate.<Employee>none().not();
+        assertEquals(ANY, p.operator());
+    }
+
+    // --- allOf / anyOf static-factory sentinel laws ---
+
+    @Test
+    void allOfWithAnyIsIdentity() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = TypedPredicate.allOf(pred, TypedPredicate.any());
+        assertSame(pred, result);
+    }
+
+    @Test
+    void allOfWithNoneAbsorbs() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = TypedPredicate.allOf(pred, TypedPredicate.none());
+        assertEquals(NONE, result.operator());
+    }
+
+    @Test
+    void anyOfWithNoneIsIdentity() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = TypedPredicate.anyOf(pred, TypedPredicate.none());
+        assertSame(pred, result);
+    }
+
+    @Test
+    void anyOfWithAnyAbsorbs() {
+        TypedPredicate<Employee> pred = NAME.eq("Alice");
+        TypedPredicate<Employee> result = TypedPredicate.anyOf(pred, TypedPredicate.any());
+        assertEquals(ANY, result.operator());
+    }
+
+    @Test
+    void allOfAllAnyCollapsesToAny() {
+        TypedPredicate<Employee> result = TypedPredicate.allOf(
+                TypedPredicate.any(), TypedPredicate.any());
+        assertEquals(ANY, result.operator());
+    }
+
+    @Test
+    void anyOfAllNoneCollapsesToNone() {
+        TypedPredicate<Employee> result = TypedPredicate.anyOf(
+                TypedPredicate.none(), TypedPredicate.none());
+        assertEquals(NONE, result.operator());
     }
 
     // --- Helpers ---

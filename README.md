@@ -17,7 +17,7 @@ them.
 ```
 
 Requirements:
-- JDK `17+`
+- JDK `25`
 
 Build layout:
 - `pojo-lens` is the consumer runtime artifact.

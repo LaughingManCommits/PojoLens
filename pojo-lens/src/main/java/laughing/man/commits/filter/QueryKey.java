@@ -5,21 +5,21 @@ import java.util.List;
 
 final class QueryKey {
 
-    private static final String[] EMPTY_VALUES = new String[0];
+    private static final Object[] EMPTY_VALUES = new Object[0];
     private static final int ESTIMATED_CHARS_PER_KEY = 8;
-    private final String[] values;
+    private final Object[] values;
     private int hashCode;
 
-    QueryKey(List<String> values) {
+    QueryKey(List<?> values) {
         if (values == null || values.isEmpty()) {
             this.values = EMPTY_VALUES;
         } else {
-            this.values = values.toArray(new String[0]);
+            this.values = values.toArray();
         }
         this.hashCode = Arrays.hashCode(this.values);
     }
 
-    QueryKey(String[] values, int size) {
+    QueryKey(Object[] values, int size) {
         if (values == null || size <= 0) {
             this.values = EMPTY_VALUES;
         } else {
@@ -34,11 +34,11 @@ final class QueryKey {
      * operations — never put this key into a map.  Call {@link #refresh()}
      * after mutating the shared buffer before each lookup.
      */
-    static QueryKey forMutableLookup(String[] sharedBuffer, int size) {
+    static QueryKey forMutableLookup(Object[] sharedBuffer, int size) {
         return new QueryKey(sharedBuffer, size, false);
     }
 
-    private QueryKey(String[] sharedBuffer, int size, boolean unused) {
+    private QueryKey(Object[] sharedBuffer, int size, boolean unused) {
         this.values = (sharedBuffer != null && size > 0) ? sharedBuffer : EMPTY_VALUES;
         this.hashCode = Arrays.hashCode(this.values);
     }
@@ -60,8 +60,9 @@ final class QueryKey {
             return "";
         }
         StringBuilder sb = new StringBuilder(values.length * ESTIMATED_CHARS_PER_KEY);
-        for (String value : values) {
-            sb.append(value).append(",");
+        for (Object value : values) {
+            // Escape the separator so ("x,y","z") and ("x","y,z") stay distinct keys.
+            sb.append(String.valueOf(value).replace("\\", "\\\\").replace(",", "\\,")).append(",");
         }
         return sb.toString();
     }

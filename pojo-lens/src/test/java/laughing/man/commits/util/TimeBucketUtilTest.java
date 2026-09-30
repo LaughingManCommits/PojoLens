@@ -24,6 +24,7 @@ public class TimeBucketUtilTest {
     public void bucketValueShouldFormatCommonPresetsWithoutFormatterRoundTrip() {
         Date input = utcDate(2025, Calendar.FEBRUARY, 3, 10, 15);
 
+        assertEquals("2025-02-03T10", TimeBucketUtil.bucketValue(input, TimeBucketPreset.hour()));
         assertEquals("2025-02-03", TimeBucketUtil.bucketValue(input, TimeBucketPreset.day()));
         assertEquals("2025-02", TimeBucketUtil.bucketValue(input, TimeBucketPreset.month()));
         assertEquals("2025-Q1", TimeBucketUtil.bucketValue(input, TimeBucketPreset.quarter()));
@@ -46,10 +47,15 @@ public class TimeBucketUtilTest {
         Instant instant = utcDate(2025, Calendar.FEBRUARY, 3, 10, 15).toInstant();
 
         assertEquals("2025-02-03", TimeBucketUtil.bucketValue(instant, TimeBucketPreset.day()));
+        assertEquals("2025-02-03T10", TimeBucketUtil.bucketValue(instant, TimeBucketPreset.hour()));
         assertEquals("2025-02-03", TimeBucketUtil.bucketValue(LocalDate.of(2025, 2, 3), TimeBucketPreset.day()));
+        assertEquals("2025-02-03T00", TimeBucketUtil.bucketValue(LocalDate.of(2025, 2, 3), TimeBucketPreset.hour()));
         assertEquals("2025-02-03", TimeBucketUtil.bucketValue(LocalDateTime.of(2025, 2, 3, 10, 15), TimeBucketPreset.day()));
+        assertEquals("2025-02-03T10", TimeBucketUtil.bucketValue(LocalDateTime.of(2025, 2, 3, 10, 15), TimeBucketPreset.hour()));
         assertEquals("2025-02-03", TimeBucketUtil.bucketValue(OffsetDateTime.ofInstant(instant, ZoneOffset.UTC), TimeBucketPreset.day()));
+        assertEquals("2025-02-03T10", TimeBucketUtil.bucketValue(OffsetDateTime.ofInstant(instant, ZoneOffset.UTC), TimeBucketPreset.hour()));
         assertEquals("2025-02-03", TimeBucketUtil.bucketValue(ZonedDateTime.ofInstant(instant, ZoneId.of("UTC")), TimeBucketPreset.day()));
+        assertEquals("2025-02-03T10", TimeBucketUtil.bucketValue(ZonedDateTime.ofInstant(instant, ZoneId.of("UTC")), TimeBucketPreset.hour()));
     }
 
     @Test
@@ -60,6 +66,7 @@ public class TimeBucketUtilTest {
         assertEquals("2025-02", TimeBucketUtil.bucketValue(boundary, preset));
         assertEquals("2025-02", TimeBucketUtil.bucketValue(OffsetDateTime.ofInstant(boundary, ZoneOffset.UTC), preset));
         assertEquals("2025-02", TimeBucketUtil.bucketValue(ZonedDateTime.ofInstant(boundary, ZoneId.of("UTC")), preset));
+        assertEquals("2025-02-01T00", TimeBucketUtil.bucketValue(boundary, TimeBucketPreset.hour().withZone("Europe/Amsterdam")));
     }
 
     @Test
@@ -67,6 +74,7 @@ public class TimeBucketUtilTest {
         LocalDateTime boundary = LocalDateTime.of(2025, 1, 31, 23, 30);
 
         assertEquals("2025-01", TimeBucketUtil.bucketValue(boundary, TimeBucketPreset.month().withZone("Europe/Amsterdam")));
+        assertEquals("2025-01-31T23", TimeBucketUtil.bucketValue(boundary, TimeBucketPreset.hour().withZone("Europe/Amsterdam")));
     }
 
     @Test

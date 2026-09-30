@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -31,6 +32,7 @@ public class SqlLikePageResultTest {
                 .filterPage(source(), BusinessFixtures.Employee.class);
 
         assertEquals(2, page.rows().size());
+        assertEquals(4, page.totalRows());
         assertEquals("Cara", page.rows().get(0).name);
         assertEquals("Alice", page.rows().get(1).name);
         assertTrue(page.hasMore());
@@ -98,6 +100,7 @@ public class SqlLikePageResultTest {
                 .filterPage(source(), BusinessFixtures.Employee.class);
 
         assertEquals(2, secondPage.rows().size());
+        assertEquals(2, secondPage.totalRows());
         assertEquals("Dan", secondPage.rows().get(0).name);
         assertEquals("Bob", secondPage.rows().get(1).name);
         assertFalse(secondPage.hasMore());
@@ -268,22 +271,27 @@ public class SqlLikePageResultTest {
     }
 
     // -----------------------------------------------------------------------
-    // Error: null ORDER BY field value
+    // Null ORDER BY field value at the page boundary
     // -----------------------------------------------------------------------
 
     @Test
-    public void nullOrderByFieldValueThrowsPageCursorFieldUnreadable() {
+    public void nullOrderByFieldValueAtBoundaryBuildsNullAwareCursor() {
         List<NullNameRow> rows = List.of(
                 new NullNameRow(1, null),
                 new NullNameRow(2, "Bob")
         );
-        try {
-            PojoLensSql.parse("order by name asc, id asc limit 1")
-                    .filterPage(rows, NullNameRow.class);
-            fail("Expected PAGE_CURSOR_FIELD_UNREADABLE failure");
-        } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.PAGE_CURSOR_FIELD_UNREADABLE));
-        }
+
+        PageResult<NullNameRow> first = PojoLensSql.parse("order by name asc, id asc limit 1")
+                .filterPage(rows, NullNameRow.class);
+        SqlLikeCursor cursor = SqlLikeCursor.fromToken(first.nextCursor().orElseThrow().toToken());
+        PageResult<NullNameRow> second = PojoLensSql.parse("order by name asc, id asc limit 1")
+                .keysetAfter(cursor)
+                .filterPage(rows, NullNameRow.class);
+
+        assertEquals(1, first.rows().get(0).id);
+        assertNull(cursor.values().get("name"));
+        assertEquals(2, second.rows().get(0).id);
+        assertFalse(second.hasMore());
     }
 
     // -----------------------------------------------------------------------

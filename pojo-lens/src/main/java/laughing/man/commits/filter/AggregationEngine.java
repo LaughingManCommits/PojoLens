@@ -1,5 +1,6 @@
 package laughing.man.commits.filter;
 
+import laughing.man.commits.internal.NumericStatistics;
 import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
@@ -10,7 +11,6 @@ import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,14 +57,9 @@ final class AggregationEngine {
                 new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(rows == null ? 0 : rows.size()));
 
         if (rows != null) {
-            String[] keyParts = new String[columnCount];
+            Object[] keyParts = new Object[columnCount];
             Object[] projectedValues = new Object[columnCount];
             QueryKey lookupKey = QueryKey.forMutableLookup(keyParts, columnCount);
-            @SuppressWarnings("unchecked")
-            HashMap<Object, String>[] keyStringCaches = new HashMap[columnCount];
-            for (int i = 0; i < columnCount; i++) {
-                keyStringCaches[i] = new HashMap<>();
-            }
             for (QueryRow row : rows) {
                 if (row == null) {
                     continue;
@@ -74,12 +69,7 @@ final class AggregationEngine {
                     Object rawValue = row.getValueAt(column.fieldIndex());
                     Object projectedValue = bucketedOrRawValue(column, rawValue);
                     projectedValues[i] = projectedValue;
-                    String keyStr = keyStringCaches[i].get(projectedValue);
-                    if (keyStr == null) {
-                        keyStr = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
-                        keyStringCaches[i].put(projectedValue, keyStr);
-                    }
-                    keyParts[i] = keyStr;
+                    keyParts[i] = GroupKeyUtil.groupKey(projectedValue, column.dateFormat());
                 }
                 lookupKey.refresh();
                 GroupAccumulator accumulator = grouped.get(lookupKey);
@@ -105,37 +95,98 @@ final class AggregationEngine {
 
     private Object calculateMetricValue(List<QueryRow> rows, FilterExecutionPlan.MetricPlan metric) {
         return switch (metric.metric()) {
-            case COUNT -> (long) (rows == null ? 0 : rows.size());
+            case COUNT -> countValues(rows, metric);
+            case COUNT_DISTINCT -> countDistinctValues(rows, metric);
+            case MEDIAN, PERCENTILE, STDDEV, STDDEV_POP, VARIANCE, VAR_POP -> statisticValue(rows, metric);
             case SUM, AVG, MIN, MAX -> {
                 int fieldIndex = metric.fieldIndex();
                 if (fieldIndex < 0) {
                     throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
                 }
 
-                NumericStats stats = collectNumericStats(rows, fieldIndex, metric);
-                if (!stats.present()) {
-                    yield null;
-                }
+                NumericAccumulator stats = collectNumericStats(rows, fieldIndex, metric);
                 yield switch (metric.metric()) {
-                    case SUM -> stats.hasFraction() ? stats.sum() : (long) stats.sum();
-                    case AVG -> stats.sum() / stats.count();
+                    case SUM -> stats.sum();
+                    case AVG -> stats.avg();
                     case MIN -> stats.min();
                     case MAX -> stats.max();
-                    case COUNT -> throw new IllegalStateException("COUNT handled before numeric aggregation");
+                    default -> throw new IllegalStateException(metric.metric() + " handled before numeric aggregation");
                 };
             }
         };
     }
 
-    private NumericStats collectNumericStats(List<QueryRow> rows, int fieldIndex, FilterExecutionPlan.MetricPlan metric) {
-        boolean present = false;
-        int count = 0;
-        Number min = null;
-        Number max = null;
-        double sum = 0;
-        boolean hasFraction = false;
+    /**
+     * COUNT(*) counts rows; COUNT(field) counts rows whose field is not null.
+     */
+    private static long countValues(List<QueryRow> rows, FilterExecutionPlan.MetricPlan metric) {
         if (rows == null) {
-            return new NumericStats(false, 0, null, null, 0, false);
+            return 0L;
+        }
+        if (metric.fieldIndex() < 0) {
+            return rows.size();
+        }
+        long count = 0;
+        for (QueryRow row : rows) {
+            if (row != null && row.getValueAt(metric.fieldIndex()) != null) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * COUNT(DISTINCT field): distinct non-null values, compared like GROUP BY keys.
+     */
+    private static long countDistinctValues(List<QueryRow> rows, FilterExecutionPlan.MetricPlan metric) {
+        if (rows == null) {
+            return 0L;
+        }
+        DistinctValueCounter counter = new DistinctValueCounter();
+        for (QueryRow row : rows) {
+            if (row != null) {
+                counter.add(row.getValueAt(requireFieldIndex(metric)));
+            }
+        }
+        return counter.count();
+    }
+
+    private static Double statisticValue(List<QueryRow> rows, FilterExecutionPlan.MetricPlan metric) {
+        NumericStatistics statistics = NumericStatistics.of(metric.metric(), metric.argument());
+        if (rows != null) {
+            int fieldIndex = requireFieldIndex(metric);
+            for (QueryRow row : rows) {
+                Number number = row == null ? null : numericValue(row.getValueAt(fieldIndex), metric);
+                if (number != null) {
+                    statistics.add(number);
+                }
+            }
+        }
+        return statistics.result();
+    }
+
+    static Number numericValue(Object value, FilterExecutionPlan.MetricPlan metric) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof Number number)) {
+            throw new IllegalArgumentException(
+                    "Metric " + metric.metric() + " requires numeric field: " + metric.fieldName());
+        }
+        return number;
+    }
+
+    private static int requireFieldIndex(FilterExecutionPlan.MetricPlan metric) {
+        if (metric.fieldIndex() < 0) {
+            throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
+        }
+        return metric.fieldIndex();
+    }
+
+    private NumericAccumulator collectNumericStats(List<QueryRow> rows, int fieldIndex, FilterExecutionPlan.MetricPlan metric) {
+        NumericAccumulator stats = new NumericAccumulator(metric.fieldName());
+        if (rows == null) {
+            return stats;
         }
         for (QueryRow row : rows) {
             if (row == null) {
@@ -145,31 +196,13 @@ final class AggregationEngine {
             if (value == null) {
                 continue;
             }
-            if (!(value instanceof Number)) {
+            if (!(value instanceof Number number)) {
                 throw new IllegalArgumentException(
                         "Metric " + metric.metric() + " requires numeric field: " + metric.fieldName());
             }
-            Number number = (Number) value;
-            if (number instanceof Float || number instanceof Double) {
-                hasFraction = true;
-            }
-            double asDouble = number.doubleValue();
-            if (!present) {
-                min = number;
-                max = number;
-                present = true;
-            } else {
-                if (asDouble < min.doubleValue()) {
-                    min = number;
-                }
-                if (asDouble > max.doubleValue()) {
-                    max = number;
-                }
-            }
-            count++;
-            sum += asDouble;
+            stats.add(number);
         }
-        return new NumericStats(present, count, min, max, sum, hasFraction);
+        return stats;
     }
 
     private Object bucketedOrRawValue(FilterExecutionPlan.GroupColumn column, Object rawValue) {
@@ -177,9 +210,6 @@ final class AggregationEngine {
             return rawValue;
         }
         return TimeBucketUtil.bucketValue(rawValue, column.timeBucket());
-    }
-
-    private record NumericStats(boolean present, int count, Number min, Number max, double sum, boolean hasFraction) {
     }
 
     private record GroupAccumulator(Object[] groupValues, MetricAccumulator[] metricAccumulators) {
@@ -200,20 +230,35 @@ final class AggregationEngine {
 
     private static final class MetricAccumulator {
         private final FilterExecutionPlan.MetricPlan metric;
+        private final NumericAccumulator stats;
+        private final DistinctValueCounter distinctValues;
+        private final NumericStatistics statistics;
         private long count;
-        private boolean present;
-        private Number min;
-        private Number max;
-        private double sum;
-        private boolean hasFraction;
 
         private MetricAccumulator(FilterExecutionPlan.MetricPlan metric) {
             this.metric = metric;
+            this.stats = new NumericAccumulator(metric.fieldName());
+            this.distinctValues = metric.metric() == Metric.COUNT_DISTINCT ? new DistinctValueCounter() : null;
+            this.statistics = NumericStatistics.isStatistical(metric.metric())
+                    ? NumericStatistics.of(metric.metric(), metric.argument()) : null;
         }
 
         private void accumulate(QueryRow row) {
+            if (distinctValues != null) {
+                distinctValues.add(row.getValueAt(requireFieldIndex(metric)));
+                return;
+            }
+            if (statistics != null) {
+                Number number = numericValue(row.getValueAt(requireFieldIndex(metric)), metric);
+                if (number != null) {
+                    statistics.add(number);
+                }
+                return;
+            }
             if (metric.metric() == Metric.COUNT) {
-                count++;
+                if (metric.fieldIndex() < 0 || row.getValueAt(metric.fieldIndex()) != null) {
+                    count++;
+                }
                 return;
             }
 
@@ -230,34 +275,18 @@ final class AggregationEngine {
                 throw new IllegalArgumentException(
                         "Metric " + metric.metric() + " requires numeric field: " + metric.fieldName());
             }
-            if (number instanceof Float || number instanceof Double) {
-                hasFraction = true;
-            }
-
-            double asDouble = number.doubleValue();
-            if (!present) {
-                min = number;
-                max = number;
-                present = true;
-            } else {
-                if (asDouble < min.doubleValue()) {
-                    min = number;
-                }
-                if (asDouble > max.doubleValue()) {
-                    max = number;
-                }
-            }
-            count++;
-            sum += asDouble;
+            stats.add(number);
         }
 
         private Object result() {
             return switch (metric.metric()) {
                 case COUNT -> count;
-                case SUM -> present ? (hasFraction ? sum : (long) sum) : null;
-                case AVG -> present ? sum / count : null;
-                case MIN -> present ? min : null;
-                case MAX -> present ? max : null;
+                case COUNT_DISTINCT -> distinctValues.count();
+                case MEDIAN, PERCENTILE, STDDEV, STDDEV_POP, VARIANCE, VAR_POP -> statistics.result();
+                case SUM -> stats.sum();
+                case AVG -> stats.avg();
+                case MIN -> stats.min();
+                case MAX -> stats.max();
             };
         }
     }

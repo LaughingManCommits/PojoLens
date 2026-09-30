@@ -1,12 +1,20 @@
 package laughing.man.commits.dsl;
 
 import laughing.man.commits.DatasetBundle;
+import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.enums.WindowFunction;
+import laughing.man.commits.time.TimeBucketPreset;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.EmployeePoint;
 import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PageResult;
+import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.table.TabularSchema;
@@ -22,16 +30,20 @@ import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowRankProjection;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -66,6 +78,8 @@ public class TypedQueryContractTest {
             TypedField.of("runningSum", Long.class);
     private static final TypedField<WindowMetricProjection, Long> RUNNING_COUNT_ALL =
             TypedField.of("runningCountAll", Long.class);
+    private static final TypedField<EmployeePoint, java.util.Date> HIRE_DATE =
+            TypedField.of("hireDate", java.util.Date.class);
 
     // fixtures: Alice(Eng,120k,active), Bob(Fin,90k,active), Cara(Eng,130k,active), Dan(Eng,110k,inactive)
 
@@ -77,6 +91,8 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
         requirePublicMethod(TypedQuery.class, "where", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "join", String.class, TypedField.class, TypedField.class, Join.class);
+        requirePublicMethod(TypedQuery.class, "join",
+                String.class, Class.class, TypedField.class, TypedField.class, Join.class);
         requirePublicMethod(TypedQuery.class, "groupBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "count", String.class);
         requirePublicMethod(TypedQuery.class, "count", TypedField.class);
@@ -105,9 +121,20 @@ public class TypedQueryContractTest {
                 TypedField.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "windowCountAll",
                 TypedField.class, QueryWindowFrame.class, List.class, TypedField[].class);
+        for (String offsetMethod : List.of("lag", "lead")) {
+            requirePublicMethod(TypedQuery.class, offsetMethod,
+                    TypedField.class, String.class, int.class, Object.class, List.class, TypedField[].class);
+            requirePublicMethod(TypedQuery.class, offsetMethod,
+                    TypedField.class, TypedField.class, int.class, Object.class, List.class, TypedField[].class);
+        }
         requirePublicMethod(TypedQuery.class, "qualify", TypedPredicate.class);
+        requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucket.class, String.class);
+        requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucket.class, TypedField.class);
+        requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucketPreset.class, String.class);
+        requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucketPreset.class, TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
+        requirePublicMethod(TypedQuery.class, "orderBy", TypedSortOrder[].class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
         requirePublicMethod(TypedQuery.class, "offset", int.class);
         requirePublicMethod(TypedQuery.class, "filter", List.class);
@@ -116,10 +143,34 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "filterPage", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "count", List.class);
+        requirePublicMethod(TypedQuery.class, "count", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "exists", List.class);
+        requirePublicMethod(TypedQuery.class, "exists", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "findFirst", List.class);
+        requirePublicMethod(TypedQuery.class, "findFirst", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "findOne", List.class);
+        requirePublicMethod(TypedQuery.class, "findOne", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class);
+        requirePublicMethod(TypedQuery.class, "stream", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "stream", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "computedFields", ComputedFieldRegistry.class);
+        requirePublicMethod(TypedQuery.class, "hasComputedFields");
+        requirePublicMethod(TypedQuery.class, "computedFieldRegistry");
         requirePublicMethod(TypedQuery.class, "executionGuard", QueryExecutionGuard.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
         requirePublicMethod(TypedQuery.class, "explain", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "diagnostics");
+        requirePublicMethod(TypedQuery.class, "planPreview");
+        requirePublicMethod(TypedQuery.class, "schema", Class.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class, Class.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class, JoinBindings.class);
@@ -260,6 +311,46 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void filterPageReturnsTotalRowsAndOffsetPage() {
+        PageResult<Employee> page = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .orderByDesc(SALARY)
+                .limit(1)
+                .offset(1)
+                .filterPage(sampleEmployees());
+
+        assertEquals(3, page.totalRows());
+        assertEquals(List.of("Alice"), page.rows().stream().map(row -> row.name).toList());
+        assertTrue(page.hasMore());
+        assertFalse(page.nextCursor().isPresent());
+    }
+
+    @Test
+    void filterPageSupportsDatasetBundleAndProjectionOutput() {
+        PageResult<DepartmentCount> page = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .orderBy(DEPT)
+                .limit(1)
+                .filterPage(DatasetBundle.of(sampleEmployees()), DepartmentCount.class);
+
+        assertEquals(2, page.totalRows());
+        assertEquals(1, page.rows().size());
+        assertEquals("Engineering", page.rows().get(0).department);
+        assertEquals(2L, page.rows().get(0).total);
+        assertTrue(page.hasMore());
+    }
+
+    @Test
+    void filterPageRequiresPositiveLimit() {
+        assertThrows(IllegalStateException.class, () ->
+                TypedQuery.from(Employee.class).filterPage(sampleEmployees()));
+        assertThrows(IllegalStateException.class, () ->
+                TypedQuery.from(Employee.class).limit(0).filterPage(sampleEmployees()));
+    }
+
+    @Test
     void orderByDescSortsBySalaryDescending() {
         List<Employee> result = TypedQuery.from(Employee.class)
                 .orderByDesc(SALARY)
@@ -279,6 +370,64 @@ public class TypedQueryContractTest {
         assertEquals(2, result.size());
         assertEquals("Cara", result.get(0).name);
         assertEquals("Alice", result.get(1).name);
+    }
+
+    @Test
+    void typedSortOrderAscSortsAscending() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.asc(NAME))
+                .filter(sampleEmployees());
+        List<String> names = result.stream().map(e -> e.name).toList();
+        assertEquals(names.stream().sorted().toList(), names);
+    }
+
+    @Test
+    void typedSortOrderDescSortsDescending() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.desc(SALARY))
+                .filter(sampleEmployees());
+        for (int i = 0; i < result.size() - 1; i++) {
+            assertTrue(result.get(i).salary >= result.get(i + 1).salary);
+        }
+    }
+
+    @Test
+    void typedSortOrderVarargMultipleFieldsSortsByConfiguredDirections() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.asc(DEPT), TypedSortOrder.desc(SALARY))
+                .filter(sampleEmployees());
+        assertEquals(List.of("Cara", "Alice", "Dan", "Bob"),
+                result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void typedSortOrderVarargParityWithOrderByAsc() {
+        List<Employee> byField = TypedQuery.from(Employee.class)
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> bySortOrder = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.asc(NAME))
+                .filter(sampleEmployees());
+        assertEquals(byField.stream().map(e -> e.name).toList(),
+                bySortOrder.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void typedSortOrderVarargParityWithOrderByDesc() {
+        List<Employee> byField = TypedQuery.from(Employee.class)
+                .orderByDesc(SALARY)
+                .filter(sampleEmployees());
+        List<Employee> bySortOrder = TypedQuery.from(Employee.class)
+                .orderBy(TypedSortOrder.desc(SALARY))
+                .filter(sampleEmployees());
+        assertEquals(byField.stream().map(e -> e.salary).toList(),
+                bySortOrder.stream().map(e -> e.salary).toList());
+    }
+
+    @Test
+    void typedSortOrderEmptyVarargThrows() {
+        assertThrows(IllegalArgumentException.class, () ->
+                TypedQuery.from(Employee.class).orderBy(new TypedSortOrder[0]));
     }
 
     @Test
@@ -916,22 +1065,493 @@ public class TypedQueryContractTest {
     }
 
     @Test
-    void windowsShouldFailForAggregateShape() {
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
+    void windowsOverGroupedRowsShouldRejectNonGroupedFields() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> TypedQuery.from(Employee.class)
                         .groupBy(DEPT)
                         .count(TOTAL)
                         .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
                         .filter(sampleEmployees(), DepartmentRank.class));
 
-        assertTrue(ex.getMessage().contains("windows are only supported for non-aggregate query shapes"));
+        assertTrue(ex.getMessage().contains("Unknown field 'salary' in window order(...)"), ex::getMessage);
+    }
+
+    // --- NOT / DeMorgan lowering ---
+
+    @Test
+    void notEqIsEquivalentToNe() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true).not())
+                .filter(sampleEmployees());
+        List<Employee> withNe = TypedQuery.from(Employee.class)
+                .where(ACTIVE.ne(true))
+                .filter(sampleEmployees());
+        assertEquals(1, withNot.size());
+        assertEquals(withNe.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
     }
 
     @Test
-    void notPredicateThrowsUnsupportedOperationException() {
+    void notNeIsEquivalentToEq() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(ACTIVE.ne(true).not())
+                .filter(sampleEmployees());
+        List<Employee> withEq = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .filter(sampleEmployees());
+        assertEquals(withEq.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notGtIsEquivalentToLte() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(SALARY.gt(120_000).not())
+                .filter(sampleEmployees());
+        List<Employee> withLte = TypedQuery.from(Employee.class)
+                .where(SALARY.lte(120_000))
+                .filter(sampleEmployees());
+        assertEquals(withLte.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notGteIsEquivalentToLt() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(SALARY.gte(120_000).not())
+                .filter(sampleEmployees());
+        List<Employee> withLt = TypedQuery.from(Employee.class)
+                .where(SALARY.lt(120_000))
+                .filter(sampleEmployees());
+        assertEquals(withLt.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notLtIsEquivalentToGte() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(SALARY.lt(120_000).not())
+                .filter(sampleEmployees());
+        List<Employee> withGte = TypedQuery.from(Employee.class)
+                .where(SALARY.gte(120_000))
+                .filter(sampleEmployees());
+        assertEquals(withGte.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notLteIsEquivalentToGt() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(SALARY.lte(120_000).not())
+                .filter(sampleEmployees());
+        List<Employee> withGt = TypedQuery.from(Employee.class)
+                .where(SALARY.gt(120_000))
+                .filter(sampleEmployees());
+        assertEquals(withGt.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notIsNullIsEquivalentToIsNotNull() {
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(NAME.isNull().not())
+                .filter(sampleEmployees());
+        List<Employee> withIsNotNull = TypedQuery.from(Employee.class)
+                .where(NAME.isNotNull())
+                .filter(sampleEmployees());
+        assertEquals(withIsNotNull.stream().map(e -> e.name).sorted().toList(),
+                withNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notAndDeMorganEqualsOrOfNots() {
+        // NOT(dept == "Engineering" AND active == true)
+        // = OR(dept != "Engineering", active != true)  → Bob (Finance+active) and Dan (Eng+inactive)
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Engineering").and(ACTIVE.eq(true)).not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Bob", "Dan"), withNot.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void notOrDeMorganEqualsAndOfNots() {
+        // NOT(dept == "Finance" OR active == false)
+        // = AND(dept != "Finance", active != false)  → Alice and Cara
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Finance").or(ACTIVE.eq(false)).not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice", "Cara"), withNot.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void doubleNotEliminatesNegation() {
+        List<Employee> withDoubleNot = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true).not().not())
+                .filter(sampleEmployees());
+        List<Employee> withEq = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .filter(sampleEmployees());
+        assertEquals(withEq.stream().map(e -> e.name).sorted().toList(),
+                withDoubleNot.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void notInExpandsToAllNe() {
+        // NOT(name IN ("Alice", "Bob")) → Cara and Dan
+        List<Employee> withNot = TypedQuery.from(Employee.class)
+                .where(NAME.in("Alice", "Bob").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Cara", "Dan"), withNot.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void notInSubqueryThrowsUnsupportedOperationException() {
         TypedQuery<Employee> q = TypedQuery.from(Employee.class)
-                .where(ACTIVE.eq(true).not());
+                .where(NAME.inSubquery(NAME,
+                        TypedQuery.from(Employee.class).where(ACTIVE.eq(true))).not());
         assertThrows(UnsupportedOperationException.class, () -> q.filter(sampleEmployees()));
+    }
+
+    // --- CONTAINS / MATCHES ---
+
+    @Test
+    void containsFiltersRowsWhoseFieldIncludesSubstring() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.contains("li"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIsCaseSensitive() {
+        List<Employee> upper = TypedQuery.from(Employee.class)
+                .where(NAME.contains("LI"))
+                .filter(sampleEmployees());
+        assertTrue(upper.isEmpty());
+    }
+
+    @Test
+    void containsComposesWithAndPredicate() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(DEPT.contains("Eng").and(ACTIVE.eq(true)))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        // Alice (active) and Cara (active) in Engineering; Dan is inactive
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void matchesFiltersRowsByRegexPattern() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.matches("^[AC].*"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void matchesWithExactPattern() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.matches("Bob"))
+                .filter(sampleEmployees());
+        assertEquals(1, result.size());
+        assertEquals("Bob", result.get(0).name);
+    }
+
+    @Test
+    void matchesWithNoMatchReturnsEmpty() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.matches("^Z.*"))
+                .filter(sampleEmployees());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void containsAndMatchesParityWithSqlLike() {
+        List<String> typedContains = TypedQuery.from(Employee.class)
+                .where(NAME.contains("a"))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream().map(e -> e.name).toList();
+
+        List<String> sqlContains = PojoLensSql.parse("WHERE name CONTAINS 'a' ORDER BY name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(sqlContains, typedContains);
+
+        List<String> typedMatches = TypedQuery.from(Employee.class)
+                .where(NAME.matches(".*[aA].*"))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream().map(e -> e.name).toList();
+
+        List<String> sqlMatches = PojoLensSql.parse("WHERE name MATCHES '.*[aA].*' ORDER BY name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(sqlMatches, typedMatches);
+    }
+
+    @Test
+    void notContainsExcludesMatches() {
+        List<Employee> rows = TypedQuery.from(Employee.class)
+                .where(NAME.contains("Ali").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Bob", "Cara", "Dan"), rows.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void notMatchesExcludesMatches() {
+        List<Employee> rows = TypedQuery.from(Employee.class)
+                .where(NAME.matches("^Al.*").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Bob", "Cara", "Dan"), rows.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIgnoreCaseMatchesUppercaseValue() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("LI"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIgnoreCaseMatchesLowercaseValue() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("li"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIgnoreCaseMixedCaseValueMatchesSameAsLower() {
+        List<Employee> upper = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("LI"))
+                .filter(sampleEmployees());
+        List<Employee> lower = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("li"))
+                .filter(sampleEmployees());
+        assertEquals(upper.stream().map(e -> e.name).sorted().toList(),
+                lower.stream().map(e -> e.name).sorted().toList());
+    }
+
+    @Test
+    void containsIgnoreCaseParityWithStreamReferenceFilter() {
+        List<Employee> typed = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("A"))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> ref = sampleEmployees().stream()
+                .filter(e -> e.name != null && e.name.toLowerCase().contains("a"))
+                .sorted(java.util.Comparator.comparing(e -> e.name))
+                .toList();
+        assertEquals(ref.stream().map(e -> e.name).toList(),
+                typed.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIgnoreCaseComposesWithAnd() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(DEPT.containsIgnoreCase("ENGINEERING").and(ACTIVE.eq(true)))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void containsIgnoreCaseMatchesAcrossLineTerminators() {
+        List<Employee> rows = List.of(employeeNamed("Al\nice"));
+
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("ICE"))
+                .filter(rows);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void containsIgnoreCaseFoldsNonAsciiLetters() {
+        List<Employee> rows = List.of(employeeNamed("Zo\u00eb"), employeeNamed("\u00c9cole"));
+
+        List<String> upper = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("ZO\u00cb"))
+                .filter(rows)
+                .stream().map(e -> e.name).toList();
+        List<String> lower = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("\u00e9co"))
+                .filter(rows)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(List.of("Zo\u00eb"), upper);
+        assertEquals(List.of("\u00c9cole"), lower);
+    }
+
+    @Test
+    void notContainsIgnoreCaseExcludesMatches() {
+        List<Employee> rows = TypedQuery.from(Employee.class)
+                .where(NAME.containsIgnoreCase("ALI").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Bob", "Cara", "Dan"), rows.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void startsWithFiltersRowsByLiteralPrefix() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("Ca"))
+                .filter(sampleEmployees());
+        assertEquals(List.of("Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void endsWithFiltersRowsByLiteralSuffix() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(DEPT.endsWith("ing").and(ACTIVE.eq(true)))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void startsWithIsCaseSensitive() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("al"))
+                .filter(sampleEmployees());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void startsWithAndEndsWithTreatRegexMetacharactersLiterally() {
+        List<Employee> rows = List.of(
+                employeeNamed("A.B"),
+                employeeNamed("AxB"),
+                employeeNamed("cost$"),
+                employeeNamed("costs")
+        );
+
+        List<String> prefixed = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("A."))
+                .filter(rows)
+                .stream().map(e -> e.name).toList();
+        List<String> suffixed = TypedQuery.from(Employee.class)
+                .where(NAME.endsWith("t$"))
+                .filter(rows)
+                .stream().map(e -> e.name).toList();
+
+        List<String> sqlRecipe = PojoLensSql.parse("WHERE name MATCHES '(?s)^\\QA.\\E.*'")
+                .filter(rows, Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(List.of("A.B"), prefixed);
+        assertEquals(List.of("cost$"), suffixed);
+        assertEquals(prefixed, sqlRecipe);
+    }
+
+    @Test
+    void startsWithAndEndsWithMatchStringReferenceSemantics() {
+        List<Employee> rows = List.of(
+                employeeNamed("Alice"),
+                employeeNamed("Al\nice"),
+                employeeNamed("Bob\nAl"),
+                employeeNamed(""),
+                employeeNamed(null)
+        );
+        for (String probe : List.of("Al", "ice", "", "Al\n", "Alice")) {
+            List<String> typedPrefix = TypedQuery.from(Employee.class)
+                    .where(NAME.startsWith(probe))
+                    .filter(rows)
+                    .stream().map(e -> e.name).toList();
+            List<String> refPrefix = rows.stream()
+                    .filter(e -> e.name != null && e.name.startsWith(probe))
+                    .map(e -> e.name).toList();
+            List<String> typedSuffix = TypedQuery.from(Employee.class)
+                    .where(NAME.endsWith(probe))
+                    .filter(rows)
+                    .stream().map(e -> e.name).toList();
+            List<String> refSuffix = rows.stream()
+                    .filter(e -> e.name != null && e.name.endsWith(probe))
+                    .map(e -> e.name).toList();
+
+            assertEquals(refPrefix, typedPrefix, () -> "startsWith(" + probe + ")");
+            assertEquals(refSuffix, typedSuffix, () -> "endsWith(" + probe + ")");
+        }
+    }
+
+    @Test
+    void startsWithAndEndsWithParityWithNaturalAndSqlLikeRecipe() {
+        List<String> typedPrefix = TypedQuery.from(Employee.class)
+                .where(DEPT.startsWith("Eng"))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream().map(e -> e.name).toList();
+        List<String> naturalPrefix = PojoLensNatural
+                .parse("show employees where department starts with Eng sort by name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+        List<String> sqlPrefix = PojoLensSql.parse("WHERE department MATCHES 'Eng.*' ORDER BY name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        List<String> typedSuffix = TypedQuery.from(Employee.class)
+                .where(NAME.endsWith("e"))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream().map(e -> e.name).toList();
+        List<String> naturalSuffix = PojoLensNatural
+                .parse("show employees where name ends with e sort by name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+        List<String> sqlSuffix = PojoLensSql.parse("WHERE name MATCHES '.*e' ORDER BY name")
+                .filter(sampleEmployees(), Employee.class)
+                .stream().map(e -> e.name).toList();
+
+        assertEquals(List.of("Alice", "Cara", "Dan"), typedPrefix);
+        assertEquals(typedPrefix, naturalPrefix);
+        assertEquals(typedPrefix, sqlPrefix);
+        assertEquals(List.of("Alice"), typedSuffix);
+        assertEquals(typedSuffix, naturalSuffix);
+        assertEquals(typedSuffix, sqlSuffix);
+    }
+
+    @Test
+    void notStartsWithAndNotEndsWithExcludeMatches() {
+        List<Employee> notPrefix = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("Ca").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> notSuffix = TypedQuery.from(Employee.class)
+                .where(NAME.endsWith("ce").not())
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+
+        assertEquals(List.of("Alice", "Bob", "Dan"), notPrefix.stream().map(e -> e.name).toList());
+        assertEquals(List.of("Bob", "Cara", "Dan"), notSuffix.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void planPreviewReportsStartsWithOperatorAndRawPrefix() {
+        TypedPlanPredicate filter = TypedQuery.from(Employee.class)
+                .where(NAME.startsWith("Al"))
+                .planPreview()
+                .filterExpression();
+
+        assertEquals(TypedPredicate.Operator.STARTS_WITH, filter.operator());
+        assertEquals("name", filter.field());
+        assertEquals("Al", filter.value());
+    }
+
+    private static Employee employeeNamed(String name) {
+        return new Employee(0, name, "Engineering", 1, null, true);
     }
 
     // --- Guard interop ---
@@ -1041,6 +1661,16 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void schemaWithProjectionClassDoesNotRequireSourceRows() {
+        TabularSchema s = TypedQuery.from(Employee.class)
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .schema(DepartmentCount.class);
+
+        assertEquals(List.of("department", "total"), s.names());
+    }
+
+    @Test
     void schemaWithProjectionClassReturnsNonNull() {
         TabularSchema s = TypedQuery.from(Employee.class)
                 .schema(sampleEmployees(), Employee.class);
@@ -1077,6 +1707,557 @@ public class TypedQueryContractTest {
         assertEquals(List.of("department", "name", "salary", "rn"), s.names());
     }
 
+    @Test
+    void diagnosticsShouldReportInvalidQueryShape() {
+        QueryDiagnostics diagnostics = TypedQuery.from(Employee.class)
+                .select(NAME)
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .diagnostics();
+
+        assertFalse(diagnostics.valid());
+        assertEquals("EQ-TYPED-ERR", diagnostics.errors().get(0).code());
+        assertTrue(diagnostics.errors().get(0).message().contains("cannot be combined with groupBy"));
+    }
+
+    @Test
+    void diagnosticsAndPlanPreviewShouldReflectAggregateTypedQueryShape() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedField<Employee, Double> adjustedSalary = TypedField.of("adjustedSalary", Double.class);
+        TypedField<Employee, java.util.Date> employeeHireDate = TypedField.of("hireDate", java.util.Date.class);
+        TypedQuery<Employee> query = TypedQuery.from(Employee.class)
+                .computedFields(registry)
+                .where(ACTIVE.eq(true).and(NAME.inSubquery(
+                        NAME,
+                        TypedQuery.from(Employee.class).where(DEPT.eq("Engineering"))
+                )))
+                .timeBucket(employeeHireDate, TimeBucket.MONTH, "period")
+                .groupBy(DEPT)
+                .metric(adjustedSalary, Metric.SUM, PAYROLL)
+                .orderBy(DEPT)
+                .orderByDesc(PAYROLL)
+                .limit(5)
+                .offset(2)
+                .executionGuard(QueryExecutionGuard.builder()
+                        .maxRowsScanned(100)
+                        .maxRowsReturned(10)
+                        .build());
+
+        QueryDiagnostics diagnostics = query.diagnostics();
+        TypedPlanPreview preview = query.planPreview();
+
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.referencedFields().containsAll(List.of("active", "name", "department", "hireDate", "adjustedSalary")));
+        assertTrue(diagnostics.outputFields().containsAll(List.of("period", "department", "payroll")));
+        assertTrue(diagnostics.hasSubqueries());
+
+        assertEquals("Employee", preview.source());
+        assertTrue(preview.hasGrouping());
+        assertTrue(preview.hasAggregation());
+        assertTrue(preview.hasTimeBuckets());
+        assertTrue(preview.hasComputedFields());
+        assertTrue(preview.hasExecutionGuard());
+        assertTrue(preview.hasSubqueries());
+        assertEquals(List.of("department", "payroll"),
+                preview.orderFields().stream().map(order -> order.field()).toList());
+        assertEquals(List.of("ASC", "DESC"),
+                preview.orderFields().stream().map(order -> order.direction()).toList());
+        assertEquals(List.of("period", "department", "payroll"), preview.outputFields());
+        assertEquals("period", preview.timeBuckets().get(0).alias());
+        assertEquals("MONTH", preview.timeBuckets().get(0).bucket().name());
+        assertEquals("adjustedSalary", preview.metrics().get(0).field());
+        assertEquals("SUM", preview.metrics().get(0).metric().name());
+        assertEquals("payroll", preview.metrics().get(0).alias());
+        assertEquals(5, preview.paging().limit());
+        assertEquals(2, preview.paging().offset());
+        assertEquals(100, preview.executionGuard().maxRowsScanned());
+        assertEquals(10, preview.executionGuard().maxRowsReturned());
+        assertEquals(TypedPredicate.Operator.AND, preview.filterExpression().operator());
+        assertEquals(TypedPredicate.Operator.IN_SUBQUERY, preview.filterExpression().children().get(1).operator());
+    }
+
+    @Test
+    void planPreviewShouldReflectWindowAndQualifyShape() {
+        TypedPlanPreview preview = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                .qualify(RN.lte(1L))
+                .orderBy(DEPT)
+                .planPreview();
+
+        assertTrue(preview.hasWindows());
+        assertEquals(1, preview.windows().size());
+        assertEquals("ROW_NUMBER", preview.windows().get(0).function().name());
+        assertEquals(List.of("department"), preview.windows().get(0).partitionFields());
+        assertEquals(List.of("salary"), preview.windows().get(0).orderFields().stream().map(order -> order.field()).toList());
+        assertEquals("DESC", preview.windows().get(0).orderFields().get(0).direction());
+        assertEquals(TypedPredicate.Operator.LTE, preview.qualifyExpression().operator());
+        assertEquals("rn", preview.qualifyExpression().field());
+        assertTrue(preview.outputFields().contains("rn"));
+    }
+
+    // --- Execution convenience ---
+
+    @Test
+    void countReturnsMatchingRowCount() {
+        long result = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .count(sampleEmployees());
+        assertEquals(3L, result);
+    }
+
+    @Test
+    void countReturnsZeroWhenNoMatch() {
+        long result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Nobody"))
+                .count(sampleEmployees());
+        assertEquals(0L, result);
+    }
+
+    @Test
+    void countWithNoWhereReturnsAllRows() {
+        long result = TypedQuery.from(Employee.class)
+                .count(sampleEmployees());
+        assertEquals(sampleEmployees().size(), result);
+    }
+
+    @Test
+    void existsReturnsTrueWhenMatchFound() {
+        boolean found = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Alice"))
+                .exists(sampleEmployees());
+        assertTrue(found);
+    }
+
+    @Test
+    void existsReturnsFalseWhenNoMatch() {
+        boolean found = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Nobody"))
+                .exists(sampleEmployees());
+        assertFalse(found);
+    }
+
+    @Test
+    void findFirstReturnsFirstOrderedResult() {
+        Optional<Employee> result = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .orderBy(NAME)
+                .findFirst(sampleEmployees());
+        assertTrue(result.isPresent());
+        assertEquals("Alice", result.get().name);
+    }
+
+    @Test
+    void findFirstReturnsEmptyWhenNoMatch() {
+        Optional<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Nobody"))
+                .findFirst(sampleEmployees());
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    void findOneReturnsSingleMatch() {
+        Optional<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Alice"))
+                .findOne(sampleEmployees());
+        assertTrue(result.isPresent());
+        assertEquals("Alice", result.get().name);
+    }
+
+    @Test
+    void findOneReturnsEmptyWhenNoMatch() {
+        Optional<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Nobody"))
+                .findOne(sampleEmployees());
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    void findOneThrowsWhenMultipleMatches() {
+        assertThrows(IllegalStateException.class, () ->
+                TypedQuery.from(Employee.class)
+                        .where(ACTIVE.eq(true))
+                        .findOne(sampleEmployees()));
+    }
+
+    @Test
+    void existsShortCircuitsAtOneRow() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class).where(ACTIVE.eq(true));
+        assertTrue(q.exists(sampleEmployees()));
+    }
+
+    @Test
+    void countMatchesFilterSize() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class).where(SALARY.gt(70_000));
+        assertEquals(q.filter(sampleEmployees()).size(), (int) q.count(sampleEmployees()));
+    }
+
+    // --- stream ---
+
+    @Test
+    void streamReturnsAllRowsWhenNoPredicate() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .stream(sampleEmployees())
+                .toList();
+        assertEquals(sampleEmployees().size(), result.size());
+    }
+
+    @Test
+    void streamRespectsWherePredicate() {
+        List<String> names = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .stream(sampleEmployees())
+                .map(e -> e.name)
+                .sorted()
+                .toList();
+        assertEquals(List.of("Alice", "Bob", "Cara"), names);
+    }
+
+    @Test
+    void streamRespectsOrderAndLimit() {
+        List<String> names = TypedQuery.from(Employee.class)
+                .orderByDesc(SALARY)
+                .limit(2)
+                .stream(sampleEmployees())
+                .map(e -> e.name)
+                .toList();
+        assertEquals(List.of("Cara", "Alice"), names);
+    }
+
+    @Test
+    void streamParityWithFilter() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Engineering"))
+                .orderBy(NAME);
+        List<String> fromFilter = q.filter(sampleEmployees()).stream().map(e -> e.name).toList();
+        List<String> fromStream = q.stream(sampleEmployees()).map(e -> e.name).toList();
+        assertEquals(fromFilter, fromStream);
+    }
+
+    @Test
+    void streamDatasetBundleOverloadWorks() {
+        DatasetBundle bundle = DatasetBundle.of(sampleEmployees());
+        List<String> names = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(false))
+                .stream(bundle)
+                .map(e -> e.name)
+                .toList();
+        assertEquals(List.of("Dan"), names);
+    }
+
+    @Test
+    void streamJoinBindingsOverloadWorks() {
+        JoinBindings joins = JoinBindings.empty();
+        List<String> names = TypedQuery.from(Employee.class)
+                .where(SALARY.gte(120_000))
+                .orderBy(NAME)
+                .stream(sampleEmployees(), joins)
+                .map(e -> e.name)
+                .toList();
+        assertEquals(List.of("Alice", "Cara"), names);
+    }
+
+    @Test
+    void iteratorParityWithFilter() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Engineering"))
+                .orderBy(NAME);
+        List<String> fromIterator = new ArrayList<>();
+        q.iterator(sampleEmployees()).forEachRemaining(e -> fromIterator.add(e.name));
+
+        assertEquals(List.of("Alice", "Cara", "Dan"), fromIterator);
+    }
+
+    @Test
+    void iteratorDatasetBundleAndJoinBindingsOverloadsWork() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class).where(ACTIVE.eq(false));
+
+        Iterator<Employee> fromBundle = q.iterator(DatasetBundle.of(sampleEmployees()));
+        Iterator<Employee> fromJoins = q.iterator(sampleEmployees(), JoinBindings.empty());
+
+        assertEquals("Dan", fromBundle.next().name);
+        assertFalse(fromBundle.hasNext());
+        assertEquals("Dan", fromJoins.next().name);
+        assertFalse(fromJoins.hasNext());
+    }
+
+    @Test
+    void iteratorRejectsRemove() {
+        Iterator<Employee> iterator = TypedQuery.from(Employee.class).iterator(sampleEmployees());
+        iterator.next();
+
+        assertThrows(UnsupportedOperationException.class, iterator::remove);
+    }
+
+    // --- any() / none() sentinels ---
+
+    @Test
+    void anyReturnsAllRows() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.any())
+                .filter(sampleEmployees());
+        assertEquals(sampleEmployees().size(), result.size());
+    }
+
+    @Test
+    void noneReturnsEmptyList() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.none())
+                .filter(sampleEmployees());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void predAndAnyEquivalentToPred() {
+        TypedPredicate<Employee> pred = DEPT.eq("Engineering");
+        List<Employee> withAnd = TypedQuery.from(Employee.class)
+                .where(pred.and(TypedPredicate.any()))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> plain = TypedQuery.from(Employee.class)
+                .where(pred)
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(plain.stream().map(e -> e.name).toList(),
+                withAnd.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void predOrNoneEquivalentToPred() {
+        TypedPredicate<Employee> pred = DEPT.eq("Engineering");
+        List<Employee> withOr = TypedQuery.from(Employee.class)
+                .where(pred.or(TypedPredicate.none()))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> plain = TypedQuery.from(Employee.class)
+                .where(pred)
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(plain.stream().map(e -> e.name).toList(),
+                withOr.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void anyWithDatasetBundleReturnsAllRows() {
+        DatasetBundle bundle = DatasetBundle.of(sampleEmployees());
+        long count = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.any())
+                .count(bundle);
+        assertEquals(sampleEmployees().size(), count);
+    }
+
+    @Test
+    void noneWithDatasetBundleReturnsEmpty() {
+        DatasetBundle bundle = DatasetBundle.of(sampleEmployees());
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.none())
+                .filter(bundle);
+        assertTrue(result.isEmpty());
+    }
+
+    // --- computedFields ---
+
+    @Test
+    void computedFieldsAccessorDefaultsToEmpty() {
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class);
+        assertFalse(q.hasComputedFields());
+        assertNotNull(q.computedFieldRegistry());
+    }
+
+    @Test
+    void computedFieldsRegistryIsRetainedAfterFluent() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedQuery<Employee> q = TypedQuery.from(Employee.class).computedFields(registry);
+        assertTrue(q.hasComputedFields());
+        assertEquals(registry, q.computedFieldRegistry());
+    }
+
+    @Test
+    void computedFieldsFilterOnDerivedField() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedField<Employee, Double> ADJUSTED_SALARY = TypedField.of("adjustedSalary", Double.class);
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .computedFields(registry)
+                .where(ADJUSTED_SALARY.gte(130_000.0))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        // Alice: 120000*1.1=132000 ≥ 130000; Cara: 130000*1.1=143000 ≥ 130000
+        assertEquals(List.of("Alice", "Cara"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void computedFieldsNullRegistryThrows() {
+        assertThrows(NullPointerException.class,
+                () -> TypedQuery.from(Employee.class).computedFields(null));
+    }
+
+    @Test
+    void computedFieldsWithGroupByAndMetric() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedField<Employee, String> DEPT = TypedField.of("department", String.class);
+        TypedField<Employee, Double> ADJUSTED_SALARY = TypedField.of("adjustedSalary", Double.class);
+
+        List<DepartmentAdjustedPayrollRow> result = TypedQuery.from(Employee.class)
+                .computedFields(registry)
+                .groupBy(DEPT)
+                .metric(ADJUSTED_SALARY, Metric.SUM, "totalAdjustedPayroll")
+                .filter(sampleEmployees(), DepartmentAdjustedPayrollRow.class);
+
+        // Engineering: Alice(132000) + Cara(143000) + Dan(121000) = 396000
+        // Finance: Bob(99000)
+        assertEquals(2, result.size());
+        DepartmentAdjustedPayrollRow eng = result.stream()
+                .filter(r -> "Engineering".equals(r.department)).findFirst().orElseThrow();
+        assertEquals(396000.0, eng.totalAdjustedPayroll, 0.01);
+    }
+
+    @Test
+    void computedFieldsWithGroupByAndHaving() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+        TypedField<Employee, String> DEPT = TypedField.of("department", String.class);
+        TypedField<Employee, Double> ADJUSTED_SALARY = TypedField.of("adjustedSalary", Double.class);
+        TypedField<DepartmentAdjustedPayrollRow, Double> TOTAL =
+                TypedField.of("totalAdjustedPayroll", Double.class);
+
+        List<DepartmentAdjustedPayrollRow> result = TypedQuery.from(Employee.class)
+                .computedFields(registry)
+                .groupBy(DEPT)
+                .metric(ADJUSTED_SALARY, Metric.SUM, "totalAdjustedPayroll")
+                .having(TOTAL.gt(200_000.0))
+                .filter(sampleEmployees(), DepartmentAdjustedPayrollRow.class);
+
+        // Only Engineering (396000) passes the having > 200000 filter
+        assertEquals(1, result.size());
+        assertEquals("Engineering", result.get(0).department);
+    }
+
+    // --- Between ---
+
+    @Test
+    void betweenFiltersInclusiveRange() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(SALARY.between(60_000, 80_000))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<String> names = result.stream().map(e -> e.name).toList();
+        assertTrue(names.stream().allMatch(n -> {
+            int salary = sampleEmployees().stream().filter(e -> e.name.equals(n)).findFirst().get().salary;
+            return salary >= 60_000 && salary <= 80_000;
+        }));
+    }
+
+    @Test
+    void betweenEqualsGteLteComposition() {
+        List<Employee> byBetween = TypedQuery.from(Employee.class)
+                .where(SALARY.between(60_000, 80_000))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> byComposed = TypedQuery.from(Employee.class)
+                .where(SALARY.gte(60_000).and(SALARY.lte(80_000)))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(byComposed.stream().map(e -> e.name).toList(),
+                byBetween.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void betweenStaticFactoryMatchesInstanceMethod() {
+        List<Employee> fromField = TypedQuery.from(Employee.class)
+                .where(SALARY.between(60_000, 80_000))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        List<Employee> fromStatic = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.between(SALARY, 60_000, 80_000))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+        assertEquals(fromField.stream().map(e -> e.name).toList(),
+                fromStatic.stream().map(e -> e.name).toList());
+    }
+
+    // --- Time bucket ---
+
+    @Test
+    void timeBucketGroupsByMonthAndAggregates() {
+        List<DepartmentPeriodAgg> result = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, TimeBucket.MONTH, "period")
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        assertEquals(2, result.size());
+        List<String> periods = result.stream().map(r -> r.period).sorted().toList();
+        assertEquals(List.of("2025-01", "2025-02"), periods);
+        long janTotal = result.stream().filter(r -> "2025-01".equals(r.period)).mapToLong(r -> r.total).sum();
+        assertEquals(2L, janTotal);
+    }
+
+    @Test
+    void timeBucketGroupsByHour() {
+        List<DepartmentPeriodAgg> result = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, TimeBucket.HOUR, "period")
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+
+        assertEquals(List.of(
+                        "2025-01-15T10|1",
+                        "2025-01-20T12|1",
+                        "2025-02-01T00|1",
+                        "2025-02-05T08|1"
+                ),
+                result.stream().map(row -> row.period + "|" + row.total).sorted().toList());
+    }
+
+    @Test
+    void timeBucketParityWithSqlLike() {
+        List<DepartmentPeriodAgg> typed = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, TimeBucket.MONTH, "period")
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        List<DepartmentPeriodAgg> sql = laughing.man.commits.PojoLensSql
+                .parse("select bucket(hireDate,'month') as period, count(*) as total group by period")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        assertEquals(
+                sql.stream().map(r -> r.period + "|" + r.total).sorted().toList(),
+                typed.stream().map(r -> r.period + "|" + r.total).sorted().toList()
+        );
+    }
+
+    @Test
+    void timeBucketWithPresetAcceptsZone() {
+        TimeBucketPreset preset = TimeBucketPreset.of(TimeBucket.MONTH).withZone("UTC");
+        List<DepartmentPeriodAgg> result = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, preset, "period")
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        assertFalse(result.isEmpty());
+    }
+
+    @Test
+    void timeBucketWithOutputFieldOverload() {
+        TypedField<DepartmentPeriodAgg, String> PERIOD = TypedField.of("period", String.class);
+        List<DepartmentPeriodAgg> result = TypedQuery.from(EmployeePoint.class)
+                .timeBucket(HIRE_DATE, TimeBucket.MONTH, PERIOD)
+                .count("total")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void timeBucketIsImmutable() {
+        TypedQuery<EmployeePoint> base = TypedQuery.from(EmployeePoint.class);
+        TypedQuery<EmployeePoint> withBucket = base.timeBucket(HIRE_DATE, TimeBucket.MONTH, "period");
+        assertFalse(base.hasTimeBuckets());
+        assertTrue(withBucket.hasTimeBuckets());
+    }
+
     // --- Helpers ---
 
     private static Method requirePublicMethod(Class<?> type, String name, Class<?>... params)
@@ -1108,6 +2289,14 @@ public class TypedQueryContractTest {
         public long total;
 
         public JoinedTitleCount() {
+        }
+    }
+
+    public static class DepartmentAdjustedPayrollRow {
+        public String department;
+        public double totalAdjustedPayroll;
+
+        public DepartmentAdjustedPayrollRow() {
         }
     }
 }

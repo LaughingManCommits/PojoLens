@@ -2,8 +2,9 @@
 
 Runtime Java package roles under `pojo-lens/src/main/java/laughing/man/commits`:
 
-- facades: `PojoLens`, `PojoLensCore`, `PojoLensSql`, `PojoLensChart`, `PojoLensRuntime`
-- fluent pipeline: `builder/*` builds queries and `filter/*` executes them through both the legacy `QueryRow` engine and a selective single-join array fast path
+- public entry facades: `PojoLensSql`, `PojoLensNatural`, `PojoLensFiles`, `PojoLensCsv`, `PojoLensTree`, `PojoLensChart`, `PojoLensRuntime`
+- typed DSL: `dsl/*` exposes `TypedQuery`, `TypedField`, `TypedPredicate`, sort/window descriptors, and lowers into the shared engine
+- internal fluent pipeline: `internal/builder/*` builds queries and `filter/*` executes them through both the legacy `QueryRow` engine and a selective single-join array fast path
 - SQL-like pipeline: `sqllike/parser`, `sqllike/internal/validation`, `sqllike/internal/binding`, `sqllike/internal/execution`
 - reporting and visualization: `chart/*`, `report/*`, `table/*`, `time/*`
 - supporting features: `computed/*`, `snapshot/*`, `testing/*`, `telemetry/*`, `metamodel/*`

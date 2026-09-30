@@ -13,10 +13,10 @@
   deploy skipped).
 - Release versioning is date-based: Maven versions use `YYYY.MM.DD.HHmm` and
   Git tags use `release-<version>`.
-- The library provides in-memory querying over POJOs through explicit fluent,
-  controlled plain-English, and SQL-like entry points (`PojoLensCore`,
+- The library provides in-memory querying over POJOs through typed Java,
+  controlled plain-English, and SQL-like entry points (`TypedQuery`,
   `PojoLensNatural`, and `PojoLensSql`) plus scoped `PojoLensRuntime`; the old
-  `PojoLens` facade is removed from the public surface.
+  `PojoLens` facade and old public fluent facade are removed from the public surface.
 - Core behavior includes filtering, ordering, grouping, HAVING, metrics, time buckets, joins, typed projection, bounded subqueries/existence predicates, windows, and explain or schema support.
 - Adjacent library features include CSV boundary loading, tree row shaping, chart payload mapping, chart or query presets, reusable reports, dataset bundles, snapshot comparison, telemetry hooks, tabular schema metadata, field metamodel generation, regression fixtures, and benchmark tooling.
 - The repository does not own a web service, CLI application, deployment manifests, or database pushdown integration.

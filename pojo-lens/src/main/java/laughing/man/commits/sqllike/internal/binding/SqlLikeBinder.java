@@ -41,7 +41,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -93,6 +92,22 @@ public final class SqlLikeBinder {
         return configureBoundBuilder(builder, normalizedAst, joinPlan, pojos, joinSources, computedFieldRegistry);
     }
 
+    /**
+     * Binds an AST already returned by {@code SqlLikeValidator.validateForFilter}, which has
+     * canonicalized join field references. Canonicalizing again would misread a root field
+     * that collides with a joined field (its merged name is the bare, ambiguous name).
+     */
+    public static QueryBuilder bindValidated(QueryAst validatedAst,
+                                             List<?> pojos,
+                                             Map<String, List<?>> joinSources,
+                                             Class<?> sourceClass,
+                                             ComputedFieldRegistry computedFieldRegistry,
+                                             FilterExecutionPlanCacheStore executionPlanCache) {
+        SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(validatedAst, sourceClass, joinSources);
+        QueryBuilder builder = FluentEngine.newQueryBuilder(pojos, executionPlanCache).computedFields(computedFieldRegistry);
+        return configureBoundBuilder(builder, validatedAst, joinPlan, pojos, joinSources, computedFieldRegistry);
+    }
+
     private static QueryBuilder configureBoundBuilder(QueryBuilder builder,
                                                       QueryAst normalizedAst,
                                                       SqlLikeJoinResolution.Plan joinPlan,
@@ -129,7 +144,8 @@ public final class SqlLikeBinder {
                     if (field.countAll()) {
                         builder.addCount(field.outputName());
                     } else {
-                        builder.addMetric(field.field(), field.metric(), field.outputName());
+                        AggregateExpressionSupport.addMetric(
+                                builder, field.field(), field.metric(), field.metricArgument(), field.outputName());
                     }
                 }
             }
@@ -164,9 +180,13 @@ public final class SqlLikeBinder {
 
         int orderIndex = 1;
         for (OrderAst order : normalizedAst.orders()) {
-            builder.addOrder(resolveOrderField(builder, order.field(), aggregateExpressionOutputs, hiddenOrderAliases), orderIndex++);
+            builder.addOrder(resolveOrderField(builder, order.field(), aggregateExpressionOutputs, hiddenOrderAliases),
+                    orderIndex++, order.sort());
         }
 
+        if (select != null && select.distinct()) {
+            builder.distinctRows();
+        }
         if (normalizedAst.limit() != null) {
             builder.limit(normalizedAst.limit());
         }
@@ -196,7 +216,20 @@ public final class SqlLikeBinder {
         for (OrderAst order : ast.orders()) {
             if (order.sort() != first) {
                 throw SqlLikeErrors.argument(SqlLikeErrorCodes.BIND_MIXED_ORDER_DIRECTIONS,
-                        "Mixed ORDER BY directions are not supported in v1; use all ASC or all DESC");
+                        "Mixed ORDER BY directions are not supported by sort(); inspect the AST/order list instead");
+            }
+        }
+        return first;
+    }
+
+    public static Sort resolveExecutionSort(QueryAst ast) {
+        if (ast.orders().isEmpty()) {
+            return null;
+        }
+        Sort first = ast.orders().get(0).sort();
+        for (OrderAst order : ast.orders()) {
+            if (order.sort() != first) {
+                return null;
             }
         }
         return first;
@@ -296,9 +329,22 @@ public final class SqlLikeBinder {
             if (!field.windowField()) {
                 continue;
             }
+            WindowFunction function = resolveWindowFunction(field.windowFunction());
+            if (function.isOffsetFunction()) {
+                builder.addOffsetWindow(
+                        field.outputName(),
+                        function,
+                        field.windowValueField(),
+                        field.windowOffset(),
+                        field.windowDefault(),
+                        field.windowPartitionFields(),
+                        toWindowOrderFields(field.windowOrderFields())
+                );
+                continue;
+            }
             builder.addWindow(
                     field.outputName(),
-                    resolveWindowFunction(field.windowFunction()),
+                    function,
                     field.windowValueField(),
                     field.windowCountAll(),
                     field.windowPartitionFields(),
@@ -312,17 +358,11 @@ public final class SqlLikeBinder {
         if (function == null) {
             throw new IllegalArgumentException("Window function is required");
         }
-        return switch (function.trim().toUpperCase(Locale.ROOT)) {
-            case "ROW_NUMBER" -> WindowFunction.ROW_NUMBER;
-            case "RANK" -> WindowFunction.RANK;
-            case "DENSE_RANK" -> WindowFunction.DENSE_RANK;
-            case "COUNT" -> WindowFunction.COUNT;
-            case "SUM" -> WindowFunction.SUM;
-            case "AVG" -> WindowFunction.AVG;
-            case "MIN" -> WindowFunction.MIN;
-            case "MAX" -> WindowFunction.MAX;
-            default -> throw new IllegalArgumentException("Unsupported window function '" + function + "'");
-        };
+        WindowFunction resolved = WindowFunction.fromName(function);
+        if (resolved == null) {
+            throw new IllegalArgumentException("Unsupported window function '" + function + "'");
+        }
+        return resolved;
     }
 
     private static List<QueryWindowOrder> toWindowOrderFields(List<OrderAst> orders) {
@@ -672,7 +712,7 @@ public final class SqlLikeBinder {
 
     private static Object unwrapValue(Object value) {
         if (value instanceof BoundParameterValue boundParameterValue) {
-            return boundParameterValue.value();
+            return boundParameterValue.executionValue();
         }
         return value;
     }
@@ -724,7 +764,7 @@ public final class SqlLikeBinder {
                                                       ComputedFieldRegistry computedFieldRegistry) {
         Class<?> sourceClass = inferSourceClass(sourceRows);
         QueryBuilder subqueryBuilder = bind(subquery, sourceRows, joinSources, sourceClass, computedFieldRegistry);
-        Sort subquerySort = resolveSort(subquery);
+        Sort subquerySort = resolveExecutionSort(subquery);
         List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(
                 subqueryBuilder,
                 subquerySort,

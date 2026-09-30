@@ -22,6 +22,7 @@ over the same loader support. It is not a separate product story.
 | TSV file to typed rows | `PojoLensFiles.tsv(path, rowType)` | Keeps tab-delimited loading on the same boundary surface instead of adding a peer `PojoLensTsv` entry point. |
 | JSON file to typed rows | `PojoLensFiles.json(path, rowType)` | Keeps row-oriented JSON onboarding on the same bounded surface instead of adding a peer `PojoLensJson` entry point. |
 | JSONL file to typed rows | `PojoLensFiles.jsonl(path, rowType)` | Keeps one-object-per-line loading on the same surface for logs, exports, and streaming snapshots. |
+| Classpath resource, upload, or other non-file source | `PojoLensFiles.csv(reader, rowType)` or `json(inputStream, rowType)` (every format and `*WithReport` variant) | Same loaders and diagnostics without writing a temp file first. |
 | Runtime-owned file defaults | `runtime.files().csv(...)`, `tsv(...)`, `json(...)`, or `jsonl(...)` | Lets format-specific loader defaults live on `PojoLensRuntime` while the format stays explicit at the call site. |
 | Structured load diagnostics | `csvWithReport(...)`, `tsvWithReport(...)`, `jsonWithReport(...)`, or `jsonlWithReport(...)` | Keeps file-boundary troubleshooting on the loader surface. |
 
@@ -32,6 +33,35 @@ over the same loader support. It is not a separate product story.
   `TypedQuery`, or `ReportDefinition`.
 - Keep format choice explicit at the call site.
 - Do not create peer top-level product stories per file format.
+
+## Stream Sources: Reader And InputStream
+
+Every `PojoLensFiles` and `runtime.files()` method that takes a `Path` also
+accepts a `java.io.Reader` or `java.io.InputStream` in the same position:
+
+```java
+try (InputStream in = getClass().getResourceAsStream("/fixtures/employees.csv")) {
+    List<Employee> rows = PojoLensFiles.csv(in, Employee.class);
+}
+
+List<Employee> rows = PojoLensFiles.json(new StringReader(uploadedJson), Employee.class);
+```
+
+Stream rules:
+- the loader reads the source to the end but never closes it; the caller that
+  opened the stream closes it
+- `InputStream` sources decode as strict UTF-8, the same as `Path` sources;
+  malformed bytes fail the load with stage `parse`
+- pass a `Reader` when the source uses another charset
+- a `null` source fails preflight with `reader must not be null` or
+  `inputStream must not be null`
+
+Diagnostics stay the same except for source identity:
+- `CsvLoadReport.sourceName()` / `JsonLoadReport.sourceName()` return the file
+  path for `Path` loads, or the synthetic name `<reader>` / `<input-stream>`
+  for stream loads
+- `path()` is `null` for stream loads
+- row numbers count lines from the start of the stream
 
 ## Delimited Text: CSV And TSV
 

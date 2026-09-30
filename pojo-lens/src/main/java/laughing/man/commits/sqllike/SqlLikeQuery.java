@@ -72,6 +72,9 @@ public final class SqlLikeQuery {
     private final FilterExecutionPlanCacheStore executionPlanCache;
     private final QueryExposurePolicy exposurePolicy;
     private final QueryExecutionGuard executionGuard;
+    // keysetBefore(...) runs with ORDER BY reversed so LIMIT keeps the rows nearest the
+    // cursor; results are flipped back to the query's declared order.
+    private final boolean reversePage;
     private final Cache<ExecutionShapeKey, PreparedExecution> preparedExecutions;
 
     private SqlLikeQuery(String source, String normalizedQuery, String queryType, QueryAst ast) {
@@ -101,7 +104,7 @@ public final class SqlLikeQuery {
                          FilterExecutionPlanCacheStore executionPlanCache) {
         this(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes,
                 telemetryListener, computedFieldRegistry, executionPlanCache, QueryExposurePolicy.unrestricted(),
-                QueryExecutionGuard.unrestricted());
+                QueryExecutionGuard.unrestricted(), false);
     }
 
     private SqlLikeQuery(String source,
@@ -115,7 +118,8 @@ public final class SqlLikeQuery {
                          ComputedFieldRegistry computedFieldRegistry,
                          FilterExecutionPlanCacheStore executionPlanCache,
                          QueryExposurePolicy exposurePolicy,
-                         QueryExecutionGuard executionGuard) {
+                         QueryExecutionGuard executionGuard,
+                         boolean reversePage) {
         this.source = source;
         this.normalizedQuery = normalizedQuery;
         this.queryType = queryType;
@@ -128,6 +132,7 @@ public final class SqlLikeQuery {
         this.executionPlanCache = Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
         this.exposurePolicy = exposurePolicy == null ? QueryExposurePolicy.unrestricted() : exposurePolicy;
         this.executionGuard = executionGuard == null ? QueryExecutionGuard.unrestricted() : executionGuard;
+        this.reversePage = reversePage;
         this.preparedExecutions = Caffeine.newBuilder()
                 .maximumSize(256)
                 .expireAfterAccess(Duration.ofMinutes(30))
@@ -183,7 +188,7 @@ public final class SqlLikeQuery {
                 computedFieldRegistry,
                 executionPlanCache,
                 exposurePolicy,
-                executionGuard);
+                executionGuard, reversePage);
     }
 
     /**
@@ -225,7 +230,7 @@ public final class SqlLikeQuery {
                 computedFieldRegistry,
                 executionPlanCache,
                 exposurePolicy,
-                executionGuard);
+                executionGuard, reversePage);
     }
 
     /**
@@ -260,7 +265,8 @@ public final class SqlLikeQuery {
                 computedFieldRegistry,
                 executionPlanCache,
                 exposurePolicy,
-                executionGuard
+                executionGuard,
+                false
         );
     }
 
@@ -285,7 +291,8 @@ public final class SqlLikeQuery {
                 computedFieldRegistry,
                 executionPlanCache,
                 exposurePolicy,
-                executionGuard
+                executionGuard,
+                true
         );
     }
 
@@ -309,7 +316,7 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, enabled, lintMode, suppressedLintCodes,
-                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy, executionGuard);
+                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy, executionGuard, reversePage);
     }
 
     /**
@@ -342,7 +349,7 @@ public final class SqlLikeQuery {
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, enabled,
                 suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy,
-                executionGuard);
+                executionGuard, reversePage);
     }
 
     /**
@@ -360,7 +367,7 @@ public final class SqlLikeQuery {
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
                 suppressedLintCodes, listener, computedFieldRegistry, executionPlanCache, exposurePolicy,
-                executionGuard);
+                executionGuard, reversePage);
     }
 
     public QueryTelemetryListener telemetryListener() {
@@ -375,7 +382,7 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
-                suppressedLintCodes, telemetryListener, registry, executionPlanCache, exposurePolicy, executionGuard);
+                suppressedLintCodes, telemetryListener, registry, executionPlanCache, exposurePolicy, executionGuard, reversePage);
     }
 
     public ComputedFieldRegistry computedFieldRegistry() {
@@ -389,7 +396,7 @@ public final class SqlLikeQuery {
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
                 suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, policy,
-                executionGuard);
+                executionGuard, reversePage);
     }
 
     public QueryExposurePolicy exposurePolicy() {
@@ -403,7 +410,7 @@ public final class SqlLikeQuery {
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
                 suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy,
-                executionGuard);
+                executionGuard, reversePage);
     }
 
     /**
@@ -419,7 +426,7 @@ public final class SqlLikeQuery {
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
                 suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy,
-                guard);
+                guard, reversePage);
     }
 
     /**
@@ -459,7 +466,7 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, normalized,
-                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy, executionGuard);
+                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy, executionGuard, reversePage);
     }
 
     /**
@@ -852,6 +859,7 @@ public final class SqlLikeQuery {
             throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_LIMIT_INVALID,
                     "filterPage requires LIMIT to be greater than zero");
         }
+        long totalRows = executeTotalRows(pojos, joinSources, cls);
         QueryAst lookaheadAst = withLookaheadLimit(ast, pageSize);
         ExecutionContext context = prepareExecution(lookaheadAst, telemetryListener, pojos, joinSources, cls);
         long startedNanos = System.nanoTime();
@@ -859,12 +867,41 @@ public final class SqlLikeQuery {
         int resultSize = Math.min(lookaheadRows.size(), pageSize);
         checkPostExecution(resultSize, startedNanos);
         if (lookaheadRows.size() <= pageSize) {
-            return new PageResult<>(lookaheadRows, false, null);
+            return new PageResult<>(lookaheadRows, totalRows, false, null);
+        }
+        if (reversePage) {
+            // Previous-page window: the extra row sits before the page. The cursor marks the
+            // first visible row, for a further keysetBefore(...) step.
+            List<T> pageRows = List.copyOf(lookaheadRows.subList(lookaheadRows.size() - pageSize, lookaheadRows.size()));
+            return new PageResult<>(pageRows, totalRows, true, buildPageCursor(pageRows.get(0), cls));
         }
         List<T> pageRows = List.copyOf(lookaheadRows.subList(0, pageSize));
         T lastRow = pageRows.get(pageSize - 1);
         SqlLikeCursor cursor = buildPageCursor(lastRow, cls);
-        return new PageResult<>(pageRows, true, cursor);
+        return new PageResult<>(pageRows, totalRows, true, cursor);
+    }
+
+    private <T> long executeTotalRows(List<?> pojos,
+                                      Map<String, List<?>> joinSources,
+                                      Class<T> cls) {
+        QueryAst countAst = withoutPagination(ast);
+        SqlLikeQuery countQuery = new SqlLikeQuery(
+                source,
+                normalizedQuery,
+                queryType,
+                countAst,
+                strictParameterTypes,
+                lintMode,
+                suppressedLintCodes,
+                null,
+                computedFieldRegistry,
+                executionPlanCache,
+                exposurePolicy,
+                QueryExecutionGuard.unrestricted(),
+                false
+        );
+        ExecutionContext countContext = countQuery.prepareExecution(pojos, joinSources, cls);
+        return countQuery.executeFilter(countContext, cls).size();
     }
 
     private <T> SqlLikeCursor buildPageCursor(T lastRow, Class<T> cls) {
@@ -884,11 +921,7 @@ public final class SqlLikeQuery {
                 throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_CURSOR_FIELD_UNREADABLE,
                         "Cannot read ORDER BY field '" + field + "' from '" + cls.getSimpleName() + "'");
             }
-            if (value == null) {
-                throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_CURSOR_FIELD_UNREADABLE,
-                        "ORDER BY field '" + field + "' is null in last row; cursor cannot be built");
-            }
-            builder.put(field, value);
+            builder.put(field, value); // null boundaries are valid; keyset predicates are null-aware
         }
         return builder.build();
     }
@@ -913,11 +946,21 @@ public final class SqlLikeQuery {
     }
 
     private <T> List<T> executeFilter(ExecutionContext context, Class<T> projectionClass) {
-        return SqlLikeExecutionFlowSupport.executeFilter(context, projectionClass);
+        List<T> rows = SqlLikeExecutionFlowSupport.executeFilter(context, projectionClass);
+        return reversePage ? reversed(rows) : rows;
     }
 
     private <T> Stream<T> executeStream(ExecutionContext context, Class<T> projectionClass) {
+        if (reversePage) {
+            return reversed(SqlLikeExecutionFlowSupport.executeFilter(context, projectionClass)).stream();
+        }
         return SqlLikeExecutionFlowSupport.executeStream(context, projectionClass);
+    }
+
+    private static <T> List<T> reversed(List<T> rows) {
+        ArrayList<T> copy = new ArrayList<>(rows);
+        Collections.reverse(copy);
+        return copy;
     }
 
     /**

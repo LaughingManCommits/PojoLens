@@ -1,5 +1,6 @@
 package laughing.man.commits.filter;
 
+import laughing.man.commits.internal.NumericStatistics;
 import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.internal.builder.QueryMetric;
 import laughing.man.commits.domain.QueryRow;
@@ -10,7 +11,6 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -94,6 +94,7 @@ public final class FastStatsQuerySupport {
             if (!builder.getFilterFields().isEmpty()
                     || !builder.getHavingFields().isEmpty()
                     || !builder.getDistinctFields().isEmpty()
+                    || builder.isDistinctRows()
                     || !builder.getOrderFields().isEmpty()
                     || !builder.getAllOfGroups().isEmpty()
                     || !builder.getAnyOfGroups().isEmpty()
@@ -104,6 +105,7 @@ public final class FastStatsQuerySupport {
                     || !builder.getQualifyFields().isEmpty()
                     || !builder.getWindows().isEmpty()
                     || builder.getLimit() != null
+                    || builder.getOffset() != null
                     || !builder.getComputedFieldRegistry().isEmpty()) {
                 return false;
             }
@@ -124,7 +126,7 @@ public final class FastStatsQuerySupport {
             }
         }
         for (QueryMetric metric : builder.getMetrics()) {
-            if (metric == null || Metric.COUNT.equals(metric.getMetric())) {
+            if (metric == null || metric.getField() == null) {
                 continue;
             }
             selectedFieldNames.add(metric.getField());
@@ -165,14 +167,9 @@ public final class FastStatsQuerySupport {
         LinkedHashMap<QueryKey, GroupAccumulator> grouped =
                 new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), INITIAL_GROUP_MAP_SIZE_CAP)));
         Object[] rowValues = new Object[readPlan.size()];
-        String[] keyParts = new String[columnCount];
+        Object[] keyParts = new Object[columnCount];
         Object[] projectedValues = new Object[columnCount];
         QueryKey lookupKey = QueryKey.forMutableLookup(keyParts, columnCount);
-        @SuppressWarnings("unchecked")
-        HashMap<Object, String>[] keyStringCaches = new HashMap[columnCount];
-        for (int i = 0; i < columnCount; i++) {
-            keyStringCaches[i] = new HashMap<>();
-        }
 
         for (Object bean : source) {
             if (bean == null) {
@@ -191,12 +188,7 @@ public final class FastStatsQuerySupport {
                         ? rawValue
                         : TimeBucketUtil.bucketValue(rawValue, column.timeBucket());
                 projectedValues[i] = projectedValue;
-                String keyStr = keyStringCaches[i].get(projectedValue);
-                if (keyStr == null) {
-                    keyStr = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
-                    keyStringCaches[i].put(projectedValue, keyStr);
-                }
-                keyParts[i] = keyStr;
+                keyParts[i] = GroupKeyUtil.groupKey(projectedValue, column.dateFormat());
             }
 
             lookupKey.refresh();
@@ -223,10 +215,9 @@ public final class FastStatsQuerySupport {
                                                             ReflectionUtil.FlatRowReadPlan readPlan,
                                                             FilterExecutionPlan.GroupColumn groupColumn,
                                                             List<FilterExecutionPlan.MetricPlan> metricPlans) {
-        LinkedHashMap<String, GroupAccumulator> grouped =
+        LinkedHashMap<Object, GroupAccumulator> grouped =
                 new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), INITIAL_GROUP_MAP_SIZE_CAP)));
         Object[] rowValues = new Object[readPlan.size()];
-        HashMap<Object, String> valueToKey = new HashMap<>();
 
         for (Object bean : source) {
             if (bean == null) {
@@ -242,11 +233,7 @@ public final class FastStatsQuerySupport {
             Object projectedValue = groupColumn.timeBucket() == null
                     ? rawValue
                     : TimeBucketUtil.bucketValue(rawValue, groupColumn.timeBucket());
-            String key = valueToKey.get(projectedValue);
-            if (key == null) {
-                key = GroupKeyUtil.toGroupKeyValue(projectedValue, groupColumn.dateFormat());
-                valueToKey.put(projectedValue, key);
-            }
+            Object key = GroupKeyUtil.groupKey(projectedValue, groupColumn.dateFormat());
             GroupAccumulator accumulator = grouped.get(key);
             if (accumulator == null) {
                 accumulator = new GroupAccumulator(new Object[]{projectedValue}, metricPlans);
@@ -343,22 +330,35 @@ public final class FastStatsQuerySupport {
 
     private static final class MetricAccumulator {
         private final FilterExecutionPlan.MetricPlan metric;
+        private final NumericAccumulator stats;
+        private final DistinctValueCounter distinctValues;
+        private final NumericStatistics statistics;
         private long count;
-        private boolean present;
-        private Number min;
-        private Number max;
-        private double minDouble;
-        private double maxDouble;
-        private double sum;
-        private boolean hasFraction;
 
         private MetricAccumulator(FilterExecutionPlan.MetricPlan metric) {
             this.metric = metric;
+            this.stats = new NumericAccumulator(metric.fieldName());
+            this.distinctValues = metric.metric() == Metric.COUNT_DISTINCT ? new DistinctValueCounter() : null;
+            this.statistics = NumericStatistics.isStatistical(metric.metric())
+                    ? NumericStatistics.of(metric.metric(), metric.argument()) : null;
         }
 
         private void accumulate(Object[] rowValues) {
+            if (distinctValues != null) {
+                distinctValues.add(valueAt(rowValues, metric.fieldIndex()));
+                return;
+            }
+            if (statistics != null) {
+                Number number = AggregationEngine.numericValue(valueAt(rowValues, metric.fieldIndex()), metric);
+                if (number != null) {
+                    statistics.add(number);
+                }
+                return;
+            }
             if (metric.metric() == Metric.COUNT) {
-                count++;
+                if (metric.fieldIndex() < 0 || valueAt(rowValues, metric.fieldIndex()) != null) {
+                    count++;
+                }
                 return;
             }
 
@@ -370,38 +370,18 @@ public final class FastStatsQuerySupport {
                 throw new IllegalArgumentException(
                         "Metric " + metric.metric() + " requires numeric field: " + metric.fieldName());
             }
-            if (number instanceof Float || number instanceof Double) {
-                hasFraction = true;
-            }
-
-            double asDouble = number.doubleValue();
-            if (!present) {
-                min = number;
-                max = number;
-                minDouble = asDouble;
-                maxDouble = asDouble;
-                present = true;
-            } else {
-                if (asDouble < minDouble) {
-                    minDouble = asDouble;
-                    min = number;
-                }
-                if (asDouble > maxDouble) {
-                    maxDouble = asDouble;
-                    max = number;
-                }
-            }
-            count++;
-            sum += asDouble;
+            stats.add(number);
         }
 
         private Object result() {
             return switch (metric.metric()) {
                 case COUNT -> count;
-                case SUM -> present ? (hasFraction ? sum : (long) sum) : null;
-                case AVG -> present ? sum / count : null;
-                case MIN -> present ? min : null;
-                case MAX -> present ? max : null;
+                case COUNT_DISTINCT -> distinctValues.count();
+                case MEDIAN, PERCENTILE, STDDEV, STDDEV_POP, VARIANCE, VAR_POP -> statistics.result();
+                case SUM -> stats.sum();
+                case AVG -> stats.avg();
+                case MIN -> stats.min();
+                case MAX -> stats.max();
             };
         }
     }
