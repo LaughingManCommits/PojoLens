@@ -39,6 +39,16 @@ Stricter validation:
 - **Typed field names.** `TypedQuery` rejects a field name the entity does not have
   (`IllegalArgumentException` with suggestions) instead of silently matching
   nothing. Queries with joins are not checked.
+- **Expression types.** SQL-like expressions are type-checked during validation
+  (`EQ-SQL-VAL-009`), so arithmetic on a text field fails before the query runs
+  instead of at runtime. A computed `SELECT` output is reported in the tabular schema
+  with its inferred type (`Double`, `String`, `Integer`, ...) instead of `Number`, and
+  strict parameter typing checks parameters against that type. Computed fields
+  declared as `BigDecimal`/`BigInteger` now hold that type instead of `Double`.
+- **Computed-field types.** A query checks every applicable registry definition
+  against the source field types, so a definition that does not fit its sources (for
+  example `upper(salary)` over a number) fails every query that uses the registry,
+  even when that field is not referenced.
 
 Wider schemas:
 - Inherited fields of user-defined superclasses, `BigDecimal`, `BigInteger`,
@@ -71,6 +81,19 @@ New, additive:
 - SQL-like `[NOT] LIKE` / `[NOT] ILIKE` with `ESCAPE`; natural `... ignoring case` on
   contains / starts with / ends with. `LIKE`, `ILIKE`, and `ESCAPE` are not reserved,
   so fields with those names keep working.
+- SQL-like expression functions `lower`, `upper`, `trim`, `length`, `substring`,
+  `concat`, `coalesce`, and `nullif`, with `'text'` and `null` literals, in `WHERE`,
+  `HAVING`, and computed `SELECT` outputs. Expressions over text fields used to fail at
+  runtime ("must be numeric") and now evaluate. Function names are not reserved.
+- SQL-like date-part functions `year`, `quarter`, `month`, `day`, `hour`, `minute`,
+  and `day_of_week`, with an optional zone, using the time-bucket zone rules.
+- Computed fields may declare `String`, date/time, or enum output types
+  (`add("deptKey", "lower(department)", String.class)`); the numeric-only restriction
+  is removed.
+- SQL-like `GROUP BY` and `ORDER BY` accept expressions (`group by year(hireDate)`,
+  `order by lower(name)`), and grouped queries accept computed `SELECT` outputs over
+  source fields. Code that reads the parsed AST should expect expression text in
+  `QueryAst.groupByFields()` and `OrderAst.field()`.
 
 See `CHANGELOG.md` for the complete list.
 

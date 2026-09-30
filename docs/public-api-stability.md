@@ -270,6 +270,11 @@ The following remain public, but are treated as advanced:
 - metamodel annotation processing, batch generation, saved-report catalog
   validation, and related build-tooling result types
 - benchmark tooling and threshold helpers
+- the parsed SQL-like AST in `laughing.man.commits.sqllike.ast`. Since WP-29,
+  `QueryAst.groupByFields()` and `OrderAst.field()` may hold expression text such as
+  `year(hireDate)`, grouped queries may carry computed `SelectFieldAst` outputs, and
+  expression text may contain `'text'` and `null` literals. The class shapes are
+  unchanged.
 
 ## Internal Engine DSL
 

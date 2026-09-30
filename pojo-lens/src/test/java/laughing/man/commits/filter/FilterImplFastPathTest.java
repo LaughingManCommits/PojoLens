@@ -46,6 +46,34 @@ class FilterImplFastPathTest {
     }
 
     @Test
+    void textComputedFieldShouldUseTheFastArrayValueLane() throws Exception {
+        Filter filter = FluentEngine.newQueryBuilder(List.of(
+                new Parent(1, "a", 100),
+                new Parent(2, "b", 120)
+        ))
+                .computedFields(ComputedFieldRegistry.builder()
+                        .add("label", "concat(upper(name), '-', bonus)", String.class)
+                        .build())
+                .addJoinBeans("id", List.of(
+                        new Child(1, 20),
+                        new Child(2, 15)
+                ), "parentId", Join.LEFT_JOIN)
+                .addRule("label", "B-15", Clauses.EQUAL, Separator.AND)
+                .addField("name")
+                .addField("label")
+                .initFilter();
+
+        List<JoinLabelRow> rows = filter.join().filter(JoinLabelRow.class);
+
+        Field fastArrayState = FilterImpl.class.getDeclaredField("fastArrayState");
+        fastArrayState.setAccessible(true);
+        assertNotNull(fastArrayState.get(filter));
+        assertEquals(1, rows.size());
+        assertEquals("b", rows.get(0).name);
+        assertEquals("B-15", rows.get(0).label);
+    }
+
+    @Test
     void benchmarkShapeShouldActivateFastArrayState() throws Exception {
         ArrayList<Parent> parents = new ArrayList<>(250);
         ArrayList<Child> children = new ArrayList<>(250);
@@ -204,6 +232,11 @@ class FilterImplFastPathTest {
     public static final class JoinOrderRow {
         public String name;
         public int salary;
+    }
+
+    public static final class JoinLabelRow {
+        public String name;
+        public String label;
     }
 
     public static final class JoinTagRow {

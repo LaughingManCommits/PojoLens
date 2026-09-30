@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
+import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.table.TabularColumn;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.util.CollectionUtil;
@@ -117,7 +118,20 @@ public final class TabularSchemaSupport {
         if (!field.computedField()) {
             return projectionTypes.getOrDefault(field.field(), Object.class);
         }
-        return Number.class;
+        return computedType(field.field());
+    }
+
+    /**
+     * Result type of a computed SELECT expression without source field types: arithmetic is
+     * {@code Double}, text functions {@code String}, and a type that depends on a field is
+     * {@code Object}.
+     */
+    private static Class<?> computedType(String expression) {
+        try {
+            return SqlExpressionEvaluator.resultType(expression, fieldName -> null);
+        } catch (IllegalArgumentException ex) {
+            return Object.class;
+        }
     }
 
     private static Class<?> defaultMetricType(Metric metric) {

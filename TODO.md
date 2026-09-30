@@ -9,7 +9,7 @@ lands in the shared engine first, then SQL-like, then natural where the controll
 grammar can express it. Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
-Next priority: WP-31 (`LAG`/`LEAD`, windows on grouped queries); WP-29 needs a design note first. WP-7 to WP-30 are unreleased;
+Next priority: WP-31 (`LAG`/`LEAD`, windows on grouped queries). WP-7 to WP-30 are unreleased;
 a release cut (`RELEASE.md`) can happen before or after the P1 filtering packages.
 
 ### Quick fixes (no WP needed)
@@ -471,7 +471,7 @@ text via `AggregateExpressionSupport.canonical`), typed `countDistinct`, natural
 
 ---
 
-### WP-29 — Text and date functions  [P2]
+### ~~WP-29 — Text and date functions~~ ✓ DONE 2026-09-28
 
 **Problem:** Computed fields and select expressions are numeric only
 (`SqlExpressionEvaluator`), so there is no `LOWER`/`UPPER`/`TRIM`/`COALESCE` and no
@@ -483,6 +483,23 @@ and date-part grouping outside time buckets.
 - Allow them in `SELECT`, `WHERE`, `GROUP BY`, `ORDER BY`, and computed-field
   registries; keep null propagation (WP-22)
 - Largest item on the list: start with a design note before implementation
+
+**Design:** `docs/design/wp-29-expression-functions.md` (decisions accepted
+2026-09-28): four slices (engine + text/null functions, date parts, non-numeric
+registry outputs, GROUP BY/ORDER BY expressions).
+
+**Progress:** slice 1 done 2026-09-28 (uncommitted): `lower`, `upper`, `trim`,
+`length`, `substring`, `concat`, `coalesce`, `nullif`, text/null literals, typed
+validation, and computed SELECT output types. Coverage in `TextFunctionQueryTest` and
+`SqlExpressionEvaluatorTest`. Slice 2 done 2026-09-28 (uncommitted): `year`, `quarter`,
+`month`, `day`, `hour`, `minute`, `day_of_week` with an optional zone, sharing the
+bucket normalization (`DatePartFunctionTest`, `DatePartBucketParityTest`,
+`DatePartQueryTest`). Slice 3 done 2026-09-28 (uncommitted): computed fields with
+`String`, date/time, and enum outputs, type-checked at definition and query time
+(`NonNumericComputedFieldTest`, fast path in `FilterImplFastPathTest`). Slice 4 done
+2026-09-28 (uncommitted): expressions in `GROUP BY`/`ORDER BY` and grouped computed
+outputs, lowered to query-scoped computed columns (`SqlLikeExpressionFields`,
+`ExpressionGroupOrderQueryTest`).
 
 ---
 

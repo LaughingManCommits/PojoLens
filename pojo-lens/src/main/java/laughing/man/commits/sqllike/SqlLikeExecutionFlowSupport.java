@@ -45,7 +45,8 @@ final class SqlLikeExecutionFlowSupport {
             case RAW_ROWS_PROJECTED -> SqlLikeExecutionSupport.projectAliasedRows(
                     executeRawRows(run),
                     projectionClass,
-                    output.select()
+                    output.select(),
+                    context.computedSelectTypes()
             );
             case RAW_ROWS_TYPED -> ReflectionUtil.toClassList(projectionClass, executeRawRows(run));
             case FAST_STATS_TYPED -> ReflectionUtil.toClassList(
@@ -75,7 +76,8 @@ final class SqlLikeExecutionFlowSupport {
             case RAW_ROWS_PROJECTED -> SqlLikeExecutionSupport.projectAliasedRows(
                     executeRawRows(run),
                     projectionClass,
-                    output.select()
+                    output.select(),
+                    context.computedSelectTypes()
             ).stream();
             case RAW_ROWS_TYPED -> ReflectionUtil.toClassList(
                     projectionClass,
@@ -134,7 +136,8 @@ final class SqlLikeExecutionFlowSupport {
                 List<T> projectedRows = SqlLikeExecutionSupport.projectAliasedRows(
                         executeRawRows(run),
                         projectionClass,
-                        output.select()
+                        output.select(),
+                        context.computedSelectTypes()
                 );
                 long chartStarted = QueryTelemetrySupport.start(telemetryListener);
                 ChartData chart = ChartMapper.toChartData(projectedRows, spec);
@@ -314,7 +317,7 @@ final class SqlLikeExecutionFlowSupport {
         SelectAst select = context.select();
         FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
         boolean hasQualify = context.ast() != null && context.ast().hasQualifyClause();
-        if (requiresProjectedOutput(select, hasQualify)) {
+        if (requiresProjectedOutput(select, hasQualify, context.hasHiddenFields())) {
             if (statsState != null && canProjectFromStats(select, hasQualify)) {
                 return new OutputResolution(OutputMode.FAST_STATS_ALIASED, select, statsState);
             }
@@ -329,10 +332,15 @@ final class SqlLikeExecutionFlowSupport {
         return new OutputResolution(OutputMode.DIRECT, select, null);
     }
 
-    private static boolean requiresProjectedOutput(SelectAst select, boolean hasQualify) {
+    /**
+     * Projects the selected outputs from executed rows. Hidden expression columns (WP-29)
+     * force this so that they never reach the result.
+     */
+    private static boolean requiresProjectedOutput(SelectAst select, boolean hasQualify, boolean hasHiddenFields) {
         return select != null
                 && !select.wildcard()
-                && (hasQualify || select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select));
+                && (hasQualify || hasHiddenFields || select.hasComputedFields() || select.hasWindowFields()
+                || hasPlainFieldAliases(select));
     }
 
     private static boolean canProjectFromStats(SelectAst select, boolean hasQualify) {

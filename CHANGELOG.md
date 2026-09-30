@@ -11,6 +11,47 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Expressions in `GROUP BY` and `ORDER BY` (WP-29, slice 4)** - SQL-like
+  `group by year(hireDate)`, `order by lower(name)`, and grouped computed outputs
+  (`select lower(department) as dept, count(*) as total group by dept`). Each such
+  expression becomes a query-scoped computed column filled before `WHERE`. A computed
+  `SELECT` output with the same expression (canonical text: spacing and function-name
+  case ignored) or named by its alias provides the column; otherwise the column is
+  hidden and never reaches results, including `SELECT *` into `QueryRow`. `HAVING`
+  may repeat a grouped expression. `SELECT DISTINCT` requires `ORDER BY` expressions to
+  be selected. Subqueries reject expression `GROUP BY`/`ORDER BY` items
+  (`EQ-SQL-VAL-010`). A grouped computed alias that is also a field name is rejected
+  (`EQ-SQL-VAL-007`). WP-29 is complete.
+
+- **Text, date/time, and enum computed fields (WP-29, slice 3)** -
+  `ComputedFieldDefinition` / `ComputedFieldRegistry.Builder.add(...)` accept any output
+  type that can hold the expression result: `String` (`lower(department)`,
+  `concat(first, ' ', last)`), date/time (`coalesce(endDate, startDate)` as
+  `LocalDate`), enum, and numeric types as before. Numeric outputs keep the `double`
+  lane; other outputs store the typed value, including on the fast join path. Such
+  fields filter, sort, group, and project in SQL-like, natural, and typed queries.
+  Diagnostic JMH `TextFunctionJmhBenchmark` (semantics suite) compares `lower(...) =`,
+  `ILIKE`, and a `String` computed field.
+
+- **Date-part expression functions (WP-29, slice 2)** - SQL-like `year`, `quarter`,
+  `month`, `day`, `hour`, `minute`, and `day_of_week` (ISO, 1 = Monday), each
+  `(date[, 'Zone/Id'])`, return `Integer` in `WHERE`, `HAVING`, computed `SELECT`
+  outputs, and numeric computed fields (`add("hireYear", "year(hireDate)", Integer.class)`
+  groups by year). They share the time-bucket normalization (`UTC` default, same zone
+  parsing), so `year(x, zone)` always equals the year of `bucket(x, 'year', zone)`.
+  `TimeBucketUtil.localDate(...)` / `localDateTime(...)` expose that normalization.
+
+- **Text and null expression functions (WP-29, slice 1)** - SQL-like expressions accept
+  `'text'` and `null` literals and the functions `lower`, `upper`, `trim`, `length`,
+  `substring`, `concat`, `coalesce`, and `nullif` in `WHERE`, `HAVING`, and computed
+  `SELECT ... AS alias` outputs (`where lower(email) = :email`,
+  `select concat(first, ' ', last) as fullName`). Semantics follow PostgreSQL: null in
+  gives null out, except `coalesce`, `nullif`, and `concat` (which skips nulls);
+  `length`/`substring` count code points; `trim` strips Unicode whitespace. `CONTAINS`,
+  `MATCHES`, and `LIKE` now work on text expressions. Function names are contextual,
+  not reserved. Numeric computed fields may use the functions internally
+  (`length(name)`). Design: `docs/design/wp-29-expression-functions.md`.
+
 - **Statistical aggregates (WP-30)** - new `Metric` constants `MEDIAN`, `PERCENTILE`,
   `STDDEV`, `STDDEV_POP`, `VARIANCE`, and `VAR_POP` in grouped, global, and fast-stats
   aggregation. SQL-like `MEDIAN(x)`, `PERCENTILE(x, 0.9)`, `STDDEV(x)`/`STDDEV_SAMP(x)`,
@@ -214,6 +255,24 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   negated engine clauses (WP-26).
 
 ### Changed
+
+- **Computed-field type checks (WP-29)** - `ComputedFieldDefinition.of(...)` rejects
+  an output type that cannot hold the result (`lower(name)` as `Integer`), and a query
+  checks every applicable registry definition against the source field types
+  (`upper(salary)` over a number fails with `EQ-SQL-VAL-009` in SQL-like queries)
+  instead of failing or storing a wrong value at runtime. The "outputType must be
+  numeric" rule is gone.
+
+- **Expression typing (WP-29)** - expression kinds are checked during validation
+  (`EQ-SQL-VAL-009`): `lower(salary)`, `name * 2`, or `coalesce(salary, name)` fail
+  before the query runs instead of at runtime. A computed `SELECT` output gets one
+  static Java type: the tabular schema reports it (`Double` for arithmetic, `String`
+  for text functions, `Integer` for `length`; previously always `Number`), strict
+  parameter typing checks against it (previously always numeric), and projection
+  converts values to it, so `coalesce(bonus, 0)` over an `Integer` field returns
+  `Integer`. Computed fields declared as `BigDecimal` or `BigInteger` now hold that
+  type (previously `Double`). Inside an expression, `null` is the null literal, not a
+  field named `null`.
 
 - **Plan preview null tests (WP-25)** - `= null` / `IS NULL` and `!= null` /
   `IS NOT NULL` filters now preview as `IS NULL` / `IS NOT NULL` instead of `=` /

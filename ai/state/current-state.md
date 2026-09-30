@@ -7,13 +7,11 @@
 ## Focus
 - `2026-05-18`: Repo focus reset to the Java library plus repo-memory helpers after the extracted local AI runtime moved to `neon`.
 - `2026-06-06`: WP-12 to WP-17 are done (pagination parity, HOUR buckets, mixed-direction ORDER BY, typed reports, typed diagnostics).
-- `2026-09-27`: WP-18 to WP-21 are done (uncommitted): stream file loaders, typed `startsWith`/`endsWith`, literal-pattern fixes, `TypedQuery.iterator(...)`.
-- `2026-09-27`: WP-22/WP-23 core correctness passes are done (uncommitted); null never matches a value comparison, and date values compare exactly while text literals compare at written precision.
-- `2026-09-27`: WP-24 to WP-27 are done (uncommitted): SQL-like lists, `IS [NOT] NULL`, `[NOT] BETWEEN`, `NOT`, `NOT CONTAINS/MATCHES`, `[NOT] LIKE/ILIKE`; natural `is [not] one of`, `is [not] between`, groups, `not (...)`, `does not ...`, `ignoring case`; typed text `not()`.
+- `2026-09-28`: WP-18 to WP-28 and WP-30 are committed in `53c6453` (stream loaders, typed text predicates, null/date correctness, SQL-like/natural filtering parity, DISTINCT, statistical aggregates).
+- `2026-09-28`: WP-29 is done (uncommitted, 4 slices; `docs/design/wp-29-expression-functions.md`): text/null/date-part functions, typed validation, non-numeric computed fields, and expressions in GROUP BY/ORDER BY.
 
 ## Verified
-- `2026-09-27`: `scripts/docs/check-doc-consistency.ps1` passed after WP-30 docs edits.
-- `2026-09-27`: Full `mvn -B -ntp test` passed after WP-30: 1393 runtime, 5 autoconfigure, 4 starter, 24 benchmark-module tests.
+- `2026-09-28`: WP-29 (all slices): full `mvn -B -ntp test` passed (1463 runtime, 5 autoconfigure, 4 starter, 26 benchmark-module tests); doc check, lint gate (0), SpotBugs (0), and japicmp vs `2026.05.18.1353` passed.
 
 ## Release
 - `2026-09-27`: Lint baseline gate (0 violations) and SpotBugs (0 bugs) pass; MIGRATION and public-api-stability docs cover WP-18 to WP-23.
@@ -27,6 +25,5 @@
 - No active risks.
 
 ## Next
-- `2026-09-27`: WP-28 and WP-30 done (uncommitted): `SELECT DISTINCT`, `COUNT(DISTINCT)`, MEDIAN/PERCENTILE/STDDEV/VARIANCE.
-- WP-29, WP-31 to WP-33 (P2/P3): text/date functions (design note first), LAG/LEAD, joined typed validation, lazy typed stream.
-- Release candidate: WP-7 to WP-30 are unreleased (P1 filtering parity complete); MIGRATION and CHANGELOG cover them.
+- WP-31 to WP-33 (P2/P3): LAG/LEAD, joined typed validation, lazy typed stream.
+- Release candidate: WP-7 to WP-30 (incl. WP-29) are unreleased; MIGRATION and CHANGELOG cover them.

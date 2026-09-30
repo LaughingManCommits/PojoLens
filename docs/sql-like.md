@@ -13,6 +13,10 @@
 - `HAVING` (`AND`/`OR`/`NOT` predicates)
 - `QUALIFY` (`AND`/`OR`/`NOT` predicates against window outputs)
 - time bucket function: `bucket(dateField, 'hour|day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
+- expressions: arithmetic, `'text'` and `null` literals, and text, null, and date-part
+  functions such as `lower(...)`, `coalesce(...)`, and `year(...)` in `WHERE`,
+  `GROUP BY`, `HAVING`, `ORDER BY`, and `SELECT ... AS alias` (see Expressions And
+  Functions)
 - `ORDER BY`
 - `LIMIT`
 - `OFFSET`
@@ -168,6 +172,84 @@ select distinct *
   `count(distinct)` still name a field called `distinct`.
 - Plan preview reports `isDistinct()`. Pushdown preview keeps `SELECT`, `ORDER BY`,
   and paging in memory (`DISTINCT_UNSUPPORTED`); `WHERE` can still be pushed.
+
+### Expressions And Functions
+
+Expressions combine fields, numbers, `'text'` literals (`''` escapes a quote), `null`,
+`+ - * /`, and the functions below. Semantics follow PostgreSQL.
+
+| Function | Result |
+|---|---|
+| `lower(text)`, `upper(text)` | text, case-mapped without locale rules (`Locale.ROOT`) |
+| `trim(text)` | text without leading and trailing Unicode whitespace (PostgreSQL trims spaces only) |
+| `length(text)` | `Integer`, counted in Unicode code points |
+| `substring(text, start[, count])` | text; 1-based code-point positions, clipped to the text (`substring('abc', 0, 2)` is `'a'`) |
+| `concat(a, b, ...)` | text; joins any values and skips nulls |
+| `coalesce(a, b, ...)` | the first non-null argument |
+| `nullif(a, b)` | `null` when `a = b`, otherwise `a` |
+| `abs(x)`, `round(x)`, `floor(x)`, `ceil(x)` / `ceiling(x)` | `Double` |
+| `year`, `quarter`, `month`, `day`, `hour`, `minute`, `day_of_week` — each `(date[, 'Zone/Id'])` | `Integer`; `day_of_week` is ISO (1 = Monday, 7 = Sunday) |
+
+```sql
+where lower(email) = :email
+where coalesce(nickname, name) like 'A%'
+where nullif(status, 'n/a') is not null
+where year(hireDate) = 2024 and month(hireDate, 'Europe/Amsterdam') in (6, 7, 8)
+select name, concat(firstName, ' ', lastName) as fullName, length(name) as nameLength
+```
+
+Date parts read the same types and zones as time buckets (see
+`docs/time-buckets.md`): the default zone is `UTC`, and the optional zone must be a
+text literal. `year(x, zone)` always equals the year of `bucket(x, 'year', zone)`,
+and likewise for the other parts. `hour` and `minute` of a `LocalDate` are `0`.
+
+- Expressions work in `WHERE`, `GROUP BY`, `ORDER BY`, `HAVING`, and as computed
+  `SELECT` outputs (with `AS alias`), grouped or not. See Grouping And Sorting By
+  Expressions below.
+- A null argument gives a null result, except for `coalesce`, `nullif`, and `concat`.
+  A null result never matches a comparison (see Comparison Semantics); test it with
+  `IS NULL`.
+- Text functions read text, `char`, and enum values (by constant name). `concat`
+  accepts any value. Arithmetic is done in `double`, and whole results print without
+  `.0` (`concat('#', id + 1)` is `#2`).
+- Each computed output has one Java type. Arithmetic gives `Double`, `length` gives
+  `Integer`, and text functions give `String`. `coalesce` / `nullif` keep the field
+  class when all fields share one (`coalesce(bonus, 0)` over an `Integer` field is
+  `Integer`); otherwise the result is `Double` for numbers and `String` for text.
+- Types are checked during validation (`EQ-SQL-VAL-009`): `lower(salary)`,
+  `name * 2`, and `coalesce(salary, name)` fail before the query runs. `CONTAINS`,
+  `MATCHES`, and `LIKE` need an expression that returns text.
+- `lower(x) = lower(y)` can disagree with `x ILIKE y` for a few characters (`ß`,
+  Turkish dotted/dotless `i`), because `ILIKE` uses Unicode case folding.
+- Function names are not reserved words: a field called `length`, `trim`, or `year`
+  keeps working. Inside an expression, `null` is the null literal.
+- Parameters cannot appear inside an expression; compare the expression with a
+  parameter instead (`lower(name) = :name`).
+
+#### Grouping And Sorting By Expressions
+
+```sql
+select year(hireDate) as hireYear, count(*) as hires group by year(hireDate) order by hireYear
+select lower(department) as dept, count(*) as total group by dept
+select count(*) as total group by month(hireDate)
+select name order by lower(name), length(name) desc
+```
+
+- An expression in `GROUP BY` or `ORDER BY` becomes a column that is computed before
+  `WHERE`, like a registry computed field. When a computed `SELECT` output has the same
+  expression (compared ignoring spacing and function-name case) or is named by its
+  alias, that output is the column; otherwise the column is hidden and never appears in
+  results.
+- In a grouped query, a computed `SELECT` output over source fields must be grouped,
+  by its expression or its alias, like any other selected field; its alias must not be
+  a field name. `HAVING year(hireDate) > 2024` reads the grouped column when
+  `year(hireDate)` is grouped.
+- `ORDER BY` in a grouped query accepts a grouped expression; other expressions over
+  grouped fields are not supported.
+- With `SELECT DISTINCT`, an `ORDER BY` expression must be selected.
+- Keyset paging (`filterPage`, `keysetAfter`) reads the cursor from result rows, so sort
+  by a selected alias (`select lower(name) as sortKey ... order by sortKey`) rather than
+  an unselected expression.
 
 ## HAVING Contract
 
@@ -356,6 +438,10 @@ Sort behavior:
 - Correlated subqueries, scalar subqueries, and arbitrary nested SQL planning
   remain unsupported.
 - SQL-like aggregate queries require explicit `SELECT` fields.
+- Expressions are not accepted inside aggregate arguments (`sum(price * qty)`) or over
+  aggregate outputs (`sum(a) / count(*)`, `total / 2`); register the expression as a
+  computed field and aggregate its name. Subqueries do not accept expressions in
+  `GROUP BY` or `ORDER BY`.
 - SQL-like aggregate `ORDER BY` must reference a group-by field, aggregate output alias/name, or aggregate expression.
 - Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
 - Aggregate windows currently support only explicit `ROWS` frames from the supported frame menu above.
@@ -1211,7 +1297,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-VAL-006` | Aggregate or `GROUP BY` semantics are invalid. | Add required aggregates/groups or remove unsupported combinations. |
 | `EQ-SQL-VAL-007` | Computed `SELECT` projection is invalid. | Use computed expressions only in non-aggregate queries and add `AS`. |
 | `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a supported date/time field, give it an alias, and include the alias in `GROUP BY`. |
-| `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use valid numeric expressions and supported comparison operators. |
+| `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use supported functions with the right argument types, and text operators only on text expressions. |
 | `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` or `WHERE [NOT] EXISTS (select ...)` subqueries; named `FROM` / subquery `JOIN` sources must be bound. |
 | `EQ-SQL-VAL-011` | Field reference is ambiguous in a multi-join context. | Qualify the field with `<source>.<field>` or use the deterministic merged field name. |
 | `EQ-SQL-VAL-012` | `SELECT DISTINCT` shape is invalid. | Order by selected fields or aliases, and select every `GROUP BY` field. |
@@ -1353,10 +1439,13 @@ Fix:
 ### Error Code EQ-SQL-VAL-009
 
 Meaning:
-- Expression identifiers/operators failed validation.
+- Expression identifiers, functions, or operators failed validation, for example an
+  unknown function, a wrong argument count, `lower(salary)` on a number, `name * 2` on
+  text, or `CONTAINS`/`LIKE` on a numeric expression.
 
 Fix:
-- Use supported numeric expressions and supported comparison operators.
+- Use the functions listed under Expressions And Functions with the right argument
+  types, and use text operators only on expressions that return text.
 
 ### Error Code EQ-SQL-PRM-001
 

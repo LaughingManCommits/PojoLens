@@ -790,16 +790,19 @@ public final class SqlLikeParser {
                 || "MAX".equalsIgnoreCase(value);
     }
 
+    /**
+     * GROUP BY items: fields, aliases, or expressions such as {@code year(hireDate)}.
+     */
     private List<String> parseGroupBy() {
         List<String> fields = new ArrayList<>();
-        fields.add(expectIdentifier("Expected field in GROUP BY"));
+        fields.add(parseListReference(false, "Expected field in GROUP BY"));
         while (match(TokenType.COMMA)) {
             if (fields.size() >= MAX_GROUP_FIELDS) {
                 throw error(SqlLikeErrorCodes.PARSE_CLAUSE_LIMIT,
                         "Too many GROUP BY fields (max " + MAX_GROUP_FIELDS + ")",
                         peek().position);
             }
-            fields.add(expectIdentifier("Expected field in GROUP BY"));
+            fields.add(parseListReference(false, "Expected field in GROUP BY"));
         }
         return fields;
     }
@@ -1440,6 +1443,14 @@ public final class SqlLikeParser {
     }
 
     private String parseOrderReference() {
+        return parseListReference(true, "Expected field or aggregate expression in ORDER BY");
+    }
+
+    /**
+     * One GROUP BY or ORDER BY item up to the next top-level comma, clause keyword, or (for
+     * ORDER BY) sort direction.
+     */
+    private String parseListReference(boolean orderItem, String emptyMessage) {
         int start = index;
         int depth = 0;
         while (true) {
@@ -1449,8 +1460,7 @@ public final class SqlLikeParser {
             }
             if (depth == 0) {
                 if (token.type == TokenType.COMMA
-                        || isKeyword(token, "ASC")
-                        || isKeyword(token, "DESC")
+                        || (orderItem && (isKeyword(token, "ASC") || isKeyword(token, "DESC")))
                         || isClauseBoundaryKeyword(token.text)) {
                     break;
                 }
@@ -1466,7 +1476,7 @@ public final class SqlLikeParser {
             next();
         }
         if (start == index) {
-            throw error("Expected field or aggregate expression in ORDER BY", peek().position);
+            throw error(emptyMessage, peek().position);
         }
         return buildExpressionText(start, index);
     }

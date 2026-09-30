@@ -934,7 +934,10 @@ public final class ReflectionUtil {
         return (prefix == null || prefix.isEmpty()) ? fieldName : prefix + '.' + fieldName;
     }
 
-    private static Class<?> wrapPrimitive(Class<?> type) {
+    /**
+     * Boxed class for a primitive type; any other type (or {@code null}) is returned as-is.
+     */
+    public static Class<?> wrapPrimitive(Class<?> type) {
         if (type == null || !type.isPrimitive()) {
             return type;
         }

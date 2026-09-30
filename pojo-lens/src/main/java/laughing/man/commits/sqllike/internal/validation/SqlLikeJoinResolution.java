@@ -277,7 +277,7 @@ public final class SqlLikeJoinResolution {
     private static List<String> canonicalizeGroupBy(List<String> groupByFields, Plan plan) {
         ArrayList<String> groups = new ArrayList<>(groupByFields.size());
         for (String groupByField : groupByFields) {
-            groups.add(plan.resolveOrSame(groupByField, "GROUP BY"));
+            groups.add(canonicalizeReference(groupByField, plan, "GROUP BY"));
         }
         return groups;
     }
@@ -285,9 +285,19 @@ public final class SqlLikeJoinResolution {
     private static List<OrderAst> canonicalizeOrders(List<OrderAst> orders, Plan plan) {
         ArrayList<OrderAst> normalized = new ArrayList<>(orders.size());
         for (OrderAst order : orders) {
-            normalized.add(new OrderAst(plan.resolveOrSame(order.field(), "ORDER BY"), order.sort()));
+            normalized.add(new OrderAst(canonicalizeReference(order.field(), plan, "ORDER BY"), order.sort()));
         }
         return normalized;
+    }
+
+    /**
+     * A GROUP BY / ORDER BY item: an expression gets its identifiers resolved (WP-29), and a
+     * field or aggregate reference resolves as a whole.
+     */
+    private static String canonicalizeReference(String reference, Plan plan, String clauseName) {
+        return SqlExpressionEvaluator.isScalarExpression(reference)
+                ? rewriteExpression(reference, plan, clauseName)
+                : plan.resolveOrSame(reference, clauseName);
     }
 
     private static String rewriteExpression(String expression, Plan plan, String clauseName) {

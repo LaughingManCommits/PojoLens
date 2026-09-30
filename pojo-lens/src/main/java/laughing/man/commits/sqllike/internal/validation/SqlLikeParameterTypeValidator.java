@@ -41,16 +41,28 @@ final class SqlLikeParameterTypeValidator {
     }
 
     private static Class<?> resolveWhereExpectedType(FilterAst filter, Map<String, Class<?>> queryableFieldTypes) {
-        if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
-            return Number.class;
-        }
         if (filter.clause() == Clauses.CONTAINS
                 || filter.clause() == Clauses.MATCHES
                 || filter.clause() == Clauses.NOT_CONTAINS
                 || filter.clause() == Clauses.NOT_MATCHES) {
             return String.class;
         }
+        if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
+            return expressionType(filter.field(), queryableFieldTypes);
+        }
         return queryableFieldTypes.get(filter.field());
+    }
+
+    /**
+     * Static expression result type, or {@code null} (no check) when it is unknown.
+     */
+    private static Class<?> expressionType(String expression, Map<String, Class<?>> fieldTypes) {
+        try {
+            Class<?> type = SqlExpressionEvaluator.resultType(expression, fieldTypes::get);
+            return type == Object.class ? null : type;
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private static Map<String, Class<?>> resolveHavingFieldTypes(QueryAst ast,
@@ -92,7 +104,7 @@ final class SqlLikeParameterTypeValidator {
             } else if (field.windowField()) {
                 outputTypes.put(field.outputName(), windowOutputType(field, queryableFieldTypes));
             } else if (field.computedField()) {
-                outputTypes.put(field.outputName(), Double.class);
+                outputTypes.put(field.outputName(), expressionType(field.field(), queryableFieldTypes));
             } else {
                 outputTypes.put(field.outputName(), queryableFieldTypes.get(field.field()));
             }
@@ -104,7 +116,7 @@ final class SqlLikeParameterTypeValidator {
                                                       Map<String, Class<?>> havingFieldTypes,
                                                       Map<String, Class<?>> sourceFieldTypes) {
         if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
-            return Number.class;
+            return expressionType(filter.field(), Map.of());
         }
         Class<?> direct = havingFieldTypes.get(filter.field());
         if (direct != null) {
@@ -161,7 +173,7 @@ final class SqlLikeParameterTypeValidator {
 
     private static Class<?> resolveQualifyExpectedType(FilterAst filter, Map<String, Class<?>> qualifyFieldTypes) {
         if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
-            return Number.class;
+            return expressionType(filter.field(), Map.of());
         }
         return qualifyFieldTypes.get(filter.field());
     }

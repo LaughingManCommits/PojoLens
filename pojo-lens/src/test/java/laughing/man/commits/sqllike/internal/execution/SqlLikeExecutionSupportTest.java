@@ -8,6 +8,7 @@ import laughing.man.commits.util.QueryFieldLookupUtil;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -23,7 +24,8 @@ class SqlLikeExecutionSupportTest {
         List<QueryRow> results = SqlLikeExecutionSupport.projectAliasedRows(
                 source,
                 QueryRow.class,
-                select("select a as leftValue, b as rightValue")
+                select("select a as leftValue, b as rightValue"),
+                Map.of()
         );
 
         assertEquals(2, results.size());
@@ -43,7 +45,8 @@ class SqlLikeExecutionSupportTest {
         List<QueryRow> results = SqlLikeExecutionSupport.projectAliasedRows(
                 source,
                 QueryRow.class,
-                select("select a + b as total, a as leftValue")
+                select("select a + b as total, a as leftValue"),
+                Map.of()
         );
 
         assertEquals(2, results.size());
@@ -51,6 +54,24 @@ class SqlLikeExecutionSupportTest {
         assertEquals(1, queryRowValue(results.get(0), "leftValue"));
         assertEquals(30.0, queryRowNumericValue(results.get(1), "total"), 0.000001);
         assertEquals(10, queryRowValue(results.get(1), "leftValue"));
+    }
+
+    @Test
+    void projectAliasedRowsShouldConvertComputedValuesToTheirOutputType() {
+        List<QueryRow> source = List.of(
+                rawQueryRow(new Object[]{7}, "bonus"),
+                rawQueryRow(new Object[]{null}, "bonus")
+        );
+
+        List<QueryRow> results = SqlLikeExecutionSupport.projectAliasedRows(
+                source,
+                QueryRow.class,
+                select("select coalesce(bonus, 0) as filled"),
+                Map.of("filled", Integer.class)
+        );
+
+        assertEquals(7, queryRowValue(results.get(0), "filled"));
+        assertEquals(0, queryRowValue(results.get(1), "filled"));
     }
 
     private static SelectAst select(String query) {

@@ -25,13 +25,54 @@ public final class ComputedFieldSupport {
     private ComputedFieldSupport() {
     }
 
+    /**
+     * Adds the applicable computed fields to a schema, checking each expression against the
+     * field types it reads (WP-29): {@code lower(salary)} over a number, or a text result
+     * declared as {@code Integer}, fails here.
+     *
+     * @throws IllegalArgumentException naming the computed field when its types do not fit
+     */
     public static Map<String, Class<?>> augmentFieldTypes(Map<String, Class<?>> baseFieldTypes,
                                                           ComputedFieldRegistry registry) {
         LinkedHashMap<String, Class<?>> augmented = new LinkedHashMap<>(baseFieldTypes);
         for (ComputedFieldDefinition definition : resolveApplicableDefinitions(baseFieldTypes.keySet(), registry)) {
+            requireFittingTypes(definition, augmented);
             augmented.put(definition.name(), definition.outputType());
         }
         return augmented;
+    }
+
+    private static void requireFittingTypes(ComputedFieldDefinition definition, Map<String, Class<?>> fieldTypes) {
+        String owner = "Computed field '" + definition.name() + "'";
+        Class<?> resultType;
+        try {
+            resultType = SqlExpressionEvaluator.resultType(definition.expression(), fieldTypes::get);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(owner + ": " + ex.getMessage(), ex);
+        }
+        SqlExpressionEvaluator.requireOutputType(owner, resultType, definition.outputType());
+    }
+
+    /**
+     * Numeric output types use the {@code double} expression lane; others the typed value lane.
+     */
+    public static boolean usesNumericLane(ComputedFieldDefinition definition) {
+        return Number.class.isAssignableFrom(definition.outputType());
+    }
+
+    /**
+     * Converts a typed-lane value to the declared output type and verifies it, for results
+     * whose type was unknown during validation.
+     *
+     * @throws IllegalArgumentException when the value cannot be stored as the output type
+     */
+    public static Object outputValue(ComputedFieldDefinition definition, Object value) {
+        Object output = SqlExpressionEvaluator.coerce(value, definition.outputType());
+        if (output != null && !definition.outputType().isInstance(output)) {
+            throw new IllegalArgumentException("Computed field '" + definition.name() + "' returned "
+                    + output.getClass().getSimpleName() + ", not " + definition.outputType().getSimpleName());
+        }
+        return output;
     }
 
     public static Set<String> augmentFieldNames(Collection<String> baseFieldNames,
@@ -161,7 +202,7 @@ public final class ComputedFieldSupport {
         for (int i = 0; i < definitions.size(); i++) {
             ComputedFieldDefinition definition = definitions.get(i);
             SqlExpressionEvaluator.CompiledExpression expression =
-                    SqlExpressionEvaluator.compileNumeric(definition.expression());
+                    SqlExpressionEvaluator.compile(definition.expression());
             String[] dependencyNames = expression.identifiers().toArray(String[]::new);
             ValueSource[] dependencySources = new ValueSource[dependencyNames.length];
             for (int dependencyIndex = 0; dependencyIndex < dependencyNames.length; dependencyIndex++) {
@@ -213,6 +254,7 @@ public final class ComputedFieldSupport {
         private final SqlExpressionEvaluator.CompiledExpression expression;
         private final int outputIndex;
         private final boolean replacesExisting;
+        private final boolean numericLane;
         private final String[] dependencyNames;
         private final ValueSource[] dependencySources;
 
@@ -226,6 +268,7 @@ public final class ComputedFieldSupport {
             this.expression = expression;
             this.outputIndex = outputIndex;
             this.replacesExisting = replacesExisting;
+            this.numericLane = usesNumericLane(definition);
             this.dependencyNames = dependencyNames;
             this.dependencySources = dependencySources;
         }
@@ -234,8 +277,11 @@ public final class ComputedFieldSupport {
             return definition;
         }
 
-        private SqlExpressionEvaluator.CompiledExpression expression() {
-            return expression;
+        private Object compute(SqlExpressionEvaluator.ValueResolver resolver) {
+            if (numericLane) {
+                return SqlExpressionEvaluator.coerceNumber(expression.evaluate(resolver), definition.outputType());
+            }
+            return outputValue(definition, expression.evaluateValue(resolver));
         }
 
         private int outputIndex() {
@@ -297,10 +343,8 @@ public final class ComputedFieldSupport {
         Object[] computedValues = new Object[plan.compiledDefinitions().length];
         for (int i = 0; i < plan.compiledDefinitions().length; i++) {
             CompiledComputedField definition = plan.compiledDefinitions()[i];
-            Object value = castNumericValue(
-                    definition.expression().evaluate(identifier -> definition.resolveValue(identifier, sourceFields, computedValues)),
-                    definition.definition().outputType()
-            );
+            Object value = definition.compute(
+                    identifier -> definition.resolveValue(identifier, sourceFields, computedValues));
             computedValues[i] = value;
             QueryField computedField = newQueryField(definition.definition().name(), value);
             if (definition.replacesExisting()) {
@@ -324,12 +368,9 @@ public final class ComputedFieldSupport {
             }
         }
         for (CompiledComputedField definition : definitions) {
-            Object value = castNumericValue(
-                    definition.expression().evaluate(identifier -> values.containsKey(identifier)
-                            ? values.get(identifier)
-                            : SqlExpressionEvaluator.UNKNOWN_IDENTIFIER),
-                    definition.definition().outputType()
-            );
+            Object value = definition.compute(identifier -> values.containsKey(identifier)
+                    ? values.get(identifier)
+                    : SqlExpressionEvaluator.UNKNOWN_IDENTIFIER);
             values.put(definition.definition().name(), value);
             upsertField(fields, definition.definition().name(), value);
         }
@@ -352,28 +393,6 @@ public final class ComputedFieldSupport {
         field.setFieldName(name);
         field.setValue(value);
         return field;
-    }
-
-    private static Object castNumericValue(double value, Class<?> outputType) {
-        if (Double.isNaN(value)) {
-            return null;
-        }
-        if (outputType == Integer.class) {
-            return (int) Math.round(value);
-        }
-        if (outputType == Long.class) {
-            return Math.round(value);
-        }
-        if (outputType == Float.class) {
-            return (float) value;
-        }
-        if (outputType == Short.class) {
-            return (short) Math.round(value);
-        }
-        if (outputType == Byte.class) {
-            return (byte) Math.round(value);
-        }
-        return value;
     }
 
     private static Set<String> rowFieldNames(QueryRow row) {

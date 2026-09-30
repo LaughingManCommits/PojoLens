@@ -37,16 +37,26 @@ public final class SqlLikeExecutionSupport {
         return fallback;
     }
 
-    public static <T> List<T> projectAliasedRows(List<?> sourceRows, Class<T> targetClass, SelectAst select) {
+    /**
+     * Projects rows onto the SELECT outputs.
+     *
+     * @param computedOutputTypes static output type per computed SELECT output name; each
+     *                            computed value is converted to it (WP-29 D6)
+     */
+    public static <T> List<T> projectAliasedRows(List<?> sourceRows,
+                                                 Class<T> targetClass,
+                                                 SelectAst select,
+                                                 Map<String, Class<?>> computedOutputTypes) {
         if (sourceRows == null || sourceRows.isEmpty()) {
             return new ArrayList<>(0);
         }
         try {
+            Class<?>[] outputTypes = computedOutputTypes(select, computedOutputTypes);
             Object first = CollectionUtil.firstNonNull(sourceRows);
             if (first instanceof QueryRow firstQueryRow) {
-                return projectAliasedQueryRows(sourceRows, firstQueryRow, targetClass, select);
+                return projectAliasedQueryRows(sourceRows, firstQueryRow, targetClass, select, outputTypes);
             }
-            return projectAliasedPojoRows(sourceRows, targetClass, select);
+            return projectAliasedPojoRows(sourceRows, targetClass, select, outputTypes);
         } catch (Exception e) {
             throw SqlLikeErrors.state(SqlLikeErrorCodes.RUNTIME_ALIASED_PROJECTION_FAILED,
                     "Failed to project aliased SQL-like query results",
@@ -54,8 +64,25 @@ public final class SqlLikeExecutionSupport {
         }
     }
 
+    private static Class<?>[] computedOutputTypes(SelectAst select, Map<String, Class<?>> computedOutputTypes) {
+        List<SelectFieldAst> fields = select.fields();
+        Class<?>[] types = new Class<?>[fields.size()];
+        for (int i = 0; i < types.length; i++) {
+            if (fields.get(i).computedField()) {
+                types[i] = computedOutputTypes.get(fields.get(i).outputName());
+            }
+        }
+        return types;
+    }
+
+    private static Object computedValue(SelectFieldAst field,
+                                        Class<?> outputType,
+                                        SqlExpressionEvaluator.ValueResolver resolver) {
+        return SqlExpressionEvaluator.coerce(SqlExpressionEvaluator.evaluate(field.field(), resolver), outputType);
+    }
+
     private static <T> List<T> projectAliasedQueryRows(
-            List<?> sourceRows, QueryRow firstRow, Class<T> targetClass, SelectAst select)
+            List<?> sourceRows, QueryRow firstRow, Class<T> targetClass, SelectAst select, Class<?>[] outputTypes)
             throws ReflectiveOperationException {
         Map<String, Integer> fieldIndexMap = SchemaIndexUtil.indexQueryFields(firstRow.getFields());
         List<SelectFieldAst> fields = select.fields();
@@ -80,7 +107,7 @@ public final class SqlLikeExecutionSupport {
             for (Object src : sourceRows) {
                 QueryRow row = (QueryRow) src;
                 projected.add(new RawQueryRow(
-                        resolveIndexedQueryRowValues(row, fields, sourceIndexes, sourceNames, fieldIndexMap),
+                        resolveIndexedQueryRowValues(row, fields, sourceIndexes, sourceNames, fieldIndexMap, outputTypes),
                         outputSchema));
             }
             @SuppressWarnings("unchecked")
@@ -91,7 +118,7 @@ public final class SqlLikeExecutionSupport {
         ArrayList<Object[]> projected = new ArrayList<>(sourceRows.size());
         for (Object src : sourceRows) {
             QueryRow row = (QueryRow) src;
-            projected.add(resolveIndexedQueryRowValues(row, fields, sourceIndexes, sourceNames, fieldIndexMap));
+            projected.add(resolveIndexedQueryRowValues(row, fields, sourceIndexes, sourceNames, fieldIndexMap, outputTypes));
         }
         return ReflectionUtil.toClassList(targetClass, projected, outputSchema);
     }
@@ -99,17 +126,16 @@ public final class SqlLikeExecutionSupport {
     private static Object[] resolveIndexedQueryRowValues(
             QueryRow row, List<SelectFieldAst> fields,
             int[] sourceIndexes, String[] sourceNames,
-            Map<String, Integer> fieldIndexMap) {
+            Map<String, Integer> fieldIndexMap,
+            Class<?>[] outputTypes) {
         int n = fields.size();
         Object[] values = new Object[n];
         List<? extends QueryField> rowFields = row.getFields();
         for (int i = 0; i < n; i++) {
             int srcIdx = sourceIndexes[i];
             if (srcIdx == -2) {
-                values[i] = SqlExpressionEvaluator.toNullable(SqlExpressionEvaluator.evaluateNumeric(
-                        fields.get(i).field(),
-                        id -> resolveIndexedQueryRowFieldValue(rowFields, id, fieldIndexMap)
-                ));
+                values[i] = computedValue(fields.get(i), outputTypes[i],
+                        id -> resolveIndexedQueryRowFieldValue(rowFields, id, fieldIndexMap));
             } else if (sourceNames[i] != null) {
                 values[i] = queryRowFieldValue(rowFields, sourceNames[i], srcIdx);
             }
@@ -125,7 +151,7 @@ public final class SqlLikeExecutionSupport {
     }
 
     private static <T> List<T> projectAliasedPojoRows(
-            List<?> sourceRows, Class<T> targetClass, SelectAst select)
+            List<?> sourceRows, Class<T> targetClass, SelectAst select, Class<?>[] outputTypes)
             throws ReflectiveOperationException {
         ArrayList<String> outputSchema = new ArrayList<>(select.fields().size());
         for (SelectFieldAst field : select.fields()) {
@@ -134,21 +160,7 @@ public final class SqlLikeExecutionSupport {
         if (QueryRow.class.equals(targetClass)) {
             ArrayList<QueryRow> projectedRows = new ArrayList<>(sourceRows.size());
             for (Object sourceRow : sourceRows) {
-                Object[] values = new Object[select.fields().size()];
-                int index = 0;
-                for (SelectFieldAst field : select.fields()) {
-                    Object value;
-                    if (field.computedField()) {
-                        value = SqlExpressionEvaluator.toNullable(SqlExpressionEvaluator.evaluateNumeric(
-                                field.field(),
-                                identifier -> resolveFieldValue(sourceRow, identifier)
-                        ));
-                    } else {
-                        value = resolveProjectedFieldValue(sourceRow, field);
-                    }
-                    values[index++] = value;
-                }
-                projectedRows.add(new RawQueryRow(values, outputSchema));
+                projectedRows.add(new RawQueryRow(projectPojoRow(sourceRow, select, outputTypes), outputSchema));
             }
             @SuppressWarnings("unchecked")
             List<T> casted = (List<T>) projectedRows;
@@ -157,23 +169,22 @@ public final class SqlLikeExecutionSupport {
         ensureNoArgConstructor(targetClass);
         ArrayList<Object[]> projectedRows = new ArrayList<>(sourceRows.size());
         for (Object sourceRow : sourceRows) {
-            Object[] values = new Object[select.fields().size()];
-            int index = 0;
-            for (SelectFieldAst field : select.fields()) {
-                Object value;
-                if (field.computedField()) {
-                    value = SqlExpressionEvaluator.toNullable(SqlExpressionEvaluator.evaluateNumeric(
-                            field.field(),
-                            identifier -> resolveFieldValue(sourceRow, identifier)
-                    ));
-                } else {
-                    value = resolveProjectedFieldValue(sourceRow, field);
-                }
-                values[index++] = value;
-            }
-            projectedRows.add(values);
+            projectedRows.add(projectPojoRow(sourceRow, select, outputTypes));
         }
         return ReflectionUtil.toClassList(targetClass, projectedRows, outputSchema);
+    }
+
+    private static Object[] projectPojoRow(Object sourceRow, SelectAst select, Class<?>[] outputTypes)
+            throws ReflectiveOperationException {
+        List<SelectFieldAst> fields = select.fields();
+        Object[] values = new Object[fields.size()];
+        for (int i = 0; i < values.length; i++) {
+            SelectFieldAst field = fields.get(i);
+            values[i] = field.computedField()
+                    ? computedValue(field, outputTypes[i], identifier -> resolveFieldValue(sourceRow, identifier))
+                    : resolveProjectedFieldValue(sourceRow, field);
+        }
+        return values;
     }
 
     public static <T> List<T> projectAliasedRows(List<Object[]> sourceRows,

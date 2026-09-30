@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import com.github.benmanes.caffeine.cache.Cache;
 
@@ -130,7 +131,7 @@ final class SqlLikePreparedExecutionSupport {
                                                                 Class<T> projectionClass,
                                                                 List<?> pojos,
                                                                 Map<String, List<?>> joinSources) {
-        QueryAst normalizedAst = SqlLikeValidator.validateForFilter(
+        SqlLikeValidator.ValidatedQuery validated = SqlLikeValidator.validateForExecution(
                 ast,
                 sourceClass,
                 projectionClass,
@@ -138,12 +139,13 @@ final class SqlLikePreparedExecutionSupport {
                 strictParameterTypes,
                 computedFieldRegistry
         );
+        QueryAst normalizedAst = validated.ast();
         FilterQueryBuilder boundBuilder = (FilterQueryBuilder) SqlLikeBinder.bindValidated(
                 normalizedAst,
                 pojos,
                 joinSources,
                 sourceClass,
-                computedFieldRegistry,
+                validated.computedFields(),
                 executionPlanCache
         );
         FilterExecutionPlanCacheKey rawExecutionPlanCacheKey =
@@ -157,7 +159,9 @@ final class SqlLikePreparedExecutionSupport {
                 normalizedAst.hasJoins(),
                 normalizedAst.select(),
                 normalizedAst,
-                rawExecutionPlanCacheKey
+                rawExecutionPlanCacheKey,
+                validated.computedSelectTypes(),
+                validated.hiddenFields()
         );
     }
 
@@ -300,6 +304,14 @@ final class SqlLikePreparedExecutionSupport {
             return prepared.ast();
         }
 
+        Map<String, Class<?>> computedSelectTypes() {
+            return prepared.computedSelectTypes();
+        }
+
+        boolean hasHiddenFields() {
+            return !prepared.hiddenFields().isEmpty();
+        }
+
         String queryType() {
             return queryType;
         }
@@ -376,6 +388,8 @@ final class SqlLikePreparedExecutionSupport {
         private final SelectAst select;
         private final QueryAst ast;
         private final FilterExecutionPlanCacheKey rawExecutionPlanCacheKey;
+        private final Map<String, Class<?>> computedSelectTypes;
+        private final Set<String> hiddenFields;
 
         PreparedExecution(FilterQueryBuilder templateBuilder,
                           List<String> joinSourceNames,
@@ -383,7 +397,9 @@ final class SqlLikePreparedExecutionSupport {
                           boolean applyJoin,
                           SelectAst select,
                           QueryAst ast,
-                          FilterExecutionPlanCacheKey rawExecutionPlanCacheKey) {
+                          FilterExecutionPlanCacheKey rawExecutionPlanCacheKey,
+                          Map<String, Class<?>> computedSelectTypes,
+                          Set<String> hiddenFields) {
             this.templateBuilder = templateBuilder;
             this.joinSourceNames = joinSourceNames;
             this.sort = sort;
@@ -391,6 +407,19 @@ final class SqlLikePreparedExecutionSupport {
             this.select = select;
             this.ast = ast;
             this.rawExecutionPlanCacheKey = rawExecutionPlanCacheKey;
+            this.computedSelectTypes = computedSelectTypes;
+            this.hiddenFields = hiddenFields;
+        }
+
+        Map<String, Class<?>> computedSelectTypes() {
+            return computedSelectTypes;
+        }
+
+        /**
+         * Hidden GROUP BY / ORDER BY expression columns (WP-29) that must not reach output.
+         */
+        Set<String> hiddenFields() {
+            return hiddenFields;
         }
 
         private FilterQueryBuilder newExecutionBuilder(List<?> pojos,

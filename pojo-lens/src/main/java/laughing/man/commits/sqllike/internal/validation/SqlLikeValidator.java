@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Internal query validation for SQL-like execution.
@@ -44,34 +45,90 @@ public final class SqlLikeValidator {
     private SqlLikeValidator() {
     }
 
+    /**
+     * A validated, normalized AST plus what execution needs from validation (WP-29): the
+     * static output type of each computed SELECT output (projection converts to it), the
+     * computed fields to bind (the user's plus the query's GROUP BY / ORDER BY expression
+     * columns), and the hidden expression columns that must stay out of the output.
+     */
+    public record ValidatedQuery(QueryAst ast,
+                                 Map<String, Class<?>> computedSelectTypes,
+                                 ComputedFieldRegistry computedFields,
+                                 Set<String> hiddenFields) {
+        public ValidatedQuery {
+            computedSelectTypes = Map.copyOf(computedSelectTypes);
+            hiddenFields = Set.copyOf(hiddenFields);
+        }
+    }
+
     public static QueryAst validateForFilter(QueryAst ast,
                                              Class<?> sourceClass,
                                              Class<?> projectionClass,
                                              Map<String, List<?>> joinSources,
                                              boolean strictParameterTypes,
                                              ComputedFieldRegistry computedFieldRegistry) {
+        return validateForExecution(ast, sourceClass, projectionClass, joinSources,
+                strictParameterTypes, computedFieldRegistry).ast();
+    }
+
+    public static ValidatedQuery validateForExecution(QueryAst ast,
+                                                      Class<?> sourceClass,
+                                                      Class<?> projectionClass,
+                                                      Map<String, List<?>> joinSources,
+                                                      boolean strictParameterTypes,
+                                                      ComputedFieldRegistry computedFieldRegistry) {
         Map<String, Class<?>> sourceFieldTypes = collectFieldTypes(sourceClass);
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);
         normalizedAst = normalizeAggregationAliases(normalizedAst);
         normalizedAst = normalizeQualifyWindowReferences(normalizedAst);
-        Map<String, Class<?>> queryableFieldTypes = joinPlan.isEmpty()
-                ? ComputedFieldSupport.augmentFieldTypes(sourceFieldTypes, computedFieldRegistry)
-                : ComputedFieldSupport.augmentFieldTypes(joinPlan.mergedFieldTypes(), computedFieldRegistry);
+        boolean dynamicProjection = QueryRow.class.isAssignableFrom(projectionClass);
+        Map<String, Class<?>> baseFieldTypes = joinPlan.isEmpty() ? sourceFieldTypes : joinPlan.mergedFieldTypes();
+        SqlLikeExpressionFields.Lowered lowered = SqlLikeExpressionFields.lower(normalizedAst,
+                queryableFieldTypes(baseFieldTypes, computedFieldRegistry), computedFieldRegistry, dynamicProjection);
+        normalizedAst = lowered.ast();
+        Map<String, Class<?>> queryableFieldTypes = queryableFieldTypes(baseFieldTypes, lowered.registry());
         Set<String> queryableSourceFields = new LinkedHashSet<>(queryableFieldTypes.keySet());
         Set<String> projectionFields = collectFields(projectionClass);
-        boolean dynamicProjection = QueryRow.class.isAssignableFrom(projectionClass);
         validateAggregationSemantics(normalizedAst, queryableSourceFields, queryableFieldTypes);
         validateSelect(normalizedAst, queryableSourceFields, queryableFieldTypes, projectionFields, dynamicProjection);
-        validateFilters(normalizedAst.filters(), queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
-        validateHaving(normalizedAst, queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
+        validateFilters(normalizedAst.filters(), queryableFieldTypes, sourceClass, joinSources, computedFieldRegistry);
+        validateHaving(normalizedAst, queryableFieldTypes, sourceClass, joinSources, computedFieldRegistry);
         validateQualify(normalizedAst, queryableSourceFields);
         validateOrders(normalizedAst, resolveAllowedOrderFields(normalizedAst, queryableSourceFields), queryableSourceFields);
         validateDistinct(normalizedAst);
         if (strictParameterTypes) {
             SqlLikeParameterTypeValidator.validate(normalizedAst, queryableFieldTypes, sourceFieldTypes);
         }
-        return normalizedAst;
+        return new ValidatedQuery(normalizedAst, computedSelectTypes(normalizedAst, queryableFieldTypes),
+                lowered.registry(), lowered.hiddenFields());
+    }
+
+    /**
+     * Source field types plus the applicable computed fields, whose expressions are checked
+     * against those types (WP-29).
+     */
+    private static Map<String, Class<?>> queryableFieldTypes(Map<String, Class<?>> fieldTypes,
+                                                             ComputedFieldRegistry computedFieldRegistry) {
+        try {
+            return ComputedFieldSupport.augmentFieldTypes(fieldTypes, computedFieldRegistry);
+        } catch (IllegalArgumentException ex) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_EXPRESSION_REFERENCE, ex.getMessage());
+        }
+    }
+
+    private static Map<String, Class<?>> computedSelectTypes(QueryAst ast, Map<String, Class<?>> fieldTypes) {
+        SelectAst select = ast.select();
+        if (select == null || select.wildcard()) {
+            return Map.of();
+        }
+        LinkedHashMap<String, Class<?>> types = new LinkedHashMap<>();
+        for (SelectFieldAst field : select.fields()) {
+            if (field.computedField()) {
+                types.put(field.outputName(), expressionType(field.field(), fieldTypes::get));
+            }
+        }
+        return types;
     }
 
     static Class<?> inferListElementClass(List<?> rows) {
@@ -109,6 +166,7 @@ public final class SqlLikeValidator {
                             "Computed SELECT expressions require AS alias");
                 }
                 validateExpressionIdentifiers(field.field(), sourceFields, "SELECT");
+                expressionType(field.field(), sourceFieldTypes::get);
                 String outputName = field.outputName();
                 if (!seenOutputNames.add(outputName)) {
                     throw validation(SqlLikeErrorCodes.VALIDATION_DUPLICATE_SELECT_OUTPUT,
@@ -193,10 +251,11 @@ public final class SqlLikeValidator {
     }
 
     private static void validateFilters(List<FilterAst> filters,
-                                        Set<String> allowedFields,
+                                        Map<String, Class<?>> fieldTypes,
                                         Class<?> sourceClass,
                                         Map<String, List<?>> joinSources,
                                         ComputedFieldRegistry computedFieldRegistry) {
+        Set<String> allowedFields = fieldTypes.keySet();
         for (FilterAst filter : filters) {
             switch (filter.value()) {
                 case null -> {
@@ -211,8 +270,8 @@ public final class SqlLikeValidator {
                 }
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
-                ensureExpressionClauseSupported(filter, "WHERE");
                 validateExpressionIdentifiers(filter.field(), allowedFields, "WHERE");
+                ensureExpressionClauseSupported(filter, expressionType(filter.field(), fieldTypes::get), "WHERE");
                 continue;
             }
             requireKnownField(filter.field(), allowedFields, "WHERE");
@@ -322,10 +381,11 @@ public final class SqlLikeValidator {
     }
 
     private static void validateHaving(QueryAst ast,
-                                       Set<String> sourceFields,
+                                       Map<String, Class<?>> sourceFieldTypes,
                                        Class<?> sourceClass,
                                        Map<String, List<?>> joinSources,
                                        ComputedFieldRegistry computedFieldRegistry) {
+        Set<String> sourceFields = sourceFieldTypes.keySet();
         List<FilterAst> having = ast.havingFilters();
         if (having.isEmpty()) {
             return;
@@ -367,8 +427,10 @@ public final class SqlLikeValidator {
                 continue;
             }
             if (SqlExpressionEvaluator.looksLikeExpression(reference)) {
-                ensureExpressionClauseSupported(filter, "HAVING");
                 validateHavingExpression(reference, groupedFields, aggregateOutputs, sourceFields);
+                Class<?> type = expressionType(reference,
+                        name -> groupedFields.contains(name) ? sourceFieldTypes.get(name) : null);
+                ensureExpressionClauseSupported(filter, type, "HAVING");
                 continue;
             }
             if (sourceFields.contains(reference)) {
@@ -405,14 +467,25 @@ public final class SqlLikeValidator {
                         "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
-                ensureExpressionClauseSupported(filter, "QUALIFY");
                 validateExpressionIdentifiers(filter.field(), qualifyOutputs, "QUALIFY");
+                ensureExpressionClauseSupported(filter, expressionType(filter.field(), name -> null), "QUALIFY");
                 continue;
             }
             if (!qualifyOutputs.contains(filter.field())) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
                         formatUnknownFieldMessage(filter.field(), qualifyOutputs, "QUALIFY"));
             }
+        }
+    }
+
+    /**
+     * Subqueries bind without the validator's expression lowering, so they cannot use it.
+     */
+    private static void requireNoExpressionItems(QueryAst subquery) {
+        if (SqlLikeExpressionFields.hasExpressionItems(subquery)) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
+                    "Subqueries do not support expressions in GROUP BY or ORDER BY, "
+                            + "or computed SELECT outputs in grouped subqueries");
         }
     }
 
@@ -425,6 +498,7 @@ public final class SqlLikeValidator {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                     "EXISTS subquery predicates are only supported as WHERE EXISTS/WHERE NOT EXISTS");
         }
+        requireNoExpressionItems(existsSubqueryValueAst.query());
         QueryAst subquery = existsSubqueryValueAst.query();
         SelectAst select = subquery.select();
         if (select == null) {
@@ -445,6 +519,7 @@ public final class SqlLikeValidator {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                     "Subquery values are only supported with IN");
         }
+        requireNoExpressionItems(subqueryValueAst.query());
         QueryAst subquery = subqueryValueAst.query();
         SelectAst select = subquery.select();
         if (select == null || select.wildcard() || select.fields().size() != 1) {
@@ -479,9 +554,8 @@ public final class SqlLikeValidator {
         Map<String, Class<?>> sourceFieldTypes = joinPlan.isEmpty()
                 ? collectFieldTypes(sourceClass)
                 : joinPlan.mergedFieldTypes();
-        Set<String> sourceFields = ComputedFieldSupport
-                .augmentFieldTypes(sourceFieldTypes, computedFieldRegistry)
-                .keySet();
+        Map<String, Class<?>> queryableFieldTypes = queryableFieldTypes(sourceFieldTypes, computedFieldRegistry);
+        Set<String> sourceFields = queryableFieldTypes.keySet();
         for (String group : normalizedSubquery.groupByFields()) {
             requireKnownField(group, sourceFields, "GROUP BY");
         }
@@ -492,9 +566,9 @@ public final class SqlLikeValidator {
             throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
                     "Subquery grouped field '" + fieldName + "' must be present in GROUP BY");
         }
-        validateFilters(normalizedSubquery.filters(), sourceFields, sourceClass,
+        validateFilters(normalizedSubquery.filters(), queryableFieldTypes, sourceClass,
                 joinSources, computedFieldRegistry);
-        validateHaving(normalizedSubquery, sourceFields, sourceClass,
+        validateHaving(normalizedSubquery, queryableFieldTypes, sourceClass,
                 joinSources, computedFieldRegistry);
     }
 
@@ -544,13 +618,31 @@ public final class SqlLikeValidator {
         }
     }
 
-    private static void ensureExpressionClauseSupported(FilterAst filter, String clauseName) {
-        if (filter.clause() == Clauses.CONTAINS
+    /**
+     * Text operators ({@code CONTAINS}, {@code MATCHES}, and {@code LIKE}, which lowers to
+     * {@code MATCHES}) need an expression that returns text or a value of unknown type.
+     */
+    private static void ensureExpressionClauseSupported(FilterAst filter, Class<?> type, String clauseName) {
+        boolean textClause = filter.clause() == Clauses.CONTAINS
                 || filter.clause() == Clauses.MATCHES
                 || filter.clause() == Clauses.NOT_CONTAINS
-                || filter.clause() == Clauses.NOT_MATCHES) {
+                || filter.clause() == Clauses.NOT_MATCHES;
+        if (textClause && !SqlExpressionEvaluator.isTextOrUnknown(type)) {
             throw validation(SqlLikeErrorCodes.VALIDATION_EXPRESSION_REFERENCE,
-                    "Expression references in " + clauseName + " only support numeric comparison operators");
+                    "Expression references in " + clauseName + " only support text operators on text expressions; '"
+                            + filter.field() + "' returns " + type.getSimpleName());
+        }
+    }
+
+    /**
+     * Static result type of an expression (WP-29); kind errors such as {@code lower(salary)}
+     * or {@code name * 2} fail here instead of at runtime.
+     */
+    private static Class<?> expressionType(String expression, Function<String, Class<?>> fieldTypes) {
+        try {
+            return SqlExpressionEvaluator.resultType(expression, fieldTypes);
+        } catch (IllegalArgumentException ex) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_EXPRESSION_REFERENCE, ex.getMessage());
         }
     }
 

@@ -271,7 +271,7 @@ final class FastArrayQuerySupport {
         for (int i = 0; i < computedDefinitions.size(); i++) {
             ComputedFieldDefinition definition = computedDefinitions.get(i);
             SqlExpressionEvaluator.CompiledExpression expression =
-                    SqlExpressionEvaluator.compileNumeric(definition.expression());
+                    SqlExpressionEvaluator.compile(definition.expression());
             List<String> dependencyNames = new ArrayList<>(expression.identifiers());
             int[] dependencyIndexes = new int[dependencyNames.size()];
             for (int dependencyIndex = 0; dependencyIndex < dependencyNames.size(); dependencyIndex++) {
@@ -287,7 +287,8 @@ final class FastArrayQuerySupport {
             computedPlans[i] = new ComputedFieldPlan(
                     definition,
                     expression.bind(dependencyIndexes),
-                    outputIndex
+                    outputIndex,
+                    ComputedFieldSupport.usesNumericLane(definition)
             );
         }
 
@@ -577,10 +578,13 @@ final class FastArrayQuerySupport {
 
     private static void applyComputedValues(Object[] values, JoinCompilePlan plan) {
         for (ComputedFieldPlan computedPlan : plan.computedPlans()) {
-            values[computedPlan.outputIndex()] = castNumericValue(
-                    computedPlan.expression().evaluate(values),
-                    computedPlan.definition().outputType()
-            );
+            values[computedPlan.outputIndex()] = computedPlan.numericLane()
+                    ? SqlExpressionEvaluator.coerceNumber(
+                            computedPlan.expression().evaluate(values),
+                            computedPlan.definition().outputType())
+                    : ComputedFieldSupport.outputValue(
+                            computedPlan.definition(),
+                            computedPlan.expression().evaluateValue(values));
         }
     }
 
@@ -924,27 +928,6 @@ final class FastArrayQuerySupport {
         return indexes;
     }
 
-    private static Object castNumericValue(double value, Class<?> outputType) {
-        if (Double.isNaN(value)) {
-            return null;
-        }
-        if (outputType == Integer.class) {
-            return (int) Math.round(value);
-        }
-        if (outputType == Long.class) {
-            return Math.round(value);
-        }
-        if (outputType == Float.class) {
-            return (float) value;
-        }
-        if (outputType == Short.class) {
-            return (short) Math.round(value);
-        }
-        if (outputType == Byte.class) {
-            return (byte) Math.round(value);
-        }
-        return value;
-    }
     static record FastArrayState(List<String> schemaFields,
                                  Map<String, Class<?>> schemaTypes,
                                  List<Object[]> rows) {
@@ -963,7 +946,8 @@ final class FastArrayQuerySupport {
 
     private record ComputedFieldPlan(ComputedFieldDefinition definition,
                                      SqlExpressionEvaluator.BoundExpression expression,
-                                     int outputIndex) {
+                                     int outputIndex,
+                                     boolean numericLane) {
     }
 
     private interface ChildIndex {

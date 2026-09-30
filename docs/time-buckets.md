@@ -33,6 +33,41 @@ Notes:
 - week start is optional; default is `MONDAY`
 - week start is valid only for `WEEK` buckets
 
+## Date Parts
+
+SQL-like date-part functions `year`, `quarter`, `month`, `day`, `hour`, `minute`,
+and `day_of_week` (ISO, 1 = Monday) read a date/time value with the same types, zone
+normalization, and `UTC` default as buckets. The optional zone is a text literal:
+`month(hireDate, 'Europe/Amsterdam')`.
+
+Buckets and date parts answer different questions:
+
+- a bucket is a label that includes the year (`bucket(hireDate, 'month')` gives
+  `2026-03`), so it groups a timeline
+- a date part is a number that repeats every year (`month(hireDate)` gives `3`), so it
+  compares or groups seasons across years
+
+They always agree: `month(x, zone)` is the month in `bucket(x, 'month', zone)`.
+
+```sql
+where month(hireDate) in (6, 7, 8)
+where day_of_week(hireDate, 'Europe/Amsterdam') >= 6
+```
+
+Group by a date part directly (`group by month(hireDate)`), or register it as a
+computed field to reuse it across queries:
+
+```java
+ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+    .add("hireMonth", "month(hireDate)", Integer.class)
+    .build();
+
+List<MonthlyHires> rows = PojoLensSql
+    .parse("select hireMonth, count(*) as hires group by hireMonth order by hireMonth")
+    .computedFields(registry)
+    .filter(source, MonthlyHires.class);
+```
+
 ## Natural
 
 Supported forms:

@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.WeekFields;
@@ -93,46 +94,60 @@ public final class TimeBucketUtil {
             throw new IllegalArgumentException("preset must not be null");
         }
         if (preset.bucket() == TimeBucket.HOUR) {
-            return formatBucketHour(normalizeBucketDateTime(rawValue, preset));
+            return formatBucketHour(localDateTime(rawValue, preset.zoneId()));
         }
-        return formatBucketDate(normalizeBucketDate(rawValue, preset), preset);
+        return formatBucketDate(localDate(rawValue, preset.zoneId()), preset);
     }
 
-    private static LocalDate normalizeBucketDate(Object rawValue, TimeBucketPreset preset) {
+    /**
+     * Wall-clock date of a supported date/time value in a zone. Instants ({@code Date},
+     * {@code Instant}, {@code OffsetDateTime}, {@code ZonedDateTime}) convert into the zone;
+     * local values are read in it. Time buckets and the date-part expression functions share
+     * this normalization, so {@code year(x, zone)} is the year of {@code bucket(x, 'year', zone)}.
+     *
+     * @throws IllegalArgumentException for an unsupported value type
+     */
+    public static LocalDate localDate(Object rawValue, ZoneId zone) {
         return switch (rawValue) {
-            case Date date -> normalizeInstantBucketDate(Instant.ofEpochMilli(date.getTime()), preset);
-            case Instant instant -> normalizeInstantBucketDate(instant, preset);
+            case Date date -> instantDate(Instant.ofEpochMilli(date.getTime()), zone);
+            case Instant instant -> instantDate(instant, zone);
             case LocalDate localDate -> localDate;
-            case LocalDateTime localDateTime -> localDateTime.atZone(preset.zoneId()).toLocalDate();
-            case OffsetDateTime offsetDateTime -> normalizeInstantBucketDate(offsetDateTime.toInstant(), preset);
-            case ZonedDateTime zonedDateTime -> normalizeInstantBucketDate(zonedDateTime.toInstant(), preset);
+            case LocalDateTime localDateTime -> localDateTime.atZone(zone).toLocalDate();
+            case OffsetDateTime offsetDateTime -> instantDate(offsetDateTime.toInstant(), zone);
+            case ZonedDateTime zonedDateTime -> instantDate(zonedDateTime.toInstant(), zone);
             default -> throw new IllegalArgumentException(
                     "Time bucket requires " + SUPPORTED_TIME_BUCKET_TYPES + " values");
         };
     }
 
-    private static LocalDate normalizeInstantBucketDate(Instant instant, TimeBucketPreset preset) {
-        if (ZoneOffset.UTC.equals(preset.zoneId())) {
+    private static LocalDate instantDate(Instant instant, ZoneId zone) {
+        if (ZoneOffset.UTC.equals(zone)) {
             return LocalDate.ofEpochDay(Math.floorDiv(instant.toEpochMilli(), MILLIS_PER_DAY));
         }
-        return instant.atZone(preset.zoneId()).toLocalDate();
+        return instant.atZone(zone).toLocalDate();
     }
 
-    private static LocalDateTime normalizeBucketDateTime(Object rawValue, TimeBucketPreset preset) {
+    /**
+     * Wall-clock date-time of a supported date/time value in a zone; a {@code LocalDate} is the
+     * start of its day. See {@link #localDate(Object, ZoneId)}.
+     *
+     * @throws IllegalArgumentException for an unsupported value type
+     */
+    public static LocalDateTime localDateTime(Object rawValue, ZoneId zone) {
         return switch (rawValue) {
-            case Date date -> normalizeInstantBucketDateTime(Instant.ofEpochMilli(date.getTime()), preset);
-            case Instant instant -> normalizeInstantBucketDateTime(instant, preset);
+            case Date date -> instantDateTime(Instant.ofEpochMilli(date.getTime()), zone);
+            case Instant instant -> instantDateTime(instant, zone);
             case LocalDate localDate -> localDate.atStartOfDay();
             case LocalDateTime localDateTime -> localDateTime;
-            case OffsetDateTime offsetDateTime -> normalizeInstantBucketDateTime(offsetDateTime.toInstant(), preset);
-            case ZonedDateTime zonedDateTime -> normalizeInstantBucketDateTime(zonedDateTime.toInstant(), preset);
+            case OffsetDateTime offsetDateTime -> instantDateTime(offsetDateTime.toInstant(), zone);
+            case ZonedDateTime zonedDateTime -> instantDateTime(zonedDateTime.toInstant(), zone);
             default -> throw new IllegalArgumentException(
                     "Time bucket requires " + SUPPORTED_TIME_BUCKET_TYPES + " values");
         };
     }
 
-    private static LocalDateTime normalizeInstantBucketDateTime(Instant instant, TimeBucketPreset preset) {
-        return instant.atZone(preset.zoneId()).toLocalDateTime();
+    private static LocalDateTime instantDateTime(Instant instant, ZoneId zone) {
+        return instant.atZone(zone).toLocalDateTime();
     }
 
     private static String formatBucketDate(LocalDate date, TimeBucketPreset preset) {

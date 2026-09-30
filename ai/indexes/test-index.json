@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T19:58:14.701192+02:00",
+  "generatedAt": "2026-09-28T20:50:12.566955+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -14,13 +14,13 @@
     "examples/typed-compiler-gradle-kotlin/src/test/kotlin"
   ],
   "counts": {
-    "testJavaFiles": 171,
-    "testClasses": 171
+    "testJavaFiles": 177,
+    "testClasses": 177
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 138
+      "testJavaFiles": 144
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -108,12 +108,15 @@
         "pojo-lens/src/test/java/laughing/man/commits/CoreEngineRegressionTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/CoreFollowUpTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/DatasetBundleExecutionContextTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/DatePartQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/DistinctQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/ExplainToolingTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/ExpressionGroupOrderQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/FieldMetamodelGeneratorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/LikeFilterTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/LiteralListFilterTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/NegatedTextMatchTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/NonNumericComputedFieldTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/NullRangeNegationFilterTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/OperatorInvariantPropertyTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/OptionalIndexExecutionTest.java",
@@ -127,6 +130,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/RealWorldDomainScenariosTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/StatisticalAggregateTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/StreamingExecutionOutputTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/TextFunctionQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/TimeBucketAggregationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/domain/Foo.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedFieldContractTest.java",
@@ -232,6 +236,8 @@
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/error/SqlLikeFieldMessagesTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/error/SqlLikeSourceBindingMessagesTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupportTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/expression/DatePartBucketParityTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/expression/DatePartFunctionTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/package-info.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/SqlLikeDocsProjections.java",

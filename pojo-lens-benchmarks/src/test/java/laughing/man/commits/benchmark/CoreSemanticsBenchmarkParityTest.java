@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Proves the WP-18 to WP-23 semantics benchmarks compute the right answers, so their
+ * Proves the WP-18 to WP-23 and WP-29 semantics benchmarks compute the right answers, so their
  * timings measure correct work.
  */
 public class CoreSemanticsBenchmarkParityTest {
@@ -109,5 +109,20 @@ public class CoreSemanticsBenchmarkParityTest {
         assertEquals(benchmark.pojoFilter(), benchmark.recordFilter());
         assertEquals(benchmark.pojoSelectProjection(), benchmark.recordSelectProjection());
         assertTrue(benchmark.recordFilter() > 0);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1000, 10000})
+    public void textFunctionPathsMatchCaseInsensitiveReference(int size) {
+        TextFunctionJmhBenchmark benchmark = new TextFunctionJmhBenchmark();
+        benchmark.size = size;
+        benchmark.setup();
+        long reference = TextFunctionJmhBenchmark.checksum(benchmark.rows().stream()
+                .filter(row -> row.department.equalsIgnoreCase("engineering")).toList());
+
+        assertEquals(reference, benchmark.sqlLikeLowerEquals());
+        assertEquals(reference, benchmark.sqlLikeIlike());
+        assertEquals(reference, benchmark.sqlLikeTextComputedField());
+        assertTrue(reference > 0);
     }
 }

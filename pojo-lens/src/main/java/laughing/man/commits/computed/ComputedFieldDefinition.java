@@ -1,6 +1,7 @@
 package laughing.man.commits.computed;
 
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
+import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 
 import java.util.LinkedHashSet;
@@ -8,7 +9,11 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Immutable named computed-field definition backed by a numeric expression.
+ * Immutable named computed-field definition: an expression and the type its values are
+ * stored as. Numeric output types keep the {@code double} expression lane; other output
+ * types ({@code String}, date/time, enum, ...) hold the typed expression value. The output
+ * type must fit the expression's result, checked here when the result type is known and
+ * again against the source field types when a query uses the field.
  */
 public final class ComputedFieldDefinition {
 
@@ -27,7 +32,7 @@ public final class ComputedFieldDefinition {
     public static ComputedFieldDefinition of(String name, String expression, Class<?> outputType) {
         String normalizedName = requireIdentifier(name, "name");
         String normalizedExpression = requireExpression(expression);
-        Class<?> normalizedOutputType = requireNumericOutputType(outputType);
+        Class<?> normalizedOutputType = requireOutputType(normalizedName, normalizedExpression, outputType);
         return new ComputedFieldDefinition(
                 normalizedName,
                 normalizedExpression,
@@ -44,6 +49,9 @@ public final class ComputedFieldDefinition {
         return expression;
     }
 
+    /**
+     * The stored value type; primitives are boxed.
+     */
     public Class<?> outputType() {
         return outputType;
     }
@@ -65,43 +73,15 @@ public final class ComputedFieldDefinition {
         }
         String normalized = expression.trim();
         if (!SqlExpressionEvaluator.looksLikeExpression(normalized) && SqlExpressionEvaluator.collectIdentifiers(normalized).size() != 1) {
-            throw new IllegalArgumentException("expression must be a numeric expression or identifier");
+            throw new IllegalArgumentException("expression must be an expression or identifier");
         }
         return normalized;
     }
 
-    private static Class<?> requireNumericOutputType(Class<?> outputType) {
-        Objects.requireNonNull(outputType, "outputType must not be null");
-        Class<?> wrapped = wrap(outputType);
-        if (!Number.class.isAssignableFrom(wrapped)) {
-            throw new IllegalArgumentException("computed field outputType must be numeric");
-        }
-        return wrapped;
-    }
-
-    private static Class<?> wrap(Class<?> type) {
-        if (!type.isPrimitive()) {
-            return type;
-        }
-        if (type == int.class) {
-            return Integer.class;
-        }
-        if (type == long.class) {
-            return Long.class;
-        }
-        if (type == double.class) {
-            return Double.class;
-        }
-        if (type == float.class) {
-            return Float.class;
-        }
-        if (type == short.class) {
-            return Short.class;
-        }
-        if (type == byte.class) {
-            return Byte.class;
-        }
-        return type;
+    private static Class<?> requireOutputType(String name, String expression, Class<?> outputType) {
+        Class<?> boxed = ReflectionUtil.wrapPrimitive(Objects.requireNonNull(outputType, "outputType must not be null"));
+        SqlExpressionEvaluator.requireOutputType("Computed field '" + name + "'",
+                SqlExpressionEvaluator.resultType(expression, fieldName -> null), boxed);
+        return boxed;
     }
 }
-

@@ -362,10 +362,10 @@ public class FilterCore {
             if (!SqlExpressionEvaluator.looksLikeExpression(rule.getColumn())) {
                 return false;
             }
-            fieldValue = SqlExpressionEvaluator.toNullable(SqlExpressionEvaluator.evaluateNumeric(
+            fieldValue = SqlExpressionEvaluator.evaluate(
                     rule.getColumn(),
                     identifier -> resolveRowValue(row, plan, identifier)
-            ));
+            );
         } else {
             fieldValue = row.getValueAt(fieldIndex);
         }
