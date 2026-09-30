@@ -154,7 +154,7 @@ Representative core budgets from `benchmarks/thresholds.json`:
 | `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `219.8 ms/op` | `290.0 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `182.4 ms/op` | `243.5 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `82.2 ms/op` | `205.7 ms/op` |
-| `CsvLoadJmhBenchmark.csvTypedLoad` | `LOAD` | `18.0 ms/op` | `95.0 ms/op` |
+| `CsvLoadJmhBenchmark.csvTypedLoad` | `LOAD` | `18.0 ms/op` | `120.0 ms/op` |
 | `CsvLoadJmhBenchmark.csvTypedLoadMultiline` | `LOAD` | `8.0 ms/op` | `70.0 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `0.2 ms/op` | `0.2 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `198.3 ms/op` | `235.3 ms/op` |
