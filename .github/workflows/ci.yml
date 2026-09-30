@@ -52,7 +52,8 @@ jobs:
             echo "Runtime jar not found under target/"
             exit 1
           fi
-          if jar tf "$RUNTIME_JAR" | grep -q 'laughing/man/commits/benchmark/'; then
+          # Not grep -q: an early exit can SIGPIPE jar, and pipefail would then hide a match.
+          if jar tf "$RUNTIME_JAR" | grep 'laughing/man/commits/benchmark/' > /dev/null; then
             echo "Runtime jar contains benchmark classes: $RUNTIME_JAR"
             exit 1
           fi
@@ -158,7 +159,8 @@ jobs:
           {
             echo "## SpotBugs Report"
             if [ -f target/spotbugsXml.xml ]; then
-              COUNT=$(grep -o "<BugInstance" target/spotbugsXml.xml | wc -l | tr -d ' ')
+              # grep exits 1 when there are no bugs; under pipefail that would fail the step.
+              COUNT=$({ grep -o "<BugInstance" target/spotbugsXml.xml || true; } | wc -l | tr -d ' ')
               echo ""
               echo "- Bug instances: ${COUNT}"
             else
@@ -181,6 +183,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Consumer install snippets are checked against the latest release-* tag.
+          fetch-depth: 0
       - name: Check README/MIGRATION/RELEASE invariants
         shell: pwsh
         run: ./scripts/docs/check-doc-consistency.ps1

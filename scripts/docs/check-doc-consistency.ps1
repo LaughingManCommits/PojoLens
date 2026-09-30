@@ -100,7 +100,12 @@ $jdbc = Require-File $jdbcPath
 $null = Require-File $typedCompilerGradleJavaBuildPath
 $null = Require-File $typedCompilerGradleKotlinBuildPath
 $errors = [System.Collections.Generic.List[string]]::new()
-$releaseVersion = Get-LatestReleaseVersion $projectVersion
+$releaseVersion = Get-LatestReleaseVersion ""
+if ([string]::IsNullOrEmpty($releaseVersion)) {
+    # A shallow clone has no tags; say so instead of reporting every snippet as stale.
+    Write-Host "[doc-check] WARN: no release-* git tags found (shallow clone? fetch tags); checking consumer install snippets against the pom version $projectVersion"
+    $releaseVersion = $projectVersion
+}
 
 # Consumer-facing install examples should track the latest published release tag.
 Require-Substring $readme "README.md" "<version>$releaseVersion</version>" $errors
