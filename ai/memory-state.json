@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-09-30T19:11:05.383395+02:00",
-  "generation": "20260930T171105-62600-1790788265388282800",
+  "generatedAt": "2026-09-30T20:22:24.993790+02:00",
+  "generation": "20260930T182225-59676-1790792545000429000",
   "git": {
-    "headCommit": "e6937e9d2af658aa5d6999aa35766688fd4c28fe",
+    "headCommit": "13e88cf852d4fdba857a154a183fc0375017759d",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "7c5589a1ac4a719e48b89c827f23162e4a69dc5b31dc6a7161e2a603eebf6ca1",
+  "inputsHash": "d7ea1db5761188f8d7ce5d804b19201a104dc72b8697334912580927276dd0ae",
   "hotContext": {
     "files": [
       {
@@ -115,7 +115,7 @@
     "activeLog": {
       "path": "ai/log/events.jsonl",
       "entries": 13,
-      "bytes": 4924
+      "bytes": 4933
     },
     "archiveFiles": [
       {
@@ -142,31 +142,31 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "b7127ccd70faf8a16c324fb739e654efa23abb5903edd39a56f74bc9be2b93dc",
+        "inputHash": "f3c8142d0e0d93e1fe5049653781c032f0ca39df2b66573562a0c76931933b04",
         "inputFiles": 60
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "75437531df006409a82d55a4a3b7aba767fd006327efc1dfe67e76688f1df0dd",
+        "inputHash": "587880939ad39d10fd301790883434067f686a0ec46a033529c90889534c68a0",
         "inputFiles": 587
       },
       {
         "path": "ai/indexes/symbols-index.json",
         "status": "rebuilt",
-        "inputHash": "812c490d17de0dfd2f2c465291f7b972577fd893c862062323f0d65a888e5519",
+        "inputHash": "8bbdb25ba7bca852f2e0ee4a35c887983b93dc764ab0cce0057db10d4d01ccda",
         "inputFiles": 318
       },
       {
         "path": "ai/indexes/test-index.json",
         "status": "rebuilt",
-        "inputHash": "4b1654ab02f045434bf266f0cfe235060dddf86ed21794075022e8c497385dc4",
+        "inputHash": "9f6586ec6254e6f13c327f7692ed9ebc2e5b64e032f03bb4fdce26b7dcdc1016",
         "inputFiles": 184
       },
       {
         "path": "ai/indexes/config-index.json",
-        "status": "reused",
-        "inputHash": "6c54d1bbf94ade7f54778e566994edad97cabaae041ed55be14a56402b9ca742",
+        "status": "rebuilt",
+        "inputHash": "6a433b3b9252d395361f07578fa704a2ac66f84e03d11a7b3caaf3aa2b568dd2",
         "inputFiles": 31
       }
     ],
