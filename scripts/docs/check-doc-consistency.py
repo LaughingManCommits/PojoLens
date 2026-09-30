@@ -88,7 +88,14 @@ def forbid_regex(doc: str, path: Path, pattern: str, errors: list[str]) -> None:
 
 def main() -> int:
     version = pom_version()
-    release_version = latest_release_version(version)
+    release_version = latest_release_version("")
+    if not release_version:
+        # A shallow clone has no tags; say so instead of reporting every snippet as stale.
+        print(
+            "[doc-check] WARN: no release-* git tags found (shallow clone? fetch tags); "
+            f"checking consumer install snippets against the pom version {version}"
+        )
+        release_version = version
     readme = read_text(README)
     contributing = read_text(CONTRIBUTING)
     changelog = read_text(CHANGELOG)
