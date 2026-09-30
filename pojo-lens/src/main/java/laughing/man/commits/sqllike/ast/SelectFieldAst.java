@@ -13,6 +13,8 @@ import java.util.Objects;
 
 public final class SelectFieldAst {
 
+    private static final int DEFAULT_WINDOW_OFFSET = 1;
+
     private final String field;
     private final String alias;
     private final Metric metric;
@@ -26,6 +28,8 @@ public final class SelectFieldAst {
     private final boolean windowCountAll;
     private final QueryWindowFrame windowFrame;
     private final Double metricArgument;
+    private final int windowOffset;
+    private final Object windowDefault;
 
     public SelectFieldAst(String field,
                           String alias,
@@ -117,7 +121,29 @@ public final class SelectFieldAst {
                           boolean windowCountAll,
                           QueryWindowFrame windowFrame,
                           Double metricArgument) {
+        this(field, alias, metric, countAll, timeBucketPreset, computedExpression, windowFunction,
+                windowPartitionFields, windowOrderFields, windowValueField, windowCountAll, windowFrame,
+                metricArgument, DEFAULT_WINDOW_OFFSET, null);
+    }
+
+    private SelectFieldAst(String field,
+                           String alias,
+                           Metric metric,
+                           boolean countAll,
+                           TimeBucketPreset timeBucketPreset,
+                           boolean computedExpression,
+                           String windowFunction,
+                           List<String> windowPartitionFields,
+                           List<OrderAst> windowOrderFields,
+                           String windowValueField,
+                           boolean windowCountAll,
+                           QueryWindowFrame windowFrame,
+                           Double metricArgument,
+                           int windowOffset,
+                           Object windowDefault) {
         this.field = Objects.requireNonNull(field, "field must not be null");
+        this.windowOffset = windowOffset;
+        this.windowDefault = windowDefault;
         this.metricArgument = metricArgument;
         this.alias = alias;
         this.metric = metric;
@@ -205,6 +231,30 @@ public final class SelectFieldAst {
 
     public QueryWindowFrame windowFrame() {
         return windowFrame;
+    }
+
+    /**
+     * Rows between the current row and the row {@code LAG}/{@code LEAD} reads
+     * ({@code lag(salary, 2)}); {@code 1} for every other field.
+     */
+    public int windowOffset() {
+        return windowOffset;
+    }
+
+    /**
+     * The {@code LAG}/{@code LEAD} default literal ({@code lag(salary, 1, 0)}), or {@code null}.
+     */
+    public Object windowDefault() {
+        return windowDefault;
+    }
+
+    /**
+     * Copy of this field carrying {@code LAG}/{@code LEAD} offset arguments.
+     */
+    public SelectFieldAst withWindowOffset(int offset, Object defaultValue) {
+        return new SelectFieldAst(field, alias, metric, countAll, timeBucketPreset, computedExpression,
+                windowFunction, windowPartitionFields, windowOrderFields, windowValueField, windowCountAll,
+                windowFrame, metricArgument, offset, defaultValue);
     }
 
     public String outputName() {

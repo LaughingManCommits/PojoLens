@@ -1,7 +1,8 @@
 package laughing.man.commits.sqllike.internal.validation;
 
-import laughing.man.commits.enums.Metric;
-import laughing.man.commits.internal.NumericStatistics;
+import laughing.man.commits.internal.builder.QueryMetric;
+import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
@@ -82,7 +83,7 @@ final class SqlLikeParameterTypeValidator {
         if (ast.select() != null) {
             for (SelectFieldAst field : ast.select().fields()) {
                 if (field.metricField()) {
-                    havingFieldTypes.put(field.outputName(), metricOutputType(field.metric(), sourceFieldTypes.get(field.field())));
+                    havingFieldTypes.put(field.outputName(), QueryMetric.outputType(field.metric(), sourceFieldTypes.get(field.field())));
                 }
             }
         }
@@ -98,7 +99,7 @@ final class SqlLikeParameterTypeValidator {
         }
         for (SelectFieldAst field : select.fields()) {
             if (field.metricField()) {
-                outputTypes.put(field.outputName(), metricOutputType(field.metric(), sourceFieldTypes.get(field.field())));
+                outputTypes.put(field.outputName(), QueryMetric.outputType(field.metric(), sourceFieldTypes.get(field.field())));
             } else if (field.timeBucketField()) {
                 outputTypes.put(field.outputName(), String.class);
             } else if (field.windowField()) {
@@ -125,7 +126,7 @@ final class SqlLikeParameterTypeValidator {
         AggregateExpressionSupport.ParsedAggregateExpression expression = AggregateExpressionSupport.parse(filter.field());
         if (expression != null) {
             Class<?> fieldType = expression.countAll() ? Long.class : sourceFieldTypes.get(expression.field());
-            return metricOutputType(expression.metric(), fieldType);
+            return QueryMetric.outputType(expression.metric(), fieldType);
         }
         return null;
     }
@@ -148,27 +149,25 @@ final class SqlLikeParameterTypeValidator {
 
     private static Class<?> windowOutputType(SelectFieldAst field,
                                              Map<String, Class<?>> queryableFieldTypes) {
-        String function = field.windowFunction();
+        WindowFunction function = WindowFunction.fromName(field.windowFunction());
         if (function == null) {
             return Number.class;
         }
-        if ("ROW_NUMBER".equalsIgnoreCase(function)
-                || "RANK".equalsIgnoreCase(function)
-                || "DENSE_RANK".equalsIgnoreCase(function)
-                || "COUNT".equalsIgnoreCase(function)) {
+        if (function.isRankFunction() || function == WindowFunction.COUNT) {
             return Long.class;
         }
-        if ("AVG".equalsIgnoreCase(function)) {
+        if (function == WindowFunction.AVG) {
             return Double.class;
         }
+        Class<?> fallback = function.isOffsetFunction() ? Object.class : Number.class;
         if (field.windowValueField() == null) {
-            return Number.class;
+            return fallback;
         }
         Class<?> fieldType = queryableFieldTypes.get(field.windowValueField());
         if (fieldType == null) {
-            return Number.class;
+            return fallback;
         }
-        return wrap(fieldType);
+        return ReflectionUtil.wrapPrimitive(fieldType);
     }
 
     private static Class<?> resolveQualifyExpectedType(FilterAst filter, Map<String, Class<?>> qualifyFieldTypes) {
@@ -176,19 +175,6 @@ final class SqlLikeParameterTypeValidator {
             return expressionType(filter.field(), Map.of());
         }
         return qualifyFieldTypes.get(filter.field());
-    }
-
-    private static Class<?> metricOutputType(Metric metric, Class<?> fieldType) {
-        if (metric == Metric.COUNT || metric == Metric.COUNT_DISTINCT) {
-            return Long.class;
-        }
-        if (metric == Metric.AVG || NumericStatistics.isStatistical(metric)) {
-            return Double.class;
-        }
-        if (fieldType == null) {
-            return Number.class;
-        }
-        return wrap(fieldType);
     }
 
     private static void validateParameterFilterType(FilterAst filter, String clauseName, Class<?> expectedType) {
@@ -233,7 +219,7 @@ final class SqlLikeParameterTypeValidator {
             }
             return true;
         }
-        Class<?> wrappedExpected = wrap(expectedType);
+        Class<?> wrappedExpected = ReflectionUtil.wrapPrimitive(expectedType);
         if (isNumericType(wrappedExpected)) {
             return value instanceof Number;
         }
@@ -247,37 +233,6 @@ final class SqlLikeParameterTypeValidator {
             return value instanceof String;
         }
         return wrappedExpected.isInstance(value);
-    }
-
-    private static Class<?> wrap(Class<?> type) {
-        if (type == null || !type.isPrimitive()) {
-            return type;
-        }
-        if (type == int.class) {
-            return Integer.class;
-        }
-        if (type == long.class) {
-            return Long.class;
-        }
-        if (type == double.class) {
-            return Double.class;
-        }
-        if (type == float.class) {
-            return Float.class;
-        }
-        if (type == boolean.class) {
-            return Boolean.class;
-        }
-        if (type == short.class) {
-            return Short.class;
-        }
-        if (type == byte.class) {
-            return Byte.class;
-        }
-        if (type == char.class) {
-            return Character.class;
-        }
-        return type;
     }
 
     private static IllegalArgumentException parameterTypeMismatch(String parameterName,
@@ -302,7 +257,7 @@ final class SqlLikeParameterTypeValidator {
     }
 
     private static String expectedTypeLabel(Class<?> expectedType) {
-        Class<?> wrapped = wrap(expectedType);
+        Class<?> wrapped = ReflectionUtil.wrapPrimitive(expectedType);
         if (wrapped == null) {
             return "compatible value";
         }

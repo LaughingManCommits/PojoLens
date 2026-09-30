@@ -119,6 +119,12 @@ public class TypedQueryContractTest {
                 TypedField.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "windowCountAll",
                 TypedField.class, QueryWindowFrame.class, List.class, TypedField[].class);
+        for (String offsetMethod : List.of("lag", "lead")) {
+            requirePublicMethod(TypedQuery.class, offsetMethod,
+                    TypedField.class, String.class, int.class, Object.class, List.class, TypedField[].class);
+            requirePublicMethod(TypedQuery.class, offsetMethod,
+                    TypedField.class, TypedField.class, int.class, Object.class, List.class, TypedField[].class);
+        }
         requirePublicMethod(TypedQuery.class, "qualify", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucket.class, String.class);
         requirePublicMethod(TypedQuery.class, "timeBucket", TypedField.class, TimeBucket.class, TypedField.class);
@@ -1057,15 +1063,15 @@ public class TypedQueryContractTest {
     }
 
     @Test
-    void windowsShouldFailForAggregateShape() {
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
+    void windowsOverGroupedRowsShouldRejectNonGroupedFields() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> TypedQuery.from(Employee.class)
                         .groupBy(DEPT)
                         .count(TOTAL)
                         .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
                         .filter(sampleEmployees(), DepartmentRank.class));
 
-        assertTrue(ex.getMessage().contains("windows are only supported for non-aggregate query shapes"));
+        assertTrue(ex.getMessage().contains("Unknown field 'salary' in window order(...)"), ex::getMessage);
     }
 
     // --- NOT / DeMorgan lowering ---

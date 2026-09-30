@@ -4,6 +4,7 @@ import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.internal.builder.QueryMetric;
 import laughing.man.commits.internal.builder.QueryTimeBucket;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
@@ -113,7 +114,7 @@ public final class TabularSchemaSupport {
             return String.class;
         }
         if (field.windowField()) {
-            return defaultWindowType(field);
+            return defaultWindowType(field, projectionTypes);
         }
         if (!field.computedField()) {
             return projectionTypes.getOrDefault(field.field(), Object.class);
@@ -141,19 +142,19 @@ public final class TabularSchemaSupport {
         return Long.class;
     }
 
-    private static Class<?> defaultWindowType(SelectFieldAst field) {
-        String function = field.windowFunction();
+    private static Class<?> defaultWindowType(SelectFieldAst field, Map<String, Class<?>> projectionTypes) {
+        WindowFunction function = WindowFunction.fromName(field.windowFunction());
         if (function == null) {
             return Number.class;
         }
-        if ("ROW_NUMBER".equalsIgnoreCase(function)
-                || "RANK".equalsIgnoreCase(function)
-                || "DENSE_RANK".equalsIgnoreCase(function)
-                || "COUNT".equalsIgnoreCase(function)) {
+        if (function.isRankFunction() || function == WindowFunction.COUNT) {
             return Long.class;
         }
-        if ("AVG".equalsIgnoreCase(function)) {
+        if (function == WindowFunction.AVG) {
             return Double.class;
+        }
+        if (function.isOffsetFunction()) {
+            return projectionTypes.getOrDefault(field.windowValueField(), Object.class);
         }
         return Number.class;
     }

@@ -117,9 +117,6 @@ public final class SqlLikeKeysetSupport {
     }
 
     private static Placement placementOf(QueryAst ast) {
-        if (!ast.groupByFields().isEmpty() || ast.hasAggregation()) {
-            return Placement.HAVING;
-        }
         if (ast.select() != null) {
             for (OrderAst order : ast.orders()) {
                 for (SelectFieldAst field : ast.select().fields()) {
@@ -128,6 +125,9 @@ public final class SqlLikeKeysetSupport {
                     }
                 }
             }
+        }
+        if (!ast.groupByFields().isEmpty() || ast.hasAggregation()) {
+            return Placement.HAVING;
         }
         return Placement.WHERE;
     }

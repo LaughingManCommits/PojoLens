@@ -2,6 +2,7 @@ package laughing.man.commits.sqllike.internal.preview;
 
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.sqllike.PlanPreviewField;
 import laughing.man.commits.sqllike.PlanPreviewFilter;
 import laughing.man.commits.sqllike.PlanPreviewJoin;
@@ -105,7 +106,11 @@ public final class SqlLikePlanPreviewSupport {
         for (OrderAst o : f.windowOrderFields()) {
             windowOrderFields.add(o.field());
         }
-        String windowFrame = windowFunction != null ? f.windowFrame().sqlExpression() : null;
+        WindowFunction resolvedWindow = WindowFunction.fromName(windowFunction);
+        // Offset windows (LAG/LEAD) have no frame; their arguments are in the field text.
+        String windowFrame = resolvedWindow != null && !resolvedWindow.isOffsetFunction()
+                ? f.windowFrame().sqlExpression()
+                : null;
         return new PlanPreviewField(
                 f.field(),
                 f.outputName(),

@@ -113,6 +113,7 @@ Canonical window phrases:
 - `rank [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
 - `dense rank [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
 - `running count|sum|average|minimum|maximum of <field|employees> [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] [for running rows|for last <n> rows|for all rows] as <alias>`
+- `previous|next <field> [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] [for <n> rows] [defaulting to <value>] as <alias>`
 
 Join notes:
 - source labels are explicit: `from companies as company join employees as employee ...`
@@ -464,7 +465,15 @@ Window notes:
   `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`
 - `for all rows` lowers to
   `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
-- grouped queries and `qualify` stay separate; use [docs/sql-like.md](sql-like.md) when you need more exact analytic control
+- `previous <field>` lowers to `LAG(field)` and `next <field>` to `LEAD(field)`;
+  `for <n> rows` sets the offset and `defaulting to <value>` the value used outside
+  the partition (`previous salary by department ordered by hire date for 2 rows
+  defaulting to 0 as salary two hires back`)
+- `previous`/`next` only start a window phrase when the item has an `ordered by`
+  clause, so fields named `previous` or `next` keep working
+- window phrases also run over grouped rows (after `group by` and `having`); they
+  reference group fields and aggregate aliases, and `qualify` then filters the grouped
+  window outputs
 
 Inline natural `qualify` example:
 
@@ -475,6 +484,17 @@ List<DepartmentTopRow> rows = PojoLensNatural
         + "where active is true "
         + "qualify row number by department ordered by salary descending is at most 1")
     .filter(source, DepartmentTopRow.class);
+```
+
+Grouped ranking with a neighbouring total:
+
+```java
+List<RegionRank> rows = PojoLensNatural
+    .parse("show region, sum of amount as total, "
+        + "rank ordered by total descending as sales rank, "
+        + "previous total ordered by total descending as next higher total "
+        + "group by region qualify sales rank is at most 2 sort by sales rank ascending")
+    .filter(sales, RegionRank.class);
 ```
 
 ## Chart Phrase Contract
@@ -556,8 +576,9 @@ Map<String, Object> explain = PojoLensNatural
 - bounded subqueries are limited to uncorrelated `where <field> is in query ... end query`
   and `where [not] exists query ... end query`
 - scalar subqueries and correlated subqueries are not supported
-- natural window phrases expose row-number/rank/dense-rank plus running
-  aggregate windows with running, trailing-row, and full-partition `ROWS` frames
+- natural window phrases expose row-number/rank/dense-rank, running aggregate
+  windows with running, trailing-row, and full-partition `ROWS` frames, and
+  `previous`/`next` offset windows
 - direct `PojoLensNatural.parse(...)` does not apply runtime vocabulary
 - direct `PojoLensNatural.template(...)` does not apply runtime vocabulary or runtime-scoped computed fields
 - `schema(Projection.class)` alone cannot infer joined source classes; use the

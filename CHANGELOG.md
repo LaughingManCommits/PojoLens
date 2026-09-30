@@ -11,6 +11,31 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **`LAG`/`LEAD` window functions (WP-31)** - SQL-like
+  `lag(field[, offset[, default]]) over (...)` and `lead(...)`, typed
+  `lag(...)`/`lead(...)` (plus `window(WindowFunction.LAG|LEAD, ...)`), natural
+  `previous|next <field> ... [for <n> rows] [defaulting to <value>]`, and the internal
+  `QueryBuilder.addOffsetWindow(...)`. PostgreSQL semantics: the default applies only
+  outside the partition (a `null` value at the offset row stays `null`), the offset is
+  a non-negative integer literal (default `1`), no `ROWS` frame is accepted, and the
+  output has the field's type. The default must fit the field: numbers convert exactly
+  to its numeric type, text needs a text field, and other types accept only `null`.
+  `LAG`/`LEAD` are not reserved words. `WindowFunction` gains `LAG`, `LEAD`,
+  `isOffsetFunction()`, and `fromName(...)`; `SelectFieldAst` gains `windowOffset()`,
+  `windowDefault()`, and `withWindowOffset(...)`; `TypedPlanWindow` gains `offset()` and
+  `defaultValue()`.
+
+- **Windows over grouped rows (WP-31)** - rank, aggregate, and offset windows and
+  `QUALIFY` now run on grouped queries, after `GROUP BY` and `HAVING` and before
+  `ORDER BY`, `DISTINCT`, and paging, on every surface (SQL-like, typed, natural,
+  internal fluent). Window arguments, `PARTITION BY`, and window `ORDER BY` reference
+  grouped outputs: group fields (or their `SELECT` aliases), time-bucket aliases, and
+  aggregate aliases (`rank() over (order by total desc)`, running totals of monthly
+  sums, `lag(total)` deltas). Aggregate calls inside `OVER (...)` are rejected with a
+  hint to use the alias. Grouped `ORDER BY` accepts window aliases, keyset cursors on a
+  window alias apply at `QUALIFY`, and explain stage counts report `HAVING` and
+  `QUALIFY` separately. Design note: `docs/design/wp-31-window-gaps.md`.
+
 - **Expressions in `GROUP BY` and `ORDER BY` (WP-29, slice 4)** - SQL-like
   `group by year(hireDate)`, `order by lower(name)`, and grouped computed outputs
   (`select lower(department) as dept, count(*) as total group by dept`). Each such
@@ -255,6 +280,25 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   negated engine clauses (WP-26).
 
 ### Changed
+
+- **Grouped window/QUALIFY validation (WP-31)** - grouped queries with windows or
+  `QUALIFY` no longer fail with "Window SELECT expressions are only supported for
+  non-aggregate queries", "QUALIFY is only supported for non-aggregate SQL-like
+  queries", "Window functions are only supported for non-aggregate fluent queries", or
+  "TypedQuery windows are only supported for non-aggregate query shapes"; a window that
+  references a field outside the grouped rows fails with an unknown-field error
+  instead. A fluent or typed query with group fields but no metric still rejects
+  windows.
+
+- **`AGGREGATE` telemetry (WP-31)** - the `AGGREGATE` event is emitted once `HAVING`
+  has run and adds `rowsAfterHaving` metadata; its duration now includes `HAVING`.
+  `rowCountBefore`/`rowCountAfter` are unchanged.
+
+- **Metric output typing (WP-31)** - strict parameter typing and window typing report
+  `SUM` over whole-number fields as `Long` (`Double` over floating fields,
+  `BigDecimal` over `BigDecimal`/`BigInteger`), matching the values the engine
+  returns; previously the field type. One owner (`QueryMetric.outputType`) replaces
+  the duplicate in the parameter validator.
 
 - **Computed-field type checks (WP-29)** - `ComputedFieldDefinition.of(...)` rejects
   an output type that cannot hold the result (`lower(name)` as `Integer`), and a query

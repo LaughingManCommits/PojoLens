@@ -6,6 +6,7 @@ import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.builder.FieldSelector;
 import laughing.man.commits.builder.FieldSelectors;
 import laughing.man.commits.internal.NumericStatistics;
+import laughing.man.commits.internal.WindowOffsetDefaults;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -514,7 +515,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         String normalizedValueField = valueField;
         if (normalizedFunction.isAggregateFunction() && !countAll) {
             normalizedValueField = requireIdentifier(valueField, "valueField");
-            ensureFieldExists(normalizedValueField);
+            ensureWindowFieldExists(normalizedValueField);
             if (normalizedFunction.requiresNumericField()) {
                 ensureNumericWindowField(normalizedValueField, normalizedFunction);
             }
@@ -527,6 +528,35 @@ public class FilterQueryBuilder implements QueryBuilder {
                 partitionFields,
                 orderFields,
                 frame
+        );
+        spec.getWindows().add(window);
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
+    public FilterQueryBuilder addOffsetWindow(String alias,
+                                              WindowFunction function,
+                                              String valueField,
+                                              int offset,
+                                              Object defaultValue,
+                                              List<String> partitionFields,
+                                              List<QueryWindowOrder> orderFields) {
+        WindowFunction normalizedFunction = requireWindowFunction(function);
+        String normalizedAlias = requireIdentifier(alias, "alias");
+        ensureOutputAliasAvailable(normalizedAlias);
+        String normalizedValueField = requireIdentifier(valueField, "valueField");
+        ensureWindowFieldExists(normalizedValueField);
+        Object normalizedDefault = WindowOffsetDefaults.coerce(
+                normalizedFunction, normalizedValueField, windowFieldType(normalizedValueField), defaultValue);
+        QueryWindow window = QueryWindow.offset(
+                normalizedAlias,
+                normalizedFunction,
+                normalizedValueField,
+                offset,
+                normalizedDefault,
+                partitionFields,
+                orderFields
         );
         spec.getWindows().add(window);
         markExecutionPlanShapeChanged();
@@ -1538,8 +1568,39 @@ public class FilterQueryBuilder implements QueryBuilder {
         }
     }
 
+    /**
+     * Windows over grouped rows may also read metric and time-bucket aliases.
+     */
+    private void ensureWindowFieldExists(String fieldName) {
+        if (metricAliasType(fieldName) != null || spec.getTimeBuckets().containsKey(fieldName)) {
+            return;
+        }
+        ensureFieldExists(fieldName);
+    }
+
+    private Class<?> windowFieldType(String fieldName) {
+        Class<?> metricType = metricAliasType(fieldName);
+        if (metricType != null) {
+            return metricType;
+        }
+        if (spec.getTimeBuckets().containsKey(fieldName)) {
+            return String.class;
+        }
+        return configuredFieldType(fieldName);
+    }
+
+    private Class<?> metricAliasType(String alias) {
+        for (QueryMetric metric : spec.getMetrics()) {
+            if (metric.getAlias().equals(alias)) {
+                Class<?> fieldType = metric.getField() == null ? null : configuredFieldType(metric.getField());
+                return QueryMetric.outputType(metric.getMetric(), fieldType);
+            }
+        }
+        return null;
+    }
+
     private void ensureNumericWindowField(String fieldName, WindowFunction function) {
-        Class<?> fieldType = configuredFieldType(fieldName);
+        Class<?> fieldType = windowFieldType(fieldName);
         if (fieldType == null) {
             return;
         }
@@ -1631,7 +1692,9 @@ public class FilterQueryBuilder implements QueryBuilder {
                     : window.valueField() == null ? "" : ":value=" + window.valueField())
                     + ":partition=" + window.partitionFields()
                     + ":order=[" + orderFields + "]"
-                    + ":frame=" + window.frame().explainToken());
+                    + (window.function().isOffsetFunction()
+                    ? ":offset=" + window.offset() + ":default=" + window.defaultValue()
+                    : ":frame=" + window.frame().explainToken()));
         }
         return entries;
     }

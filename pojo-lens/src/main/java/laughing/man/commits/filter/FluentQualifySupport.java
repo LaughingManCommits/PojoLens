@@ -30,9 +30,6 @@ final class FluentQualifySupport {
         if (!hasPredicates(builder)) {
             return;
         }
-        if (!builder.getMetrics().isEmpty() || !builder.getGroupFields().isEmpty() || !builder.getTimeBuckets().isEmpty()) {
-            throw new IllegalArgumentException("QUALIFY is only supported for non-aggregate fluent queries");
-        }
         if (builder.getWindows().isEmpty()) {
             throw new IllegalArgumentException("QUALIFY requires at least one window output");
         }

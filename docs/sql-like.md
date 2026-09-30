@@ -9,9 +9,11 @@
 - statistical aggregates: `MEDIAN(field)`, `PERCENTILE(field, fraction)`, `STDDEV(field)` / `STDDEV_SAMP(field)`, `STDDEV_POP(field)`, `VARIANCE(field)` / `VAR_SAMP(field)`, `VAR_POP(field)` (see Aggregates below)
 - rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
 - aggregate window functions: `COUNT(field|*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)` with `OVER (...)`
+- offset window functions: `LAG(field[, offset[, default]])`, `LEAD(field[, offset[, default]])` with `OVER (...)`
+- window functions over grouped rows (after `GROUP BY`/`HAVING`)
 - `GROUP BY`
 - `HAVING` (`AND`/`OR`/`NOT` predicates)
-- `QUALIFY` (`AND`/`OR`/`NOT` predicates against window outputs)
+- `QUALIFY` (`AND`/`OR`/`NOT` predicates against window outputs, including on grouped queries)
 - time bucket function: `bucket(dateField, 'hour|day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
 - expressions: arithmetic, `'text'` and `null` literals, and text, null, and date-part
   functions such as `lower(...)`, `coalesce(...)`, and `year(...)` in `WHERE`,
@@ -279,29 +281,28 @@ Validation errors for invalid `HAVING`:
 
 ## QUALIFY Contract
 
-`QUALIFY` is defined for non-aggregate SQL-like queries and is evaluated after window computation.
+`QUALIFY` is evaluated after window computation, on plain and on grouped queries.
 
 Clause order:
-- `SELECT ... FROM/implicit source ... WHERE ... QUALIFY ... ORDER BY ... LIMIT ... OFFSET`
+- `SELECT ... FROM/implicit source ... WHERE ... GROUP BY ... HAVING ... QUALIFY ... ORDER BY ... LIMIT ... OFFSET`
 
 Allowed references in `QUALIFY`:
 - window aliases defined in `SELECT`
 - direct rank-window expressions that match a selected window expression
 
 Disallowed references in `QUALIFY`:
-- non-window source fields
+- non-window source fields, group fields, and aggregate outputs (filter grouped rows with `HAVING`)
 - unknown names
 - subqueries
-- grouped/aggregate query shapes
 
 Validation errors for invalid `QUALIFY`:
 - `QUALIFY requires at least one window SELECT output`
-- `QUALIFY is only supported for non-aggregate SQL-like queries`
 - `Unknown field '<name>' in QUALIFY clause`
 
 ## Window Functions Contract
 
-Window functions are supported for non-aggregate SQL-like query shapes and execute after `WHERE` and before `QUALIFY`.
+Window functions execute after `WHERE` (and, on grouped queries, after `GROUP BY` and
+`HAVING`) and before `QUALIFY`, `ORDER BY`, `DISTINCT`, and `LIMIT`/`OFFSET`.
 
 Rank windows:
 - `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`
@@ -317,6 +318,29 @@ Aggregate windows:
   - `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
 
 Unsupported window frame expressions fail fast with actionable parser errors.
+
+Offset windows:
+- `LAG(field[, offset[, default]])` reads `field` from the row `offset` rows before the
+  current row in its partition; `LEAD(...)` reads the row `offset` rows after it
+- `offset` is a non-negative integer literal (default `1`; `0` is the current row);
+  negative offsets are rejected, so use the other function
+- `default` is a literal (number, `'text'`, `true`/`false`, `null`) returned only when
+  the offset row is outside the partition; a `null` value at the offset row stays `null`
+- `default` must fit the field: numbers convert exactly to the field's numeric type
+  (`lag(intField, 1, 0.5)` is rejected), text needs a text field, and other field
+  types accept only `null`
+- require `OVER(... ORDER BY ...)` and take no `ROWS` frame
+- the output has the field's type
+- the function names are not reserved: fields called `lag` or `lead` keep working
+
+Windows over grouped rows:
+- a grouped query's window arguments, `PARTITION BY`, and window `ORDER BY` reference
+  grouped outputs: `GROUP BY` fields (or their `SELECT` aliases), time-bucket aliases,
+  and aggregate aliases
+- aggregate calls inside `OVER (...)` are not supported; select the aggregate with an
+  alias and reference the alias (`rank() over (order by total desc)`)
+- aggregate windows over grouped rows need numeric grouped outputs
+- query `ORDER BY` may reference window aliases
 
 ## Execution Model
 
@@ -443,11 +467,12 @@ Sort behavior:
   computed field and aggregate its name. Subqueries do not accept expressions in
   `GROUP BY` or `ORDER BY`.
 - SQL-like aggregate `ORDER BY` must reference a group-by field, aggregate output alias/name, or aggregate expression.
-- Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
+- Window functions support rank, aggregate, and offset (`LAG`/`LEAD`) windows on plain and grouped queries.
 - Aggregate windows currently support only explicit `ROWS` frames from the supported frame menu above.
 - `RANGE`, `GROUPS`, following-row frames, and expression-based frame offsets remain unsupported.
-- Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
-- `QUALIFY` requires at least one selected window output and currently applies only to non-aggregate query shapes.
+- `FIRST_VALUE`/`LAST_VALUE`/`NTH_VALUE`, `NTILE`, `PERCENT_RANK`, and `CUME_DIST` remain unsupported.
+- `LAG`/`LEAD` offsets and defaults are literals; parameters are not accepted there.
+- `QUALIFY` requires at least one selected window output and filters window outputs only.
 - Time bucket input fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`.
 - Time bucket defaults are `UTC` + ISO-week (`MONDAY`) unless explicit SQL-like bucket arguments override them.
 - `weekStart` is supported only for `bucket(..., 'week', ...)`.
@@ -545,6 +570,36 @@ List<DepartmentRunningTotal> rows = PojoLensSql
     .filter(source, DepartmentRunningTotal.class);
 ```
 
+### Recipe: Previous and Next Rows (`LAG` / `LEAD`)
+
+```java
+List<MonthlySales> rows = PojoLensSql
+    .parse("select region, month, amount, "
+        + "lag(amount) over (partition by region order by month) as prevAmount, "
+        + "lead(amount, 1, 0) over (partition by region order by month) as nextAmount "
+        + "order by region, month")
+    .filter(sales, MonthlySales.class);
+```
+
+Offset notes:
+- the first row of each region has a `null` `prevAmount`; the last has `nextAmount = 0`
+- `qualify prevAmount is null` keeps the first row per partition
+
+### Recipe: Rank and Running Totals over Grouped Rows
+
+```java
+List<RegionRank> rows = PojoLensSql
+    .parse("select region, sum(amount) as total, "
+        + "rank() over (order by total desc) as salesRank, "
+        + "lag(total) over (order by total desc) as nextHigherTotal "
+        + "group by region having total > 0 qualify salesRank <= 3 order by salesRank")
+    .filter(sales, RegionRank.class);
+```
+
+Grouped window notes:
+- windows run after `GROUP BY` and `HAVING`, so they only see the kept groups
+- reference aggregates by alias inside `OVER (...)`; `order by sum(amount)` is rejected
+
 ### Recipe: Trailing Window (`ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`)
 
 ```java
@@ -585,6 +640,10 @@ Cursor contract:
 - `ORDER BY` may use select aliases, aggregate aliases (grouped queries), and
   window aliases; the cursor applies at the matching stage (`WHERE`, `HAVING`, or
   `QUALIFY`)
+- a cursor on a window alias applies at `QUALIFY`, after windows run; a cursor on
+  other fields applies before windows (`WHERE`, or `HAVING` for grouped queries), so
+  later pages compute window values over the remaining rows only. Order by a window
+  alias to page stable window values
 - `keysetAfter(...)` resolves the "next page" window
 - `keysetBefore(...)` resolves the "previous page" window: the `LIMIT` rows
   immediately before the cursor, returned in the query's declared order. With

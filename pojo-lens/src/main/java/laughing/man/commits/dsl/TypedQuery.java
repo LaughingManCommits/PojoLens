@@ -64,13 +64,17 @@ import java.util.stream.Stream;
  * <ul>
  *   <li>Explicit window-frame configuration is available only for aggregate
  *       windows and {@code COUNT(*)}; rank windows keep their default
- *       semantics.</li>
+ *       semantics and {@code LAG}/{@code LEAD} take no frame.</li>
+ *   <li>Windows over grouped queries read grouped outputs only: group fields,
+ *       time-bucket aliases, and metric aliases (reference an alias with
+ *       {@code TypedField.of(alias, type)}).</li>
  *   <li>{@code NOT(IN_SUBQUERY)} is not supported; use {@code NOT EXISTS} instead.</li>
  * </ul>
  */
 public final class TypedQuery<T> {
 
     private static final int UNSET = -1;
+    private static final int DEFAULT_WINDOW_OFFSET = 1;
 
     private final Class<T> entityClass;
     private final List<TypedField<T, ?>> selectFields;
@@ -292,10 +296,17 @@ public final class TypedQuery<T> {
                                           TypedField<?, ?>... partitionFields) {
         Objects.requireNonNull(function, "function must not be null");
         Objects.requireNonNull(valueField, "valueField must not be null");
+        if (function.isOffsetFunction()) {
+            if (!normalizedWindowFrame(frame).isRunning()) {
+                throw new IllegalArgumentException("TypedQuery window " + function + " does not accept a window frame.");
+            }
+            return offsetWindow(function, valueField, normalizeAlias(alias), DEFAULT_WINDOW_OFFSET, null,
+                    orderFields, partitionFields);
+        }
         if (!function.isAggregateFunction()) {
             throw new IllegalArgumentException(
                     "TypedQuery window(function, valueField, alias, ...) with a value field only supports "
-                            + "COUNT, SUM, AVG, MIN, and MAX."
+                            + "COUNT, SUM, AVG, MIN, MAX, LAG, and LEAD."
             );
         }
         if (function.requiresNumericField() && !isNumericType(valueField.valueType())) {
@@ -327,6 +338,81 @@ public final class TypedQuery<T> {
                                           TypedField<?, ?>... partitionFields) {
         Objects.requireNonNull(outputField, "outputField must not be null");
         return window(function, valueField, outputField.fieldName(), frame, orderFields, partitionFields);
+    }
+
+    /**
+     * {@code LAG}: {@code valueField} from the row {@code offset} rows before the current
+     * row in its partition (window order), or {@code defaultValue} when that row is
+     * outside the partition. A null value at the offset row stays null.
+     *
+     * @param offset rows to look back, {@code >= 0}; {@code 0} reads the current row
+     */
+    @SafeVarargs
+    public final <V> TypedQuery<T> lag(TypedField<?, V> valueField,
+                                       String alias,
+                                       int offset,
+                                       V defaultValue,
+                                       List<TypedWindowOrder> orderFields,
+                                       TypedField<?, ?>... partitionFields) {
+        return offsetWindow(WindowFunction.LAG, valueField, normalizeAlias(alias), offset, defaultValue,
+                orderFields, partitionFields);
+    }
+
+    @SafeVarargs
+    public final <V> TypedQuery<T> lag(TypedField<?, V> valueField,
+                                       TypedField<?, ?> outputField,
+                                       int offset,
+                                       V defaultValue,
+                                       List<TypedWindowOrder> orderFields,
+                                       TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return lag(valueField, outputField.fieldName(), offset, defaultValue, orderFields, partitionFields);
+    }
+
+    /**
+     * {@code LEAD}: {@code valueField} from the row {@code offset} rows after the current
+     * row in its partition (window order), or {@code defaultValue} when that row is
+     * outside the partition. A null value at the offset row stays null.
+     *
+     * @param offset rows to look ahead, {@code >= 0}; {@code 0} reads the current row
+     */
+    @SafeVarargs
+    public final <V> TypedQuery<T> lead(TypedField<?, V> valueField,
+                                        String alias,
+                                        int offset,
+                                        V defaultValue,
+                                        List<TypedWindowOrder> orderFields,
+                                        TypedField<?, ?>... partitionFields) {
+        return offsetWindow(WindowFunction.LEAD, valueField, normalizeAlias(alias), offset, defaultValue,
+                orderFields, partitionFields);
+    }
+
+    @SafeVarargs
+    public final <V> TypedQuery<T> lead(TypedField<?, V> valueField,
+                                        TypedField<?, ?> outputField,
+                                        int offset,
+                                        V defaultValue,
+                                        List<TypedWindowOrder> orderFields,
+                                        TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return lead(valueField, outputField.fieldName(), offset, defaultValue, orderFields, partitionFields);
+    }
+
+    @SafeVarargs
+    private TypedQuery<T> offsetWindow(WindowFunction function,
+                                       TypedField<?, ?> valueField,
+                                       String alias,
+                                       int offset,
+                                       Object defaultValue,
+                                       List<TypedWindowOrder> orderFields,
+                                       TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(valueField, "valueField must not be null");
+        if (offset < 0) {
+            throw new IllegalArgumentException("TypedQuery " + function + " offset must be >= 0 but was " + offset
+                    + "; use " + (function == WindowFunction.LAG ? "lead" : "lag") + "(...) to look the other way.");
+        }
+        return addWindow(TypedWindow.offset(function, valueField.fieldName(), alias, offset, defaultValue,
+                partitionFieldNames(partitionFields), normalizedWindowOrders(orderFields)));
     }
 
     @SafeVarargs
@@ -960,7 +1046,9 @@ public final class TypedQuery<T> {
                     window.alias(),
                     window.partitionFields(),
                     previewWindowOrders(window.orderFields()),
-                    window.frame()
+                    window.frame(),
+                    window.offset(),
+                    window.defaultValue()
             ));
         }
         return List.copyOf(preview);
@@ -1047,6 +1135,9 @@ public final class TypedQuery<T> {
             outputs.addAll(groupByFieldNames);
             for (TypedMetric metric : metrics) {
                 outputs.add(metric.alias());
+            }
+            for (TypedWindow window : windows) {
+                outputs.add(window.alias());
             }
             return List.copyOf(outputs);
         }
@@ -1232,6 +1323,18 @@ public final class TypedQuery<T> {
             for (TypedWindowOrder order : window.orderFields()) {
                 queryOrders.add(QueryWindowOrder.of(order.fieldName(), order.sort()));
             }
+            if (window.function().isOffsetFunction()) {
+                builder.addOffsetWindow(
+                        window.alias(),
+                        window.function(),
+                        window.valueField(),
+                        window.offset(),
+                        window.defaultValue(),
+                        window.partitionFields(),
+                        queryOrders
+                );
+                continue;
+            }
             builder.addWindow(
                     window.alias(),
                     window.function(),
@@ -1374,15 +1477,16 @@ public final class TypedQuery<T> {
         for (QueryTimeBucket bucket : timeBuckets) {
             requireKnownField(bucket.getDateField(), sourceFields, "timeBucket");
         }
+        Set<String> windowFields = hasGroupBy() || hasMetrics() ? groupedOutputFields() : sourceFields;
         for (TypedWindow window : windows) {
             if (window.valueField() != null) {
-                requireKnownField(window.valueField(), sourceFields, "window");
+                requireKnownField(window.valueField(), windowFields, "window");
             }
             for (String partition : window.partitionFields()) {
-                requireKnownField(partition, sourceFields, "window partition");
+                requireKnownField(partition, windowFields, "window partition");
             }
             for (TypedWindowOrder order : window.orderFields()) {
-                requireKnownField(order.fieldName(), sourceFields, "window order");
+                requireKnownField(order.fieldName(), windowFields, "window order");
             }
         }
         for (String fieldName : referencedFields(qualifyPredicate)) {
@@ -1391,6 +1495,20 @@ public final class TypedQuery<T> {
         for (TypedSortOrder order : sortOrders) {
             requireKnownField(order.fieldName(), sourceOrAlias, "orderBy");
         }
+    }
+
+    /**
+     * Columns of grouped rows: group fields, time-bucket aliases, and metric aliases.
+     */
+    private Set<String> groupedOutputFields() {
+        LinkedHashSet<String> outputs = new LinkedHashSet<>(groupByFieldNames);
+        for (QueryTimeBucket bucket : timeBuckets) {
+            outputs.add(bucket.getAlias());
+        }
+        for (TypedMetric metric : metrics) {
+            outputs.add(metric.alias());
+        }
+        return outputs;
     }
 
     private void requireKnownField(String fieldName, Set<String> knownFields, String clause) {
@@ -1441,9 +1559,9 @@ public final class TypedQuery<T> {
         if (windows.isEmpty()) {
             return;
         }
-        if (hasGroupBy() || hasMetrics() || hasHaving()) {
+        if (hasGroupBy() && !hasMetrics()) {
             throw new IllegalStateException(
-                    "TypedQuery windows are only supported for non-aggregate query shapes."
+                    "TypedQuery windows over grouped rows require count/metric output."
             );
         }
     }
@@ -1780,14 +1898,16 @@ public final class TypedQuery<T> {
                                String alias,
                                List<String> partitionFields,
                                List<TypedWindowOrder> orderFields,
-                               QueryWindowFrame frame) {
+                               QueryWindowFrame frame,
+                               int offset,
+                               Object defaultValue) {
 
         private static TypedWindow rank(WindowFunction function,
                                         String alias,
                                         List<String> partitionFields,
                                         List<TypedWindowOrder> orderFields) {
             return new TypedWindow(function, null, false, alias, partitionFields, orderFields,
-                    QueryWindowFrame.running());
+                    QueryWindowFrame.running(), DEFAULT_WINDOW_OFFSET, null);
         }
 
         private static TypedWindow value(WindowFunction function,
@@ -1796,14 +1916,27 @@ public final class TypedQuery<T> {
                                          List<String> partitionFields,
                                          List<TypedWindowOrder> orderFields,
                                          QueryWindowFrame frame) {
-            return new TypedWindow(function, valueField, false, alias, partitionFields, orderFields, frame);
+            return new TypedWindow(function, valueField, false, alias, partitionFields, orderFields, frame,
+                    DEFAULT_WINDOW_OFFSET, null);
+        }
+
+        private static TypedWindow offset(WindowFunction function,
+                                          String valueField,
+                                          String alias,
+                                          int offset,
+                                          Object defaultValue,
+                                          List<String> partitionFields,
+                                          List<TypedWindowOrder> orderFields) {
+            return new TypedWindow(function, valueField, false, alias, partitionFields, orderFields,
+                    QueryWindowFrame.running(), offset, defaultValue);
         }
 
         private static TypedWindow countAll(String alias,
                                             List<String> partitionFields,
                                             List<TypedWindowOrder> orderFields,
                                             QueryWindowFrame frame) {
-            return new TypedWindow(WindowFunction.COUNT, null, true, alias, partitionFields, orderFields, frame);
+            return new TypedWindow(WindowFunction.COUNT, null, true, alias, partitionFields, orderFields, frame,
+                    DEFAULT_WINDOW_OFFSET, null);
         }
     }
 }

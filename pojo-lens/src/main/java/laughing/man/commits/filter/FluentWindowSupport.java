@@ -5,6 +5,7 @@ import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.SchemaIndexUtil;
 
@@ -94,6 +95,8 @@ final class FluentWindowSupport {
             partitionRows.sort((left, right) -> compareRowIndexes(rows, left, right, orderIndexes, orderSorts));
             if (window.function().isRankFunction()) {
                 assignRankValues(rows, window, partitionRows, orderIndexes, orderSorts, outputValues, targetFieldIndex);
+            } else if (window.function().isOffsetFunction()) {
+                assignOffsetValues(rows, window, partitionRows, valueIndex, outputValues, targetFieldIndex);
             } else {
                 assignAggregateValues(rows, window, partitionRows, valueIndex, outputValues, targetFieldIndex);
             }
@@ -126,6 +129,31 @@ final class FluentWindowSupport {
                 default -> throw new IllegalArgumentException(
                         "Unsupported rank window function '" + window.function() + "'");
             };
+        }
+    }
+
+    /**
+     * {@code LAG} reads the row {@code offset} positions earlier in the sorted partition,
+     * {@code LEAD} the row that many positions later; outside the partition the window's
+     * default applies. A null value at the offset row stays null (PostgreSQL).
+     */
+    private static void assignOffsetValues(List<QueryRow> rows,
+                                           QueryWindow window,
+                                           List<Integer> partitionRows,
+                                           int valueIndex,
+                                           Object[][] outputValues,
+                                           int targetFieldIndex) {
+        int step = window.function() == WindowFunction.LAG ? -window.offset() : window.offset();
+        for (int position = 0; position < partitionRows.size(); position++) {
+            int sourcePosition = position + step;
+            Object value;
+            if (sourcePosition < 0 || sourcePosition >= partitionRows.size()) {
+                value = window.defaultValue();
+            } else {
+                QueryRow sourceRow = rows.get(partitionRows.get(sourcePosition));
+                value = sourceRow == null ? null : sourceRow.getValueAt(valueIndex);
+            }
+            outputValues[partitionRows.get(position)][targetFieldIndex] = value;
         }
     }
 

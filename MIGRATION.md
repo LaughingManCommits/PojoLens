@@ -94,6 +94,17 @@ New, additive:
   `order by lower(name)`), and grouped queries accept computed `SELECT` outputs over
   source fields. Code that reads the parsed AST should expect expression text in
   `QueryAst.groupByFields()` and `OrderAst.field()`.
+- `LAG`/`LEAD` offset windows on every surface (SQL-like `lag(...) over (...)`, typed
+  `lag(...)`/`lead(...)`, natural `previous`/`next`). `WindowFunction` gained `LAG` and
+  `LEAD` (a `switch` over `WindowFunction` without a `default` branch needs the new
+  cases), and `isAggregateFunction()` stays false for them.
+- Windows and `QUALIFY` run on grouped queries, after `HAVING`. Queries that used to
+  fail with "only supported for non-aggregate" errors now run; a window that reads a
+  field outside the grouped rows (a source field that is not grouped) fails with an
+  unknown-field error. Code that reads the parsed AST should expect window
+  `SelectFieldAst` outputs in grouped queries.
+- The `AGGREGATE` telemetry event is emitted after `HAVING` (its duration includes
+  `HAVING`) and carries `rowsAfterHaving`.
 
 See `CHANGELOG.md` for the complete list.
 

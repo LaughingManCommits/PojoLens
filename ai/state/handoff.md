@@ -9,7 +9,7 @@
 ## Focus
 - `2026-05-18`: The extracted local AI runtime moved to `neon`; PojoLens now keeps only the Java library plus repo-memory helpers, and release `2026.05.18.1353` was backfilled on `main`.
 - `2026-06-06`: WP-12 to WP-17 and the README/mixed-sort/memory quick fixes are done.
-- `2026-09-28`: WP-29 (all 4 slices) is done but uncommitted; user reviews and commits.
+- `2026-09-30`: WP-31 (all 3 slices) is done but uncommitted; user reviews and commits.
 
 ## Facts
 - `2026-05-18`: Surviving `scripts/ai/` tools are repo-memory helpers: `refresh-ai-memory.*`, `query-ai-memory.*`, and `benchmark-ai-memory.*`.
@@ -19,6 +19,7 @@
 - `2026-09-27`: Single owners for comparison, precision, join/group keys, keysets, records, and loaders are listed in `ai/core/architecture-map.md`.
 - `2026-09-27`: SQL-like `LIKE`/`ILIKE`/`ESCAPE` (WP-27) are contextual words, not reserved; `:pattern` params lower at bind time via `PatternParameterValue` + `internal.TextPattern`.
 - `2026-09-28`: Expressions stay strings in the AST; `SqlExpressionEvaluator` owns parse/type/eval/coerce (`ExpressionNode`, `ExpressionFunction` table, `ExpressionTypes`), and `SqlLikeValidator.validateForExecution` returns computed SELECT types for projection.
+- `2026-09-30`: Grouped windows/`QUALIFY` run after `HAVING` in `FilterImpl.havingOrderAndPage`; the `AGGREGATE` telemetry event now fires after `HAVING` with `rowsAfterHaving`, which explain uses for grouped `QUALIFY` counts.
 
 ## Validate
 - After Java/runtime behavior changes: `mvn -B -ntp test`.

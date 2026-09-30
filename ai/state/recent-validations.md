@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-09-30`: WP-31 (`LAG`/`LEAD`, grouped windows): `mvn -B -ntp test` passed (1494 runtime, 5 autoconfigure, 4 starter, 26 benchmark-module tests); `scripts/docs/check-doc-consistency.ps1`, lint baseline gate (0 new), SpotBugs (0 bugs), and japicmp vs `2026.05.18.1353` passed.
 - `2026-05-19`: Focused Maven slice passed after typed/natural pagination and HOUR bucket work: `TypedQueryContractTest`, `NaturalQueryContractTest`, `SqlLikePageResultTest`, `SqlLikeParserTest`, `TimeBucketAggregationTest`, `TimeBucketUtilTest`, `StablePublicApiContractTest`, and `PublicApiEcosystemCoverageTest`.
 - `2026-05-19`: `scripts/docs/check-doc-consistency.ps1` and `mvn -B -ntp test` passed after WP-12, WP-13, WP-16, quick fixes, docs, and repo-memory updates. Maven reported 1231 runtime tests plus Spring and benchmark module tests.
 - `2026-05-18`: `scripts/docs/check-doc-consistency.ps1`, `scripts/ai/refresh-ai-memory.ps1`, and `scripts/ai/refresh-ai-memory.ps1 -Check` passed after adding `feature-audit.md` and updating docs index plus hot handoff memory.

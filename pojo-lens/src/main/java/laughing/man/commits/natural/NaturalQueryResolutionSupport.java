@@ -209,6 +209,8 @@ final class NaturalQueryResolutionSupport {
                         field.windowFunction(),
                         resolvedWindowValueField,
                         resolvedWindowCountAll,
+                        field.windowOffset(),
+                        field.windowDefault(),
                         resolvedWindowPartitions,
                         resolvedWindowOrders,
                         field.windowFrame()
@@ -232,7 +234,7 @@ final class NaturalQueryResolutionSupport {
                     resolvedWindowCountAll,
                     field.windowFrame(),
                     field.metricArgument()
-            ));
+            ).withWindowOffset(field.windowOffset(), field.windowDefault()));
         }
         return new SelectAst(select.wildcard(), fields, select.sourceName(), select.distinct());
     }

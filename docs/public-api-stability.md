@@ -195,7 +195,7 @@ The default first-read story is SQL-like first:
   - sentinels: `any`, `none`
   - `TypedPredicate.Operator` constants may grow in minor releases; switch over it with a `default` branch
 - `TypedQuery<T>`:
-  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `countDistinct`, `percentile`, `metric`, `having`, `window`, `windowCountAll`, `qualify`, `orderBy`, `orderByDesc`, `distinct`, `limit`, `offset`
+  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `countDistinct`, `percentile`, `metric`, `having`, `window`, `windowCountAll`, `lag`, `lead`, `qualify`, `orderBy`, `orderByDesc`, `distinct`, `limit`, `offset`
   - `timeBucket`, `computedFields`, `hasComputedFields`, `computedFieldRegistry`
   - `executionGuard`, `filter`, `filterPage`, `stream`, `iterator`, `count`, `exists`, `findFirst`, `findOne`
   - `explain`, `schema`, `diagnostics`, `planPreview`
@@ -203,7 +203,8 @@ The default first-read story is SQL-like first:
   - current stable foundation covers projection, filters, join declarations,
     `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
     `HAVING` over grouped fields and metric aliases, rank windows, aggregate
-    window outputs, `QUALIFY` over selected window aliases, totals-style
+    window outputs, `lag`/`lead` offset windows, windows over grouped rows,
+    `QUALIFY` over selected window aliases, totals-style
     metrics, explicit aggregate window frames via `QueryWindowFrame`,
     bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries over the same source or
     an explicit source list, ordering, offset, limit, explain/schema, and
@@ -214,6 +215,7 @@ The default first-read story is SQL-like first:
   - `asc`, `desc`, `fieldName`, `sort`
 - typed plan-preview contracts returned by `TypedQuery.planPreview()`:
   - `TypedPlanPreview`, `TypedPlanPredicate`, `TypedPlanMetric`, `TypedPlanWindow`, `TypedPlanTimeBucket`
+  - `TypedPlanWindow.offset()` / `defaultValue()` describe `lag`/`lead` windows (WP-31)
 - `FieldMetamodelGenerator.generateTyped(...)`
 - `GeneratePojoLensTypedFields`:
   - `packageName`, `simpleName`
@@ -274,7 +276,9 @@ The following remain public, but are treated as advanced:
   `QueryAst.groupByFields()` and `OrderAst.field()` may hold expression text such as
   `year(hireDate)`, grouped queries may carry computed `SelectFieldAst` outputs, and
   expression text may contain `'text'` and `null` literals. The class shapes are
-  unchanged.
+  unchanged. Since WP-31, `SelectFieldAst` adds `windowOffset()`, `windowDefault()`, and
+  `withWindowOffset(offset, default)` for `LAG`/`LEAD`, and grouped queries may carry
+  window `SelectFieldAst` outputs; existing constructors and accessors are unchanged.
 
 ## Internal Engine DSL
 

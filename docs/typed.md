@@ -468,6 +468,37 @@ TypedQuery.from(WindowMetricInput.class)
 Use `windowCountAll(...)` when the value field is `COUNT(*)`.
 `qualify(...)` is limited to selected window aliases.
 
+`lag(...)` and `lead(...)` read a field from an earlier or later row of the
+partition. The default is typed by the value field and applies only when the offset
+row is outside the partition; `window(WindowFunction.LAG, field, alias, orders,
+partitions...)` is the offset-1, `null`-default short form:
+
+```java
+TypedQuery.from(Sale.class)
+    .lag(SaleTypedFields.AMOUNT, "prevAmount", 1, 0,
+        List.of(TypedWindowOrder.asc(SaleTypedFields.MONTH)),
+        SaleTypedFields.REGION)
+    .lead(SaleTypedFields.AMOUNT, "nextAmount", 1, null,
+        List.of(TypedWindowOrder.asc(SaleTypedFields.MONTH)),
+        SaleTypedFields.REGION);
+```
+
+Windows also run over grouped rows, after `having(...)`. They reference group
+fields and metric aliases; declare an alias field with `TypedField.of(alias, type)`:
+
+```java
+TypedField<RegionRank, Long> total = TypedField.of("total", Long.class);
+TypedField<RegionRank, Long> salesRank = TypedField.of("salesRank", Long.class);
+
+List<RegionRank> rows = TypedQuery.from(Sale.class)
+    .groupBy(SaleTypedFields.REGION)
+    .metric(SaleTypedFields.AMOUNT, Metric.SUM, total)
+    .window(WindowFunction.RANK, salesRank, List.of(TypedWindowOrder.desc(total)))
+    .qualify(salesRank.lte(3L))
+    .orderBy(salesRank)
+    .filter(sales, RegionRank.class);
+```
+
 ## Bounded Subqueries
 
 Same-source bounded subqueries compose directly from typed predicates:
@@ -615,6 +646,8 @@ is synthetic, for example `typed:Employee`.
 - `orderBy(TypedSortOrder...)` supports per-field direction.
 - `having(...)` only accepts grouped fields and metric aliases.
 - `qualify(...)` only accepts selected window aliases.
+- windows over grouped queries only reference group fields, time-bucket aliases,
+  and metric aliases, and need a count/metric output.
 - `NOT(IN_SUBQUERY)` is not supported; use `NOT EXISTS` instead.
 - Correlated/scalar subqueries and broader named-source planning remain on
   [sql-like.md](sql-like.md) or [natural.md](natural.md).

@@ -246,6 +246,21 @@ public interface QueryBuilder {
     }
 
     /**
+     * Adds a {@code LAG}/{@code LEAD} window output: {@code valueField} read {@code offset}
+     * rows before ({@code LAG}) or after ({@code LEAD}) the current row within its
+     * partition, or {@code defaultValue} when that row is outside the partition.
+     */
+    default QueryBuilder addOffsetWindow(String alias,
+                                         WindowFunction function,
+                                         String valueField,
+                                         int offset,
+                                         Object defaultValue,
+                                         List<String> partitionFields,
+                                         List<QueryWindowOrder> orderFields) {
+        throw new UnsupportedOperationException("Offset windows are not supported by this builder");
+    }
+
+    /**
      * Adds a grouped time bucket projection for the given date field.
      */
     QueryBuilder addTimeBucket(String dateField, TimeBucket bucket, String alias);

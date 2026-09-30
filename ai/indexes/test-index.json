@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T20:50:12.566955+02:00",
+  "generatedAt": "2026-09-30T18:07:42.966197+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -14,13 +14,13 @@
     "examples/typed-compiler-gradle-kotlin/src/test/kotlin"
   ],
   "counts": {
-    "testJavaFiles": 177,
-    "testClasses": 177
+    "testJavaFiles": 181,
+    "testClasses": 181
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 144
+      "testJavaFiles": 148
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -113,6 +113,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/ExplainToolingTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/ExpressionGroupOrderQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/FieldMetamodelGeneratorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/GroupedWindowQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/LikeFilterTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/LiteralListFilterTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/NegatedTextMatchTest.java",
@@ -132,10 +133,12 @@
         "pojo-lens/src/test/java/laughing/man/commits/StreamingExecutionOutputTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/TextFunctionQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/TimeBucketAggregationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/WindowOffsetQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/domain/Foo.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedFieldContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedPredicateContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedQueryContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedWindowGapsTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/facet/FacetPresetsTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/filter/FastPojoFilterSupportTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/filter/FilterCoreTest.java",
@@ -153,6 +156,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/internal/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/metamodel/MetamodelBatchGeneratorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/metamodel/PojoLensTypedFieldsProcessorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalOffsetWindowTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryParserTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/NestedPathQueryTest.java",

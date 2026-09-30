@@ -8,6 +8,7 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.expression.FilterExpressionNegation;
@@ -478,7 +479,7 @@ public final class SqlLikeParser {
         if (windowFunction != null && alias == null) {
             throw error("Window SELECT expressions require AS alias", peek().position);
         }
-        return parseSelectFieldWithAlias(
+        SelectFieldAst selectField = parseSelectFieldWithAlias(
                 field,
                 alias,
                 metric,
@@ -493,6 +494,9 @@ public final class SqlLikeParser {
                 windowFrame,
                 metricArgument
         );
+        return parsedWindowFunction == null
+                ? selectField
+                : selectField.withWindowOffset(parsedWindowFunction.offset(), parsedWindowFunction.defaultValue());
     }
 
     private SelectFieldAst parseSelectFieldWithAlias(String field,
@@ -631,12 +635,23 @@ public final class SqlLikeParser {
         }
         String function = token.text.toUpperCase(Locale.ROOT);
         boolean aggregateWindow = isAggregateWindowFunctionName(function);
+        boolean offsetWindow = isOffsetWindowFunctionName(function);
         String valueField = null;
         boolean countAll = false;
+        int offset = 1;
+        Object defaultValue = null;
         QueryWindowFrame frame = QueryWindowFrame.running();
         next();
         expect(TokenType.LEFT_PAREN, "Expected '(' after window function");
-        if (aggregateWindow) {
+        if (offsetWindow) {
+            valueField = expectIdentifier("Expected field inside " + function + "(...)");
+            if (match(TokenType.COMMA)) {
+                offset = parseWindowOffset(function);
+                if (match(TokenType.COMMA)) {
+                    defaultValue = parseWindowDefault(function);
+                }
+            }
+        } else if (aggregateWindow) {
             if (match(TokenType.STAR)) {
                 if (!"COUNT".equals(function)) {
                     throw error(function + " window function does not support '*' argument", peek().position);
@@ -668,6 +683,8 @@ public final class SqlLikeParser {
                 throw error("Aggregate window functions require a supported ROWS frame", peek().position);
             }
             frame = parseSupportedWindowFrame();
+        } else if (offsetWindow && isWindowFrameKeyword(peek())) {
+            throw error(function + " does not accept a window frame", peek().position);
         } else if (matchKeyword("ROWS")) {
             frame = parseSupportedWindowFrame();
             if (!frame.isRunning()) {
@@ -677,7 +694,67 @@ public final class SqlLikeParser {
             throw error("Unsupported window frame expression", peek().position);
         }
         expect(TokenType.RIGHT_PAREN, "Expected ')' after window definition");
-        return new ParsedWindowFunction(function, valueField, countAll, partitionFields, orderByFields, frame, index);
+        return new ParsedWindowFunction(function, valueField, countAll, partitionFields, orderByFields, frame,
+                offset, defaultValue, index);
+    }
+
+    /**
+     * The {@code LAG}/{@code LEAD} offset: a non-negative integer literal.
+     */
+    private int parseWindowOffset(String function) {
+        Token token = peek();
+        if (token.type != TokenType.NUMBER || token.text.contains(".")) {
+            throw error(function + " offset must be a non-negative integer, e.g. " + function.toLowerCase(Locale.ROOT)
+                    + "(salary, 2)", token.position);
+        }
+        next();
+        Number offset = parseNumber(token);
+        if (!(offset instanceof Integer value)) {
+            throw error(function + " offset is too large", token.position);
+        }
+        if (value < 0) {
+            String other = "LAG".equals(function) ? "LEAD" : "LAG";
+            throw error(function + " offset must be >= 0; use " + other + " to look the other way", token.position);
+        }
+        return value;
+    }
+
+    /**
+     * The {@code LAG}/{@code LEAD} default: a number, {@code 'text'}, boolean, or {@code NULL} literal.
+     */
+    private Object parseWindowDefault(String function) {
+        Token token = peek();
+        if (token.type == TokenType.STRING) {
+            next();
+            return token.text;
+        }
+        if (token.type == TokenType.NUMBER) {
+            next();
+            return parseNumber(token);
+        }
+        if (token.type == TokenType.KEYWORD) {
+            switch (token.text.toUpperCase(Locale.ROOT)) {
+                case "TRUE" -> {
+                    next();
+                    return Boolean.TRUE;
+                }
+                case "FALSE" -> {
+                    next();
+                    return Boolean.FALSE;
+                }
+                case "NULL" -> {
+                    next();
+                    return null;
+                }
+                default -> {
+                }
+            }
+        }
+        throw error(function + " default must be a literal (number, 'text', true, false, or null)", token.position);
+    }
+
+    private boolean isWindowFrameKeyword(Token token) {
+        return isKeyword(token, "ROWS") || isKeyword(token, "RANGE") || isKeyword(token, "GROUPS");
     }
 
     private QueryWindowFrame parseSupportedWindowFrame() {
@@ -744,11 +821,24 @@ public final class SqlLikeParser {
 
     private List<String> parseWindowPartitionBy() {
         ArrayList<String> fields = new ArrayList<>();
-        fields.add(expectIdentifier("Expected field in PARTITION BY"));
+        fields.add(expectWindowReference("PARTITION BY", "Expected field in PARTITION BY"));
         while (match(TokenType.COMMA)) {
-            fields.add(expectIdentifier("Expected field in PARTITION BY"));
+            fields.add(expectWindowReference("PARTITION BY", "Expected field in PARTITION BY"));
         }
         return List.copyOf(fields);
+    }
+
+    /**
+     * A window PARTITION BY/ORDER BY item: a field or SELECT alias. Calls such as
+     * {@code sum(salary)} are rejected with a pointer to the alias form.
+     */
+    private String expectWindowReference(String clause, String missingMessage) {
+        String field = expectIdentifier(missingMessage);
+        if (peek().type == TokenType.LEFT_PAREN) {
+            throw error("Window " + clause + " takes a field or SELECT alias; select " + field
+                    + "(...) with an alias and reference the alias instead", peek().position);
+        }
+        return field;
     }
 
     private List<OrderAst> parseWindowOrderBy() {
@@ -761,7 +851,7 @@ public final class SqlLikeParser {
     }
 
     private OrderAst parseWindowOrderItem() {
-        String field = expectIdentifier("Expected field in window ORDER BY");
+        String field = expectWindowReference("ORDER BY", "Expected field in window ORDER BY");
         Sort sort = Sort.ASC;
         if (matchKeyword("ASC")) {
             sort = Sort.ASC;
@@ -772,22 +862,17 @@ public final class SqlLikeParser {
     }
 
     private boolean isWindowFunctionName(String value) {
-        return "ROW_NUMBER".equalsIgnoreCase(value)
-                || "RANK".equalsIgnoreCase(value)
-                || "DENSE_RANK".equalsIgnoreCase(value)
-                || "COUNT".equalsIgnoreCase(value)
-                || "SUM".equalsIgnoreCase(value)
-                || "AVG".equalsIgnoreCase(value)
-                || "MIN".equalsIgnoreCase(value)
-                || "MAX".equalsIgnoreCase(value);
+        return WindowFunction.fromName(value) != null;
+    }
+
+    private boolean isOffsetWindowFunctionName(String value) {
+        WindowFunction function = WindowFunction.fromName(value);
+        return function != null && function.isOffsetFunction();
     }
 
     private boolean isAggregateWindowFunctionName(String value) {
-        return "COUNT".equalsIgnoreCase(value)
-                || "SUM".equalsIgnoreCase(value)
-                || "AVG".equalsIgnoreCase(value)
-                || "MIN".equalsIgnoreCase(value)
-                || "MAX".equalsIgnoreCase(value);
+        WindowFunction function = WindowFunction.fromName(value);
+        return function != null && function.isAggregateFunction();
     }
 
     /**
@@ -1718,6 +1803,8 @@ public final class SqlLikeParser {
                                         List<String> partitionFields,
                                         List<OrderAst> orderByFields,
                                         QueryWindowFrame frame,
+                                        int offset,
+                                        Object defaultValue,
                                         int endIndex) {
     }
 

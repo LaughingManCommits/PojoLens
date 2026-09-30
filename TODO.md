@@ -9,7 +9,7 @@ lands in the shared engine first, then SQL-like, then natural where the controll
 grammar can express it. Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
-Next priority: WP-31 (`LAG`/`LEAD`, windows on grouped queries). WP-7 to WP-30 are unreleased;
+Next priority: WP-32 (typed field validation for joined queries). WP-7 to WP-31 are unreleased;
 a release cut (`RELEASE.md`) can happen before or after the P1 filtering packages.
 
 ### Quick fixes (no WP needed)
@@ -525,7 +525,7 @@ contextual, not reserved. Coverage in `StatisticalAggregateTest`.
 
 ---
 
-### WP-31 — Window gaps: `LAG`/`LEAD` and windows on grouped queries  [P2]
+### ~~WP-31 — Window gaps: `LAG`/`LEAD` and windows on grouped queries~~ ✓ DONE 2026-09-30
 
 **Problem:** Window functions are rank and aggregate windows only, and cannot be
 combined with `GROUP BY`/metrics in the same query.
@@ -536,6 +536,16 @@ combined with `GROUP BY`/metrics in the same query.
 - Allow windows over grouped rows (window stage after aggregation); `QUALIFY` for
   grouped queries
 - Reconsider `RANGE` frames only if a concrete use case appears
+
+**Done:** design note `docs/design/wp-31-window-gaps.md` (PostgreSQL semantics).
+`WindowFunction.LAG`/`LEAD` run in `FluentWindowSupport` (offset + default, default only
+outside the partition, no frame); `WindowOffsetDefaults` owns the default-fits-field
+rule. SQL-like `lag/lead(field[, offset[, default]])`, typed `lag`/`lead`, natural
+`previous`/`next ... [for <n> rows] [defaulting to <value>]`. Windows and `QUALIFY` run
+over grouped rows after `HAVING` (`FilterImpl.havingOrderAndPage`), referencing group
+fields, bucket aliases, and metric aliases; aggregate calls inside `OVER` are rejected.
+`RANGE` frames stay out. Coverage in `WindowOffsetQueryTest`, `GroupedWindowQueryTest`,
+`TypedWindowGapsTest`, `NaturalOffsetWindowTest`; 1494 runtime tests.
 
 ---
 
@@ -602,6 +612,7 @@ full execution.
 - [x] `2026-09-27`: WP-22 — core engine correctness pass (comparison, precision, grouping, paging, joins, projection); 1299 runtime tests.
 - [x] `2026-09-27`: WP-24 — literal `IN`/`NOT IN` lists and list parameters on SQL-like; natural `is [not] one of`.
 - [x] `2026-09-27`: WP-25 — SQL-like `IS [NOT] NULL`, `[NOT] BETWEEN`, `NOT`; natural `is [not] between`, groups, `not (...)`; 1341 runtime tests.
+- [x] `2026-09-30`: WP-31 — `LAG`/`LEAD` and windows/`QUALIFY` over grouped rows on SQL-like, typed, natural, fluent; 1494 runtime tests.
 - [x] `2026-09-27`: WP-30 — MEDIAN, PERCENTILE, STDDEV/STDDEV_POP, VARIANCE/VAR_POP on SQL-like, typed, natural; 1393 runtime tests.
 - [x] `2026-09-27`: WP-28 — `SELECT DISTINCT` (SQL-like, typed, natural) and `COUNT(DISTINCT field)`; 1383 runtime tests.
 - [x] `2026-09-27`: WP-27 — SQL-like `[NOT] LIKE`/`ILIKE` with `ESCAPE`; natural `ignoring case`; 1367 runtime tests.

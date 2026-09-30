@@ -134,22 +134,58 @@ public class FilterImpl implements Filter {
         return filter(sortMethod, cls).stream();
     }
 
+    /**
+     * @param aggregateStage the aggregation telemetry to emit once HAVING has run, or
+     *                       {@code null} for the synthetic empty global-aggregate row
+     */
     private List<QueryRow> havingOrderAndPage(FilterQueryBuilder executionBuilder,
                                               List<QueryRow> aggregated,
                                               Sort sortMethod,
-                                              Integer paginationWindow) {
+                                              Integer paginationWindow,
+                                              AggregateStage aggregateStage) {
         FilterQueryBuilder aggregateBuilder = executionBuilder.snapshotForRows(aggregated);
         FilterCore aggregateCore = new FilterCore(aggregateBuilder);
         FilterExecutionPlan aggregatePlan = aggregateCore.buildExecutionPlan();
-        List<QueryRow> kept = hasHavingPredicates(executionBuilder)
+        boolean havingApplied = hasHavingPredicates(executionBuilder);
+        List<QueryRow> kept = havingApplied
                 ? aggregateCore.filterHavingFields(aggregated, aggregatePlan)
                 : aggregated;
+        if (aggregateStage != null) {
+            emitStage(executionBuilder,
+                    QueryTelemetryStage.AGGREGATE,
+                    aggregateStage.startedNanos(),
+                    aggregateStage.inputRows(),
+                    aggregated.size(),
+                    QueryTelemetrySupport.metadata("havingApplied", havingApplied, "rowsAfterHaving", kept.size()));
+        }
+        if (hasWindowOrQualify(executionBuilder)) {
+            // Windows and QUALIFY run over grouped rows after HAVING (SQL logical order), so
+            // ORDER BY is planned against the windowed schema.
+            kept = applyWindowsAndQualify(executionBuilder, kept);
+            aggregateCore = new FilterCore(executionBuilder.snapshotForRows(kept));
+            aggregatePlan = aggregateCore.buildExecutionPlan();
+        }
         // ORDER BY for stats queries is evaluated on post-aggregation rows.
         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
         List<QueryRow> ordered = aggregateCore.orderByFields(kept, sortMethod, aggregatePlan, paginationWindow);
         emitOrderStage(executionBuilder, orderStarted, kept.size(), ordered.size());
         List<QueryRow> output = executionBuilder.isDistinctRows() ? DistinctRowSupport.distinct(ordered) : ordered;
         return CollectionUtil.applyOffsetAndLimit(output, executionBuilder.getOffset(), executionBuilder.getLimit());
+    }
+
+    /**
+     * When aggregation started and how many filtered rows it grouped.
+     */
+    private record AggregateStage(long startedNanos, int inputRows) {
+    }
+
+    private static List<QueryRow> applyWindowsAndQualify(FilterQueryBuilder builder, List<QueryRow> rows) {
+        List<QueryRow> windowed = builder.getWindows().isEmpty()
+                ? rows
+                : FluentWindowSupport.apply(rows, builder.getWindows());
+        return FluentQualifySupport.hasPredicates(builder)
+                ? FluentQualifySupport.apply(builder, windowed)
+                : windowed;
     }
 
     private static boolean isGlobalAggregate(FilterQueryBuilder builder) {
@@ -219,25 +255,15 @@ public class FilterImpl implements Filter {
                     // Compute aggregate metrics (global or grouped based on GROUP BY config).
                     long aggregateStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
                     List<QueryRow> aggregated = core.aggregateMetrics(filterClasses, plan);
-                    emitStage(executionBuilder,
-                            QueryTelemetryStage.AGGREGATE,
-                            aggregateStarted,
-                            filterClasses.size(),
-                            aggregated.size(),
-                            QueryTelemetrySupport.metadata("havingApplied", hasHavingPredicates(executionBuilder)));
-                    results = havingOrderAndPage(executionBuilder, aggregated, sortMethod, paginationWindow);
+                    results = havingOrderAndPage(executionBuilder, aggregated, sortMethod, paginationWindow,
+                            new AggregateStage(aggregateStarted, filterClasses.size()));
                 } else {
                     if (hasHavingPredicates(executionBuilder)) {
                         throw new IllegalStateException("HAVING requires grouped/aggregate query context");
                     }
                     boolean hasWindows = hasWindows(executionBuilder);
                     boolean hasQualify = FluentQualifySupport.hasPredicates(executionBuilder);
-                    List<QueryRow> stagedRows = hasWindows
-                            ? FluentWindowSupport.apply(filterClasses, executionBuilder.getWindows())
-                            : filterClasses;
-                    List<QueryRow> qualifiedRows = hasQualify
-                            ? FluentQualifySupport.apply(executionBuilder, stagedRows)
-                            : stagedRows;
+                    List<QueryRow> qualifiedRows = applyWindowsAndQualify(executionBuilder, filterClasses);
                     long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
                     List<QueryRow> sortedList;
                     if ((hasWindows || hasQualify) && !executionBuilder.getOrderFields().isEmpty()) {
@@ -280,7 +306,8 @@ public class FilterImpl implements Filter {
                 // SQL semantics: an aggregate without GROUP BY yields one row even over no input,
                 // matching what a filter that removes every row already produces.
                 results = havingOrderAndPage(
-                        executionBuilder, List.of(emptyGlobalAggregateRow(executionBuilder)), sortMethod, paginationWindow);
+                        executionBuilder, List.of(emptyGlobalAggregateRow(executionBuilder)), sortMethod, paginationWindow,
+                        null);
             }
         } catch (IllegalArgumentException e) {
             throw e;
@@ -420,10 +447,9 @@ public class FilterImpl implements Filter {
         if (!hasWindows(builder)) {
             return;
         }
-        if (!builder.getMetrics().isEmpty()
-                || !builder.getGroupFields().isEmpty()
-                || !builder.getTimeBuckets().isEmpty()) {
-            throw new IllegalArgumentException("Window functions are only supported for non-aggregate fluent queries");
+        if (builder.getMetrics().isEmpty()
+                && (!builder.getGroupFields().isEmpty() || !builder.getTimeBuckets().isEmpty())) {
+            throw new IllegalArgumentException("Window functions over grouped rows require at least one metric");
         }
     }
 

@@ -196,7 +196,10 @@ final class SqlLikeExecutionFlowSupport {
         int beforeGroup = afterWhere;
         int afterGroup = groupApplied ? collector.after(QueryTelemetryStage.AGGREGATE) : afterWhere;
         int beforeHaving = afterGroup;
-        int afterHaving = groupApplied ? unpagedRows.size() : afterGroup;
+        // Grouped QUALIFY runs after HAVING, so the unpaged rows no longer show the HAVING output.
+        int afterHaving = groupApplied
+                ? collector.metadataCount(QueryTelemetryStage.AGGREGATE, "rowsAfterHaving", unpagedRows.size())
+                : afterGroup;
         int beforeQualify = afterHaving;
         int afterQualify = qualifyApplied ? unpagedRows.size() : afterHaving;
         int beforeOrder = afterQualify;
@@ -429,6 +432,12 @@ final class SqlLikeExecutionFlowSupport {
         private int after(QueryTelemetryStage stage) {
             QueryTelemetryEvent event = events.get(stage);
             return event == null || event.rowCountAfter() == null ? 0 : event.rowCountAfter();
+        }
+
+        private int metadataCount(QueryTelemetryStage stage, String key, int fallback) {
+            QueryTelemetryEvent event = events.get(stage);
+            Object value = event == null || event.metadata() == null ? null : event.metadata().get(key);
+            return value instanceof Number count ? count.intValue() : fallback;
         }
     }
 }

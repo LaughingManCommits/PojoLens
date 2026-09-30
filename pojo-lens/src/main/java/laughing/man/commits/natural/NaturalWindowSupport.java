@@ -1,11 +1,15 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.ast.OrderAst;
+import laughing.man.commits.sqllike.internal.window.WindowExpressionText;
 
 import java.util.List;
 
 public final class NaturalWindowSupport {
+
+    private static final int DEFAULT_OFFSET = 1;
 
     private NaturalWindowSupport() {
     }
@@ -31,49 +35,27 @@ public final class NaturalWindowSupport {
                                                 List<String> partitionFields,
                                                 List<OrderAst> orderFields,
                                                 QueryWindowFrame frame) {
-        StringBuilder expression = new StringBuilder(function).append('(');
-        if (isAggregateWindowFunction(function)) {
-            expression.append(countAll ? "*" : valueField);
-        }
-        expression.append(") OVER (");
-        boolean wroteSegment = false;
-        if (partitionFields != null && !partitionFields.isEmpty()) {
-            expression.append("PARTITION BY ").append(String.join(", ", partitionFields));
-            wroteSegment = true;
-        }
-        if (orderFields != null && !orderFields.isEmpty()) {
-            if (wroteSegment) {
-                expression.append(' ');
-            }
-            expression.append("ORDER BY ");
-            for (int i = 0; i < orderFields.size(); i++) {
-                if (i > 0) {
-                    expression.append(", ");
-                }
-                OrderAst order = orderFields.get(i);
-                expression.append(order.field());
-                if (order.sort() != null) {
-                    expression.append(' ').append(order.sort().name());
-                }
-            }
-            wroteSegment = true;
-        }
-        if (isAggregateWindowFunction(function)) {
-            if (wroteSegment) {
-                expression.append(' ');
-            }
-            expression.append((frame == null ? QueryWindowFrame.running() : frame).sqlExpression());
-        }
-        expression.append(')');
-        return expression.toString();
+        return WindowExpressionText.render(function, valueField, countAll, DEFAULT_OFFSET, null,
+                partitionFields, orderFields, frame);
+    }
+
+    /**
+     * Renders a window expression including {@code LAG}/{@code LEAD} offset arguments.
+     */
+    public static String renderWindowExpression(String function,
+                                                String valueField,
+                                                boolean countAll,
+                                                int offset,
+                                                Object defaultValue,
+                                                List<String> partitionFields,
+                                                List<OrderAst> orderFields,
+                                                QueryWindowFrame frame) {
+        return WindowExpressionText.render(function, valueField, countAll, offset, defaultValue,
+                partitionFields, orderFields, frame);
     }
 
     public static boolean isAggregateWindowFunction(String function) {
-        if (function == null) {
-            return false;
-        }
-        return !"ROW_NUMBER".equalsIgnoreCase(function)
-                && !"RANK".equalsIgnoreCase(function)
-                && !"DENSE_RANK".equalsIgnoreCase(function);
+        WindowFunction resolved = WindowFunction.fromName(function);
+        return resolved != null && resolved.isAggregateFunction();
     }
 }

@@ -1,6 +1,5 @@
 package laughing.man.commits.sqllike.internal.validation;
 
-import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
@@ -17,6 +16,7 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
+import laughing.man.commits.sqllike.internal.window.WindowExpressionText;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -137,10 +137,12 @@ public final class SqlLikeJoinResolution {
                 }
                 resolvedWindowPartitions = List.copyOf(partitions);
                 resolvedWindowOrders = List.copyOf(orders);
-                resolvedField = windowExpression(
+                resolvedField = WindowExpressionText.render(
                         resolvedWindowFunction,
                         resolvedWindowValueField,
                         resolvedWindowCountAll,
+                        field.windowOffset(),
+                        field.windowDefault(),
                         resolvedWindowPartitions,
                         resolvedWindowOrders,
                         field.windowFrame()
@@ -164,61 +166,9 @@ public final class SqlLikeJoinResolution {
                     resolvedWindowCountAll,
                     field.windowFrame(),
                     field.metricArgument()
-            ));
+            ).withWindowOffset(field.windowOffset(), field.windowDefault()));
         }
         return new SelectAst(select.wildcard(), fields, select.sourceName(), select.distinct());
-    }
-
-    private static String windowExpression(String function,
-                                           String valueField,
-                                           boolean countAll,
-                                           List<String> partitionFields,
-                                           List<OrderAst> orders,
-                                           QueryWindowFrame frame) {
-        StringBuilder expression = new StringBuilder(function).append('(');
-        if (isAggregateWindowFunction(function)) {
-            expression.append(countAll ? "*" : valueField);
-        }
-        expression.append(") OVER (");
-        boolean wroteSegment = false;
-        if (!partitionFields.isEmpty()) {
-            expression.append("PARTITION BY ").append(String.join(", ", partitionFields));
-            wroteSegment = true;
-        }
-        if (!orders.isEmpty()) {
-            if (wroteSegment) {
-                expression.append(' ');
-            }
-            expression.append("ORDER BY ");
-            for (int i = 0; i < orders.size(); i++) {
-                if (i > 0) {
-                    expression.append(", ");
-                }
-                OrderAst order = orders.get(i);
-                expression.append(order.field());
-                if (order.sort() != null) {
-                    expression.append(' ').append(order.sort().name());
-                }
-            }
-            wroteSegment = true;
-        }
-        if (isAggregateWindowFunction(function)) {
-            if (wroteSegment) {
-                expression.append(' ');
-            }
-            expression.append((frame == null ? QueryWindowFrame.running() : frame).sqlExpression());
-        }
-        expression.append(')');
-        return expression.toString();
-    }
-
-    private static boolean isAggregateWindowFunction(String function) {
-        if (function == null) {
-            return false;
-        }
-        return !"ROW_NUMBER".equalsIgnoreCase(function)
-                && !"RANK".equalsIgnoreCase(function)
-                && !"DENSE_RANK".equalsIgnoreCase(function);
     }
 
     private static List<FilterAst> canonicalizeFilters(List<FilterAst> filters, Plan plan, String clauseName) {

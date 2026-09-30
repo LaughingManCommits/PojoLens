@@ -78,6 +78,8 @@ Examples of metadata:
 - `materializedRowCount`
 - `adapterMetadata`
 - `orderFieldCount`
+- `havingApplied` and `rowsAfterHaving` on `AGGREGATE` (emitted once `HAVING` has run;
+  `rowCountAfter` stays the group count before `HAVING`)
 - `chartType`
 - `labelCount`
 - `datasetCount`

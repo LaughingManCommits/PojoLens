@@ -82,6 +82,8 @@ final class NaturalQueryRenderer {
                         field.windowFunction(),
                         field.windowValueField(),
                         field.windowCountAll(),
+                        field.windowOffset(),
+                        field.windowDefault(),
                         field.windowPartitionFields(),
                         field.windowOrderFields(),
                         field.windowFrame()

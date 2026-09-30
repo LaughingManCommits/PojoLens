@@ -13,6 +13,8 @@ import java.util.Objects;
  */
 public final class TypedPlanWindow {
 
+    private static final int DEFAULT_OFFSET = 1;
+
     private final WindowFunction function;
     private final String valueField;
     private final boolean countAll;
@@ -20,6 +22,8 @@ public final class TypedPlanWindow {
     private final List<String> partitionFields;
     private final List<PlanPreviewOrder> orderFields;
     private final QueryWindowFrame frame;
+    private final int offset;
+    private final Object defaultValue;
 
     public TypedPlanWindow(WindowFunction function,
                            String valueField,
@@ -28,6 +32,24 @@ public final class TypedPlanWindow {
                            List<String> partitionFields,
                            List<PlanPreviewOrder> orderFields,
                            QueryWindowFrame frame) {
+        this(function, valueField, countAll, alias, partitionFields, orderFields, frame, DEFAULT_OFFSET, null);
+    }
+
+    /**
+     * @param offset       {@code LAG}/{@code LEAD} offset; {@code 1} for other functions
+     * @param defaultValue {@code LAG}/{@code LEAD} default, or {@code null}
+     */
+    public TypedPlanWindow(WindowFunction function,
+                           String valueField,
+                           boolean countAll,
+                           String alias,
+                           List<String> partitionFields,
+                           List<PlanPreviewOrder> orderFields,
+                           QueryWindowFrame frame,
+                           int offset,
+                           Object defaultValue) {
+        this.offset = offset;
+        this.defaultValue = defaultValue;
         this.function = Objects.requireNonNull(function, "function must not be null");
         this.valueField = valueField;
         this.countAll = countAll;
@@ -61,7 +83,26 @@ public final class TypedPlanWindow {
         return orderFields;
     }
 
+    /**
+     * The ROWS frame; offset windows ({@code LAG}/{@code LEAD}) report the default running
+     * frame, which they ignore.
+     */
     public QueryWindowFrame frame() {
         return frame;
+    }
+
+    /**
+     * Rows between the current row and the row {@code LAG}/{@code LEAD} reads; {@code 1}
+     * for other functions.
+     */
+    public int offset() {
+        return offset;
+    }
+
+    /**
+     * The {@code LAG}/{@code LEAD} value used outside the partition, or {@code null}.
+     */
+    public Object defaultValue() {
+        return defaultValue;
     }
 }

@@ -41,7 +41,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -330,9 +329,22 @@ public final class SqlLikeBinder {
             if (!field.windowField()) {
                 continue;
             }
+            WindowFunction function = resolveWindowFunction(field.windowFunction());
+            if (function.isOffsetFunction()) {
+                builder.addOffsetWindow(
+                        field.outputName(),
+                        function,
+                        field.windowValueField(),
+                        field.windowOffset(),
+                        field.windowDefault(),
+                        field.windowPartitionFields(),
+                        toWindowOrderFields(field.windowOrderFields())
+                );
+                continue;
+            }
             builder.addWindow(
                     field.outputName(),
-                    resolveWindowFunction(field.windowFunction()),
+                    function,
                     field.windowValueField(),
                     field.windowCountAll(),
                     field.windowPartitionFields(),
@@ -346,17 +358,11 @@ public final class SqlLikeBinder {
         if (function == null) {
             throw new IllegalArgumentException("Window function is required");
         }
-        return switch (function.trim().toUpperCase(Locale.ROOT)) {
-            case "ROW_NUMBER" -> WindowFunction.ROW_NUMBER;
-            case "RANK" -> WindowFunction.RANK;
-            case "DENSE_RANK" -> WindowFunction.DENSE_RANK;
-            case "COUNT" -> WindowFunction.COUNT;
-            case "SUM" -> WindowFunction.SUM;
-            case "AVG" -> WindowFunction.AVG;
-            case "MIN" -> WindowFunction.MIN;
-            case "MAX" -> WindowFunction.MAX;
-            default -> throw new IllegalArgumentException("Unsupported window function '" + function + "'");
-        };
+        WindowFunction resolved = WindowFunction.fromName(function);
+        if (resolved == null) {
+            throw new IllegalArgumentException("Unsupported window function '" + function + "'");
+        }
+        return resolved;
     }
 
     private static List<QueryWindowOrder> toWindowOrderFields(List<OrderAst> orders) {

@@ -233,14 +233,7 @@ public final class NaturalQueryParser {
                     throw error("Window SELECT expressions require AS alias", fieldTokens.get(0).position);
                 }
                 return new SelectFieldAst(
-                        NaturalWindowSupport.renderWindowExpression(
-                                windowPhrase.function(),
-                                windowPhrase.valueField(),
-                                windowPhrase.countAll(),
-                                windowPhrase.partitionFields(),
-                                windowPhrase.orderFields(),
-                                windowPhrase.frame()
-                        ),
+                        renderWindowPhrase(windowPhrase),
                         alias,
                         null,
                         false,
@@ -252,7 +245,7 @@ public final class NaturalQueryParser {
                         windowPhrase.valueField(),
                         windowPhrase.countAll(),
                         windowPhrase.frame()
-                );
+                ).withWindowOffset(windowPhrase.offset(), windowPhrase.defaultValue());
             }
             MetricPhrase metricPhrase = tryParseMetricPhrase(fieldTokens, "SHOW");
             if (metricPhrase != null) {
@@ -1017,14 +1010,7 @@ public final class NaturalQueryParser {
             }
             WindowPhrase windowPhrase = "QUALIFY".equals(clauseName) ? tryParseWindowPhrase(fieldTokens, clauseName) : null;
             if (windowPhrase != null) {
-                return NaturalWindowSupport.renderWindowExpression(
-                        windowPhrase.function(),
-                        windowPhrase.valueField(),
-                        windowPhrase.countAll(),
-                        windowPhrase.partitionFields(),
-                        windowPhrase.orderFields(),
-                        windowPhrase.frame()
-                );
+                return renderWindowPhrase(windowPhrase);
             }
             return normalizeTrackedReference(fieldTokens);
         }
@@ -1220,6 +1206,13 @@ public final class NaturalQueryParser {
             int frameStart = findWindowFrameStart(tokens, cursor);
             int orderEnd = frameStart < 0 ? tokens.size() : frameStart;
             List<OrderAst> orderFields = parseWindowOrderFields(tokens.subList(cursor, orderEnd), clauseName);
+            if (isOffsetWindowFunction(functionStart.function())) {
+                OffsetArguments arguments = frameStart < 0
+                        ? OffsetArguments.DEFAULT
+                        : parseOffsetArguments(tokens.subList(frameStart, tokens.size()), functionStart.function(), clauseName);
+                return new WindowPhrase(functionStart.function(), valueField, false, partitionFields, orderFields,
+                        QueryWindowFrame.running(), arguments.offset(), arguments.defaultValue());
+            }
             QueryWindowFrame frame = frameStart < 0
                     ? QueryWindowFrame.running()
                     : parseWindowFrame(tokens.subList(frameStart, tokens.size()), functionStart.function(), clauseName);
@@ -1229,8 +1222,73 @@ public final class NaturalQueryParser {
                     countAll,
                     partitionFields,
                     orderFields,
-                    frame
+                    frame,
+                    OffsetArguments.DEFAULT.offset(),
+                    null
             );
+        }
+
+        private String renderWindowPhrase(WindowPhrase phrase) {
+            return NaturalWindowSupport.renderWindowExpression(
+                    phrase.function(),
+                    phrase.valueField(),
+                    phrase.countAll(),
+                    phrase.offset(),
+                    phrase.defaultValue(),
+                    phrase.partitionFields(),
+                    phrase.orderFields(),
+                    phrase.frame()
+            );
+        }
+
+        private static boolean isOffsetWindowFunction(String function) {
+            return "LAG".equals(function) || "LEAD".equals(function);
+        }
+
+        /**
+         * {@code previous}/{@code next} tail: {@code [for <n> rows] [defaulting to <literal>]}.
+         */
+        private OffsetArguments parseOffsetArguments(List<Token> tail, String function, String clauseName) {
+            String phrase = "LAG".equals(function) ? "previous" : "next";
+            int cursor = 0;
+            int offset = OffsetArguments.DEFAULT.offset();
+            if (isWord(tail.get(cursor), "for")) {
+                if (cursor + 1 >= tail.size()) {
+                    throw error("Expected '<n> rows' after 'for' in " + clauseName, tail.get(cursor).position);
+                }
+                Token count = tail.get(cursor + 1);
+                Number parsed = tryParseNumber(count.text);
+                if (count.type == TokenType.STRING || !(parsed instanceof Integer rows) || rows < 0) {
+                    throw error("Expected a non-negative whole number of rows after 'for' in " + phrase + " phrase",
+                            count.position);
+                }
+                offset = rows;
+                cursor += 2;
+                if (cursor < tail.size() && (isWord(tail.get(cursor), "rows") || isWord(tail.get(cursor), "row"))) {
+                    cursor++;
+                }
+            }
+            Object defaultValue = null;
+            if (cursor < tail.size() && isWord(tail.get(cursor), "defaulting")) {
+                if (cursor + 1 >= tail.size() || !isWord(tail.get(cursor + 1), "to")) {
+                    throw error("Expected 'defaulting to <value>' in " + phrase + " phrase", tail.get(cursor).position);
+                }
+                cursor += 2;
+                if (cursor != tail.size() - 1) {
+                    int position = cursor < tail.size() ? tail.get(cursor).position : tail.get(tail.size() - 1).position;
+                    throw error("Expected one value after 'defaulting to'; quote text with spaces", position);
+                }
+                if (tail.get(cursor).type != TokenType.STRING && tail.get(cursor).text.startsWith(":")) {
+                    throw error("Parameters are not supported as " + phrase + " defaults", tail.get(cursor).position);
+                }
+                defaultValue = parseValue(tail.subList(cursor, cursor + 1), (LiteralMatchPattern) null);
+                cursor++;
+            }
+            if (cursor < tail.size()) {
+                throw error("Unexpected '" + tail.get(cursor).text + "' in " + phrase + " phrase; use "
+                        + "'for <n> rows' and 'defaulting to <value>'", tail.get(cursor).position);
+            }
+            return new OffsetArguments(offset, defaultValue);
         }
 
         private WindowPartitionParse parseOptionalWindowPartition(List<Token> tokens,
@@ -1303,7 +1361,8 @@ public final class NaturalQueryParser {
         }
 
         private boolean isWindowFrameLeadIn(Token token) {
-            return isWord(token, "for") || isWord(token, "over") || isWord(token, "using");
+            return isWord(token, "for") || isWord(token, "over") || isWord(token, "using")
+                    || isWord(token, "defaulting");
         }
 
         private List<String> parseWindowReferenceList(List<Token> tokens,
@@ -1330,6 +1389,9 @@ public final class NaturalQueryParser {
         }
 
         private WindowFunctionStart parseWindowFunctionStart(List<Token> tokens, String clauseName) {
+            if (isOffsetWindowItem(tokens)) {
+                return parseOffsetWindowStart(tokens, clauseName);
+            }
             if (matchesWords(tokens, 0, "row", "number")) {
                 return new WindowFunctionStart("ROW_NUMBER", null, false, 2);
             }
@@ -1378,6 +1440,38 @@ public final class NaturalQueryParser {
                     false,
                     cursor
             );
+        }
+
+        /**
+         * {@code previous <field> ...} ({@code LAG}) or {@code next <field> ...} ({@code LEAD}).
+         * Only an item with a window order clause counts, so fields named "previous" or
+         * "next" keep working.
+         */
+        private boolean isOffsetWindowItem(List<Token> tokens) {
+            if (tokens.size() < 2 || !(isWord(tokens.get(0), "previous") || isWord(tokens.get(0), "next"))) {
+                return false;
+            }
+            for (int cursor = 1; cursor < tokens.size(); cursor++) {
+                if (windowOrderMarkerWidth(tokens, cursor) > 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private WindowFunctionStart parseOffsetWindowStart(List<Token> tokens, String clauseName) {
+            String function = isWord(tokens.get(0), "previous") ? "LAG" : "LEAD";
+            int cursor = 1;
+            while (cursor < tokens.size()
+                    && windowPartitionMarkerWidth(tokens, cursor) == 0
+                    && windowOrderMarkerWidth(tokens, cursor) == 0) {
+                cursor++;
+            }
+            List<Token> valueTokens = tokens.subList(1, cursor);
+            if (valueTokens.isEmpty() || isWildcardItem(valueTokens)) {
+                throw error("Expected field after '" + tokens.get(0).text + "' in " + clauseName, tokens.get(0).position);
+            }
+            return new WindowFunctionStart(function, normalizeTrackedReference(valueTokens), false, cursor);
         }
 
         private List<OrderAst> parseWindowOrderFields(List<Token> tokens, String clauseName) {
@@ -1514,7 +1608,9 @@ public final class NaturalQueryParser {
             return matchesWords(tokens, 0, "row", "number")
                     || matchesWords(tokens, 0, "dense", "rank")
                     || isWord(tokens.get(0), "rank")
-                    || isWord(tokens.get(0), "running");
+                    || isWord(tokens.get(0), "running")
+                    || isWord(tokens.get(0), "previous")
+                    || isWord(tokens.get(0), "next");
         }
 
         private JoinReference parseJoinReference() {
@@ -2127,7 +2223,13 @@ public final class NaturalQueryParser {
                                 boolean countAll,
                                 List<String> partitionFields,
                                 List<OrderAst> orderFields,
-                                QueryWindowFrame frame) {
+                                QueryWindowFrame frame,
+                                int offset,
+                                Object defaultValue) {
+    }
+
+    private record OffsetArguments(int offset, Object defaultValue) {
+        private static final OffsetArguments DEFAULT = new OffsetArguments(1, null);
     }
 
     private record WindowPartitionParse(List<String> partitionFields, int nextIndex) {

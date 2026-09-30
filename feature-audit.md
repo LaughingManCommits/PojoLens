@@ -22,8 +22,9 @@ closed most of that gap (literal lists, `NOT IN`, `BETWEEN`, null checks, genera
 text negation) and WP-27 added `LIKE`/`ILIKE` and natural `ignoring case`, so the
 SQL-like and natural filtering gap is closed. WP-28 added `SELECT DISTINCT` and
 `COUNT(DISTINCT)`, WP-30 statistical aggregates, and WP-29 text, null, and date-part
-expression functions (also in `GROUP BY`/`ORDER BY` and computed fields). The
-remaining gap is more window functions.
+expression functions (also in `GROUP BY`/`ORDER BY` and computed fields), and WP-31
+`LAG`/`LEAD` plus windows and `QUALIFY` over grouped rows. The remaining gaps are typed
+completeness (WP-32, WP-33).
 
 No correctness blocker is open: the 2026-09-27 core bug hunt fixes shipped as
 WP-22/WP-23, and release gates (tests, japicmp, lint baseline, SpotBugs,
@@ -33,7 +34,7 @@ benchmark guardrails) pass.
 
 | Area | Current status | Notes |
 |---|---|---|
-| SQL-like querying | Strong, primary surface | SELECT/aliases/`DISTINCT`, chained INNER/LEFT/RIGHT joins, WHERE with AND/OR and bounded `IN`/`EXISTS` subqueries, aggregates incl. `COUNT(field)`, `COUNT(DISTINCT field)`, MEDIAN/PERCENTILE/STDDEV/VARIANCE, GROUP BY, HAVING, rank and aggregate windows, QUALIFY, time buckets, ORDER BY (mixed direction), LIMIT/OFFSET, params/templates, keyset paging (aliases, aggregates, windows, nulls), explain/diagnostics/plan preview, pushdown metadata, lists, `IS NULL`, `BETWEEN`, `NOT`, `[NOT] LIKE`/`ILIKE`. |
+| SQL-like querying | Strong, primary surface | SELECT/aliases/`DISTINCT`, chained INNER/LEFT/RIGHT joins, WHERE with AND/OR and bounded `IN`/`EXISTS` subqueries, aggregates incl. `COUNT(field)`, `COUNT(DISTINCT field)`, MEDIAN/PERCENTILE/STDDEV/VARIANCE, GROUP BY, HAVING, rank, aggregate, and `LAG`/`LEAD` windows (also over grouped rows), QUALIFY, time buckets, ORDER BY (mixed direction), LIMIT/OFFSET, params/templates, keyset paging (aliases, aggregates, windows, nulls), explain/diagnostics/plan preview, pushdown metadata, lists, `IS NULL`, `BETWEEN`, `NOT`, `[NOT] LIKE`/`ILIKE`. |
 | Natural querying | Good guided surface | Controlled grammar over the same engine: comparison phrases, contains/starts/ends with (literal and `:param`), joins, subqueries, grouping, time buckets, windows, charts, pagination, vocabulary. `is one of`, `is between`, `is null`, parenthesized groups and `not (...)`. `does not contain/start/end`, `... ignoring case`. |
 | Typed DSL | Broadest filtering | eq/ne/range/`between`/`in`/null checks, contains/containsIgnoreCase/matches/startsWith/endsWith, `any`/`none`, `not()` (including string predicates), joins, grouping, windows, time buckets, computed fields, paging, stream/iterator, diagnostics/plan preview, field-name validation. `stream()` materialises. |
 | Comparison semantics | Uniform and exact | Null never matches a value comparison; exact numeric, enum, char, text ordering; date values exact, text literals at written precision. |
@@ -69,7 +70,7 @@ breadth, P3 is completeness.
 | P2 (done) | Output | No `SELECT DISTINCT` or `COUNT(DISTINCT)`. | Not in `sql-like.md` grammar; distinct exists only in the internal fluent engine. | WP-28 |
 | P2 (done) | Expressions | Computed fields and expressions are numeric only; no string/date functions. | `computed-fields.md`; `sql-like.md` grammar. | WP-29 |
 | P2 (done) | Aggregation | Only COUNT/SUM/AVG/MIN/MAX. | `sql-like.md` aggregate list. | WP-30 |
-| P2 | Windows | No `LAG`/`LEAD`; windows cannot combine with GROUP BY. | `sql-like.md` Current Limitations and Window Functions Contract. | WP-31 |
+| P2 (done) | Windows | No `LAG`/`LEAD`; windows cannot combine with GROUP BY. | `sql-like.md` Current Limitations and Window Functions Contract. | WP-31 |
 | P3 | Typed validation | Field-name validation skipped for joined typed queries. | `typed.md` validation note. | WP-32 |
 | P3 | Typed execution | `stream()`/`iterator()` materialise before streaming. | `typed.md` laziness caveat. | WP-33 |
 
@@ -97,6 +98,7 @@ breadth, P3 is completeness.
    built on the existing literal-pattern owner.
 3. WP-28, WP-30, WP-31: output and aggregation breadth.
 4. WP-29: done 2026-09-28 (`docs/design/wp-29-expression-functions.md`).
+   WP-31: done 2026-09-30 (`docs/design/wp-31-window-gaps.md`).
 5. WP-32, WP-33: typed completeness.
 
 A release cut for the unreleased WP-7 to WP-23 work can happen before or after the
