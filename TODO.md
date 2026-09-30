@@ -9,7 +9,7 @@ lands in the shared engine first, then SQL-like, then natural where the controll
 grammar can express it. Keep PojoLens focused on the Java library, benchmarks,
 release flow, docs, and repo-memory helpers.
 
-Next priority: WP-32 (typed field validation for joined queries). WP-7 to WP-31 are unreleased;
+Next priority: WP-33 (lazy typed `stream()`). WP-7 to WP-32 are unreleased;
 a release cut (`RELEASE.md`) can happen before or after the P1 filtering packages.
 
 ### Quick fixes (no WP needed)
@@ -549,7 +549,7 @@ fields, bucket aliases, and metric aliases; aggregate calls inside `OVER` are re
 
 ---
 
-### WP-32 — Typed field validation for joined queries  [P3]
+### ~~WP-32 — Typed field validation for joined queries~~ ✓ DONE 2026-09-30
 
 **Problem:** WP-23 typed field-name validation skips queries with joins because
 joined field names come from the bindings at execution time, so typos in joined
@@ -559,6 +559,15 @@ typed queries still match nothing silently.
 - Validate at execution once join bindings are known (reuse SQL-like join
   resolution naming), or validate against declared join source classes
 - `diagnostics()` reports the same error when join source classes are available
+
+**Done:** `TypedQuery.rowFieldTypes` merges the entity's fields with each joined source's
+through the new single owner `internal/JoinFieldNames` (the `child_` rule, formerly four
+copies in `JoinEngine`, `FilterQueryBuilder`, and `SqlLikeJoinResolution`), and checks join
+keys (an unknown key used to skip the join). Classes come from the bound rows; the new
+`join(sourceName, sourceClass, ...)` overload declares them so `diagnostics()` and
+`planPreview()` validate without data, and a declared class must match the bound rows.
+`QueryRow`/map rows and empty lists without a declared class skip validation. Coverage in
+`TypedJoinValidationTest`; 1501 runtime tests.
 
 ---
 
@@ -612,6 +621,7 @@ full execution.
 - [x] `2026-09-27`: WP-22 — core engine correctness pass (comparison, precision, grouping, paging, joins, projection); 1299 runtime tests.
 - [x] `2026-09-27`: WP-24 — literal `IN`/`NOT IN` lists and list parameters on SQL-like; natural `is [not] one of`.
 - [x] `2026-09-27`: WP-25 — SQL-like `IS [NOT] NULL`, `[NOT] BETWEEN`, `NOT`; natural `is [not] between`, groups, `not (...)`; 1341 runtime tests.
+- [x] `2026-09-30`: WP-32 — typed field validation for joined queries (merged join naming, join keys, declared join source classes); 1501 runtime tests.
 - [x] `2026-09-30`: WP-31 — `LAG`/`LEAD` and windows/`QUALIFY` over grouped rows on SQL-like, typed, natural, fluent; 1494 runtime tests.
 - [x] `2026-09-27`: WP-30 — MEDIAN, PERCENTILE, STDDEV/STDDEV_POP, VARIANCE/VAR_POP on SQL-like, typed, natural; 1393 runtime tests.
 - [x] `2026-09-27`: WP-28 — `SELECT DISTINCT` (SQL-like, typed, natural) and `COUNT(DISTINCT field)`; 1383 runtime tests.

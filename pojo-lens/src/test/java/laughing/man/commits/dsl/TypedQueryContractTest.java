@@ -91,6 +91,8 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
         requirePublicMethod(TypedQuery.class, "where", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "join", String.class, TypedField.class, TypedField.class, Join.class);
+        requirePublicMethod(TypedQuery.class, "join",
+                String.class, Class.class, TypedField.class, TypedField.class, Join.class);
         requirePublicMethod(TypedQuery.class, "groupBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "count", String.class);
         requirePublicMethod(TypedQuery.class, "count", TypedField.class);

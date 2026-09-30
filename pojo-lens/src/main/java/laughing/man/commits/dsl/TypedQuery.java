@@ -11,7 +11,9 @@ import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.internal.builder.QueryTimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.filter.Filter;
+import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.internal.FluentEngine;
+import laughing.man.commits.internal.JoinFieldNames;
 import laughing.man.commits.internal.LiteralMatchPattern;
 import laughing.man.commits.internal.NumericStatistics;
 import laughing.man.commits.internal.NameSuggestions;
@@ -37,6 +39,7 @@ import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
@@ -153,10 +156,37 @@ public final class TypedQuery<T> {
                 timeBuckets, sortOrders, limit, offset, computedFieldRegistry, executionGuard, distinct);
     }
 
+    /**
+     * Joins the rows bound under {@code sourceName}. Field names are validated at execution,
+     * once the bound rows show the joined class; use
+     * {@link #join(String, Class, TypedField, TypedField, Join)} to also validate them in
+     * {@link #diagnostics()} and {@link #planPreview()}.
+     */
     public <J, K> TypedQuery<T> join(String sourceName,
                                      TypedField<T, K> parentField,
                                      TypedField<J, K> childField,
                                      Join joinType) {
+        return addJoin(sourceName, null, parentField, childField, joinType);
+    }
+
+    /**
+     * Joins the rows bound under {@code sourceName}, declaring their class so that field
+     * names of the joined query are validated without data as well.
+     */
+    public <J, K> TypedQuery<T> join(String sourceName,
+                                     Class<J> sourceClass,
+                                     TypedField<T, K> parentField,
+                                     TypedField<J, K> childField,
+                                     Join joinType) {
+        Objects.requireNonNull(sourceClass, "sourceClass must not be null");
+        return addJoin(sourceName, sourceClass, parentField, childField, joinType);
+    }
+
+    private TypedQuery<T> addJoin(String sourceName,
+                                  Class<?> sourceClass,
+                                  TypedField<?, ?> parentField,
+                                  TypedField<?, ?> childField,
+                                  Join joinType) {
         Objects.requireNonNull(parentField, "parentField must not be null");
         Objects.requireNonNull(childField, "childField must not be null");
         Objects.requireNonNull(joinType, "joinType must not be null");
@@ -165,7 +195,8 @@ public final class TypedQuery<T> {
                 normalizeJoinSourceName(sourceName),
                 parentField.fieldName(),
                 childField.fieldName(),
-                joinType
+                joinType,
+                sourceClass
         ));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, updated, groupByFieldNames, metrics,
                 havingPredicate, windows, qualifyPredicate,
@@ -1245,7 +1276,7 @@ public final class TypedQuery<T> {
     void applyToBuilder(QueryBuilder builder, JoinBindings joinBindings) {
         Objects.requireNonNull(builder, "builder must not be null");
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        validateQueryShape();
+        validateQueryShape(joinSourceClasses(joinBindings));
         applyJoins(builder, joinBindings);
         if (hasComputedFields()) {
             builder.computedFields(computedFieldRegistry);
@@ -1403,6 +1434,14 @@ public final class TypedQuery<T> {
     }
 
     private void validateQueryShape() {
+        validateQueryShape(declaredJoinSourceClasses());
+    }
+
+    /**
+     * @param joinSourceClasses row class per join source name; field names are not
+     *                          validated while a joined source class is unknown
+     */
+    private void validateQueryShape(Map<String, Class<?>> joinSourceClasses) {
         if (!supportsSelectProjection()) {
             throw new IllegalStateException(
                     "TypedQuery select(...) cannot be combined with groupBy/count/metric; "
@@ -1414,7 +1453,54 @@ public final class TypedQuery<T> {
         validateWindowShape();
         validateQualifyShape();
         validateDistinctShape();
-        validateFieldReferences();
+        validateFieldReferences(joinSourceClasses);
+    }
+
+    private Map<String, Class<?>> declaredJoinSourceClasses() {
+        HashMap<String, Class<?>> classes = new HashMap<>();
+        for (TypedJoin join : joins) {
+            if (join.sourceClass() != null) {
+                classes.put(join.sourceName(), join.sourceClass());
+            }
+        }
+        return classes;
+    }
+
+    /**
+     * Join source classes seen in the bound rows, falling back to the declared classes.
+     */
+    private Map<String, Class<?>> joinSourceClasses(JoinBindings joinBindings) {
+        Map<String, Class<?>> classes = declaredJoinSourceClasses();
+        Map<String, List<?>> sources = joinBindings.asMap();
+        for (TypedJoin join : joins) {
+            Class<?> rowClass = beanRowClass(sources.get(join.sourceName()));
+            if (rowClass == null) {
+                continue;
+            }
+            if (join.sourceClass() != null && !join.sourceClass().isAssignableFrom(rowClass)) {
+                throw new IllegalArgumentException("JOIN source '" + join.sourceName() + "' is bound to "
+                        + rowClass.getSimpleName() + " rows, but join(...) declared "
+                        + join.sourceClass().getSimpleName());
+            }
+            classes.put(join.sourceName(), rowClass);
+        }
+        return classes;
+    }
+
+    /**
+     * The class of the first non-null row, or {@code null} for no rows or rows without a
+     * reflective schema ({@code QueryRow}, maps).
+     */
+    private static Class<?> beanRowClass(List<?> rows) {
+        if (rows == null) {
+            return null;
+        }
+        for (Object row : rows) {
+            if (row != null) {
+                return row instanceof QueryRow || row instanceof Map<?, ?> ? null : row.getClass();
+            }
+        }
+        return null;
     }
 
     private void validateDistinctShape() {
@@ -1434,18 +1520,16 @@ public final class TypedQuery<T> {
     }
 
     /**
-     * Rejects field names the entity does not have (a typo in {@code TypedField.of(...)}
+     * Rejects field names the queried rows do not have (a typo in {@code TypedField.of(...)}
      * would otherwise silently match nothing), like SQL-like's unknown-field validation.
-     * Skipped for joined queries, whose joined fields are only known at execution time.
+     * Joined queries check against the joined rows once every joined source class is known.
      */
-    private void validateFieldReferences() {
-        if (!joins.isEmpty()) {
+    private void validateFieldReferences(Map<String, Class<?>> joinSourceClasses) {
+        Map<String, Class<?>> rowFieldTypes = rowFieldTypes(joinSourceClasses);
+        if (rowFieldTypes == null || rowFieldTypes.isEmpty()) {
             return;
         }
-        LinkedHashSet<String> sourceFields = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(entityClass));
-        if (sourceFields.isEmpty()) {
-            return;
-        }
+        LinkedHashSet<String> sourceFields = new LinkedHashSet<>(rowFieldTypes.keySet());
         sourceFields.addAll(computedFieldRegistry.names());
         LinkedHashSet<String> outputAliases = new LinkedHashSet<>();
         for (QueryTimeBucket bucket : timeBuckets) {
@@ -1498,6 +1582,42 @@ public final class TypedQuery<T> {
     }
 
     /**
+     * Field types of the rows the query filters: the entity's, merged with each joined
+     * source's by the engine's join naming rule ({@code child_} prefix on collisions).
+     * Also rejects join keys that the rows being joined do not have, which would
+     * otherwise skip the join. {@code null} while a joined source class is unknown.
+     */
+    private Map<String, Class<?>> rowFieldTypes(Map<String, Class<?>> joinSourceClasses) {
+        Map<String, Class<?>> current = ReflectionUtil.collectQueryableFieldTypes(entityClass);
+        if (current.isEmpty()) {
+            return null;
+        }
+        for (TypedJoin join : joins) {
+            Class<?> sourceClass = joinSourceClasses.get(join.sourceName());
+            if (sourceClass == null) {
+                return null;
+            }
+            Map<String, Class<?>> joined = ReflectionUtil.collectQueryableFieldTypes(sourceClass);
+            requireKnownField(join.parentField(), current.keySet(), "join", fieldOwner());
+            requireKnownField(join.childField(), joined.keySet(), "join",
+                    "source '" + join.sourceName() + "' (" + sourceClass.getSimpleName() + ")");
+            current = JoinFieldNames.merge(current, joined, join.joinType());
+        }
+        return current;
+    }
+
+    private String fieldOwner() {
+        if (joins.isEmpty()) {
+            return entityClass.getSimpleName();
+        }
+        LinkedHashSet<String> sources = new LinkedHashSet<>();
+        for (TypedJoin join : joins) {
+            sources.add(join.sourceName());
+        }
+        return entityClass.getSimpleName() + " joined with " + String.join(", ", sources);
+    }
+
+    /**
      * Columns of grouped rows: group fields, time-bucket aliases, and metric aliases.
      */
     private Set<String> groupedOutputFields() {
@@ -1512,13 +1632,17 @@ public final class TypedQuery<T> {
     }
 
     private void requireKnownField(String fieldName, Set<String> knownFields, String clause) {
+        requireKnownField(fieldName, knownFields, clause, fieldOwner());
+    }
+
+    private static void requireKnownField(String fieldName, Set<String> knownFields, String clause, String owner) {
         if (fieldName == null || knownFields.contains(fieldName)
                 || SqlExpressionEvaluator.looksLikeExpression(fieldName)) {
             return;
         }
         List<String> suggestions = NameSuggestions.suggest(fieldName, knownFields);
         throw new IllegalArgumentException("Unknown field '" + fieldName + "' in " + clause + "(...) for "
-                + entityClass.getSimpleName()
+                + owner
                 + (suggestions.isEmpty() ? "" : "; did you mean " + String.join(", ", suggestions) + "?")
                 + " Known fields: " + knownFields);
     }
@@ -1871,10 +1995,14 @@ public final class TypedQuery<T> {
         return false;
     }
 
+    /**
+     * @param sourceClass the declared joined row class, or {@code null}
+     */
     private record TypedJoin(String sourceName,
                              String parentField,
                              String childField,
-                             Join joinType) {
+                             Join joinType,
+                             Class<?> sourceClass) {
     }
 
     private record TypedMetric(String fieldName,

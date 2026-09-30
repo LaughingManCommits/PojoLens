@@ -107,8 +107,8 @@ never matches `eq`, `ne`, or range predicates: `NAME.ne("x")` and
 Field names are validated against the entity (plus computed fields, and output
 aliases where aliases are allowed) before execution: a typo such as
 `TypedField.of("naem", String.class)` throws `IllegalArgumentException` with
-suggestions, and `diagnostics()` reports it. Queries with joins skip this check,
-because joined field names are only known from the join bindings at execution.
+suggestions, and `diagnostics()` reports it. Joined queries check against the joined
+rows (see Joins And Reused Sources).
 
 ```java
 List<Employee> rows = TypedQuery.from(Employee.class)
@@ -387,6 +387,24 @@ List<Company> rows = TypedQuery.from(Company.class)
     .where(JOINED_TITLE.eq("Engineer"))
     .filter(bundle);
 ```
+
+Joined field names are validated against the joined rows: the entity's fields plus
+each joined source's, named like the engine names joined columns (a joined column
+whose name is taken becomes `child_<name>`; a `RIGHT JOIN` renames the existing
+columns instead). Join keys are checked too, since a missing key would otherwise
+skip the join. At execution the joined class comes from the bound rows; declare it
+with `join(sourceName, SourceClass.class, parentField, childField, joinType)` to get
+the same checks from `diagnostics()` and `planPreview()` without data:
+
+```java
+QueryDiagnostics diagnostics = TypedQuery.from(Company.class)
+    .join("employees", CompanyEmployee.class, COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+    .where(JOINED_TITLE.eq("Engineer"))
+    .diagnostics();
+```
+
+A declared class must match the bound rows. Joined sources bound to `QueryRow` or map
+rows, or to an empty list without a declared class, skip field validation.
 
 ## Grouped Aggregates And HAVING
 

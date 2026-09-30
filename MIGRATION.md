@@ -38,7 +38,9 @@ Results that change:
 Stricter validation:
 - **Typed field names.** `TypedQuery` rejects a field name the entity does not have
   (`IllegalArgumentException` with suggestions) instead of silently matching
-  nothing. Queries with joins are not checked.
+  nothing. Joined queries are checked against the joined rows (joined sources
+  bound to `QueryRow`/map rows or to empty lists without a declared class are
+  skipped), including their join keys; an unknown join key used to skip the join.
 - **Expression types.** SQL-like expressions are type-checked during validation
   (`EQ-SQL-VAL-009`), so arithmetic on a text field fails before the query runs
   instead of at runtime. A computed `SELECT` output is reported in the tabular schema

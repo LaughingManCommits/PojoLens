@@ -5,6 +5,7 @@ import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.internal.JoinFieldNames;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.QueryFieldLookupUtil;
 import laughing.man.commits.util.ReflectionUtil;
@@ -174,7 +175,7 @@ final class JoinEngine {
                 QueryField child = childFields.get(i);
                 String fieldName = child.getFieldName();
                 if (usedNames.contains(fieldName)) {
-                    fieldName = uniqueChildName(fieldName, usedNames);
+                    fieldName = JoinFieldNames.uniqueChildName(fieldName, usedNames);
                 }
                 usedNames.add(fieldName);
                 childSlots[i] = new MergeSlot(fieldName, !fieldName.equals(child.getFieldName()));
@@ -184,15 +185,6 @@ final class JoinEngine {
         return new MergePlan(parentSize, childSlots, List.copyOf(schema));
     }
 
-    private String uniqueChildName(String baseName, HashSet<String> existing) {
-        String candidate = "child_" + baseName;
-        int index = 1;
-        while (existing.contains(candidate)) {
-            candidate = "child_" + baseName + "_" + index;
-            index++;
-        }
-        return candidate;
-    }
     private record MergePlan(int parentSize, MergeSlot[] childSlots, List<String> schema) {
     }
 

@@ -11,6 +11,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Typed field validation for joined queries (WP-32)** - `TypedQuery` validates field
+  names of joined queries against the joined rows: the entity's fields merged with each
+  joined source's under the engine's naming rule (`child_<name>` on collisions, `RIGHT
+  JOIN` renames the existing columns). Join parent/child keys are checked as well (an
+  unknown key used to skip the join silently). The joined class comes from the bound
+  rows at execution; the new `join(sourceName, sourceClass, parentField, childField,
+  joinType)` overload declares it so `diagnostics()` and `planPreview()` report the same
+  errors without data, and a declared class must match the bound rows. One owner
+  (`internal/JoinFieldNames`) replaces four copies of the `child_` naming rule.
+
 - **`LAG`/`LEAD` window functions (WP-31)** - SQL-like
   `lag(field[, offset[, default]]) over (...)` and `lead(...)`, typed
   `lag(...)`/`lead(...)` (plus `window(WindowFunction.LAG|LEAD, ...)`), natural

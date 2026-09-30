@@ -5,6 +5,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.builder.FieldSelector;
 import laughing.man.commits.builder.FieldSelectors;
+import laughing.man.commits.internal.JoinFieldNames;
 import laughing.man.commits.internal.NumericStatistics;
 import laughing.man.commits.internal.WindowOffsetDefaults;
 import java.util.ArrayList;
@@ -2146,38 +2147,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (joinFieldTypes == null || joinFieldTypes.isEmpty() || joinMethod == null) {
             return currentFieldTypes;
         }
-        Map<String, Class<?>> primary = currentFieldTypes;
-        Map<String, Class<?>> secondary = joinFieldTypes;
-        if (Join.RIGHT_JOIN.equals(joinMethod)) {
-            primary = joinFieldTypes;
-            secondary = currentFieldTypes;
-        }
-
-        LinkedHashMap<String, Class<?>> merged = new LinkedHashMap<>(primary.size() + secondary.size());
-        LinkedHashSet<String> names = new LinkedHashSet<>();
-        for (Map.Entry<String, Class<?>> entry : primary.entrySet()) {
-            merged.put(entry.getKey(), entry.getValue());
-            names.add(entry.getKey());
-        }
-        for (Map.Entry<String, Class<?>> entry : secondary.entrySet()) {
-            String fieldName = entry.getKey();
-            if (names.contains(fieldName)) {
-                fieldName = uniqueJoinedFieldName(fieldName, names);
-            }
-            merged.put(fieldName, entry.getValue());
-            names.add(fieldName);
-        }
-        return merged;
-    }
-
-    private String uniqueJoinedFieldName(String baseName, Set<String> existing) {
-        String candidate = "child_" + baseName;
-        int index = 1;
-        while (existing.contains(candidate)) {
-            candidate = "child_" + baseName + "_" + index;
-            index++;
-        }
-        return candidate;
+        return JoinFieldNames.merge(currentFieldTypes, joinFieldTypes, joinMethod);
     }
 
     private List<QueryRow> queryRows(List<?> pojos) {

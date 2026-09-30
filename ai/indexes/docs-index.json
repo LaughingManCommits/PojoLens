@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T18:07:42.966197+02:00",
+  "generatedAt": "2026-09-30T18:33:18.757407+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -33,8 +33,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 53,
-      "byteCount": 5841,
+      "lineCount": 54,
+      "byteCount": 6100,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 30,
-      "byteCount": 1988,
+      "lineCount": 31,
+      "byteCount": 2062,
       "coldSearchEligible": true
     },
     {
@@ -160,7 +160,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 33,
-      "byteCount": 2581,
+      "byteCount": 2598,
       "coldSearchEligible": true
     },
     {
@@ -168,8 +168,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 9,
-      "byteCount": 1957,
+      "lineCount": 10,
+      "byteCount": 2239,
       "coldSearchEligible": true
     },
     {
@@ -357,8 +357,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 344,
-      "byteCount": 14693,
+      "lineCount": 346,
+      "byteCount": 14825,
       "coldSearchEligible": true
     },
     {
@@ -465,8 +465,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 655,
-      "byteCount": 23993,
+      "lineCount": 673,
+      "byteCount": 24913,
       "coldSearchEligible": true
     },
     {
@@ -492,8 +492,8 @@
       "category": "process-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 415,
-      "byteCount": 17481,
+      "lineCount": 417,
+      "byteCount": 17672,
       "coldSearchEligible": true
     },
     {
@@ -528,8 +528,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 620,
-      "byteCount": 31434,
+      "lineCount": 630,
+      "byteCount": 32253,
       "coldSearchEligible": true
     }
   ]

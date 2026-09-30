@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike.internal.validation;
 
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.internal.JoinFieldNames;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -424,7 +425,7 @@ public final class SqlLikeJoinResolution {
             for (String existing : mergedFieldNames) {
                 String name = existing;
                 if (used.contains(name)) {
-                    name = uniqueChildName(existing, used);
+                    name = JoinFieldNames.uniqueChildName(existing, used);
                 }
                 used.add(name);
                 renamed.put(existing, name);
@@ -469,27 +470,11 @@ public final class SqlLikeJoinResolution {
             }
         }
 
-        private static String uniqueChildName(String baseName, Set<String> used) {
-            String candidate = "child_" + baseName;
-            int index = 1;
-            while (used.contains(candidate)) {
-                candidate = "child_" + baseName + "_" + index;
-                index++;
-            }
-            return candidate;
-        }
-
         private String nextMergedName(String baseName) {
             if (!mergedFieldNames.contains(baseName)) {
                 return baseName;
             }
-            String candidate = "child_" + baseName;
-            int index = 1;
-            while (mergedFieldNames.contains(candidate)) {
-                candidate = "child_" + baseName + "_" + index;
-                index++;
-            }
-            return candidate;
+            return JoinFieldNames.uniqueChildName(baseName, mergedFieldNames);
         }
 
         private Map<String, String> directReferences() {

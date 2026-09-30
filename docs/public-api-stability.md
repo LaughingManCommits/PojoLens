@@ -199,7 +199,9 @@ The default first-read story is SQL-like first:
   - `timeBucket`, `computedFields`, `hasComputedFields`, `computedFieldRegistry`
   - `executionGuard`, `filter`, `filterPage`, `stream`, `iterator`, `count`, `exists`, `findFirst`, `findOne`
   - `explain`, `schema`, `diagnostics`, `planPreview`
-  - field names are validated against the entity before execution (queries with joins excepted)
+  - field names are validated against the entity before execution; joined queries validate
+    against the joined rows once each joined source class is known (bound rows or the
+    `join(sourceName, sourceClass, ...)` overload)
   - current stable foundation covers projection, filters, join declarations,
     `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
     `HAVING` over grouped fields and metric aliases, rank windows, aggregate
